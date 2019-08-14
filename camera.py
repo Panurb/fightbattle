@@ -1,0 +1,21 @@
+import numpy as np
+
+
+class Camera:
+    def __init__(self, position):
+        self.position = np.array(position, dtype=float)
+        self.zoom = 50.0
+        self.half_width = np.array([0.25 * self.zoom, 0.0])
+        self.half_height = np.array([0.0, 0.125 * self.zoom])
+
+    def world_to_screen(self, position):
+        pos = (position - self.position + self.half_width - self.half_height) * self.zoom
+        pos[1] *= -1
+
+        return int(pos[0]), int(pos[1])
+
+    def screen_to_world(self, position):
+        pos = np.array([position[0], -position[1]], dtype=float)
+        pos = (pos / self.zoom) + self.position - self.half_width + self.half_height
+
+        return pos
