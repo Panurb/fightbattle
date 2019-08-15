@@ -25,6 +25,9 @@ class Box(PhysicsObject):
         super().__init__(position, group=Group.BOXES)
         self.add_collider(Rectangle(self, position, 1, 1))
 
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
 
 class Ball(PhysicsObject):
     def __init__(self, position):

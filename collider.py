@@ -26,9 +26,10 @@ COLLISION_MATRIX = [[False, False, False, False, False, False],
 
 
 class Collision:
-    def __init__(self, collider, overlap):
+    def __init__(self, collider, overlap, supports):
         self.collider = collider
         self.overlap = overlap
+        self.supports = supports
 
 
 class Collider:
@@ -37,9 +38,11 @@ class Collider:
         self.position = np.array(position, dtype=float)
         self.group = group
         self.friction = 0.5
+        self.type = None
+        self.collisions = []
 
-    def get_collisions(self, colliders):
-        collisions = []
+    def update_collisions(self, colliders):
+        self.collisions.clear()
 
         for c in colliders:
             if c is self:
@@ -51,11 +54,14 @@ class Collider:
             if not COLLISION_MATRIX[self.group][c.group]:
                 continue
 
-            overlap = self.overlap(c)
-            if overlap is not None:
-                collisions.append(Collision(c, overlap))
+            overlap, supports = self.overlap(c)
+            if overlap.any():
+                self.collisions.append(Collision(c, overlap, supports))
 
-        return collisions
+    def draw(self, screen, camera):
+        for c in self.collisions:
+            for s in c.supports:
+                pygame.draw.circle(screen, (255, 0, 255), camera.world_to_screen(s), 4)
 
     def overlap(self, other):
         pass
@@ -67,6 +73,9 @@ class Rectangle(Collider):
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
         self.type = Type.RECTANGLE
+
+    def transformation_matrix(self):
+        return np.inv(np.array([2 * self.half_width, 2 * self.half_height]).T)
 
     def right(self):
         return (self.position + self.half_width)[0]
@@ -96,10 +105,18 @@ class Rectangle(Collider):
         return self.topright(), self.topleft(), self.bottomleft(), self.bottomright()
 
     def overlap(self, other):
+        overlap = np.zeros(2)
+        supports = []
+
         if other.type is Type.RECTANGLE:
+            #m = self.transformation_matrix()
+            #pos = np.matmul(m, other.position)
+
+            #for c in other.corners:
+            #    c = np.matmul(m, c)
+
             if other.left() < self.right() and self.left() < other.right():
                 if other.bottom() < self.top() and self.bottom() < other.top():
-                    overlap = np.zeros(2)
                     if self.position[0] > other.position[0]:
                         overlap[0] = other.right() - self.left()
                     else:
@@ -107,27 +124,35 @@ class Rectangle(Collider):
 
                     if self.position[1] > other.position[1]:
                         overlap[1] = other.top() - self.bottom()
+
+                        if self.right() < other.right():
+                            supports.append(self.bottomright())
+                        if self.left() > other.left():
+                            supports.append(self.bottomleft())
+                        if self.right() > other.right():
+                            supports.append(other.topright())
+                        if self.left() < other.left():
+                            supports.append(other.topleft())
                     else:
                         overlap[1] = other.bottom() - self.top()
 
                     i = np.argmax(np.abs(overlap))
                     overlap[i] = 0.0
-
-                    return overlap
         elif other.type is Type.CIRCLE:
-            overlap = other.overlap(self)
-            if overlap is not None:
-                return -overlap
+            overlap, supports = other.overlap(self)
+            overlap *= -1
 
-        return None
+        return overlap, supports
 
     def draw(self, screen, camera):
+        super().draw(screen, camera)
+
         color = (255, 0, 255)
-        x, y = camera.world_to_screen(self.position - self.half_width + self.half_height)
-        w = 2 * self.half_width[0] * camera.zoom
-        h = 2 * self.half_height[1] * camera.zoom
-        rect = pygame.Rect(x, y, w, h)
-        pygame.draw.rect(screen, color, rect, 1)
+        points = []
+        for c in self.corners():
+            points.append(camera.world_to_screen(c))
+
+        pygame.draw.polygon(screen, color, points, 1)
 
 
 class Circle(Collider):
@@ -149,43 +174,47 @@ class Circle(Collider):
         return self.position[1] - self.radius
 
     def overlap(self, other):
+        overlap = np.zeros(2)
+        supports = []
+
         if other.type is Type.CIRCLE:
             dist = np.linalg.norm(self.position - other.position)
             if dist < self.radius + other.radius:
-                overlap = (self.radius + other.radius - dist) * (self.position - other.position) / dist
-                return overlap
+                unit = (self.position - other.position) / dist
+                overlap = (self.radius + other.radius - dist) * unit
+                supports.append(other.position + other.radius * unit)
         elif other.type is Type.RECTANGLE:
+            overlap = np.zeros(2)
             if other.left() < self.position[0] < other.right():
                 if self.bottom() < other.top() and other.bottom() < self.top():
-                    overlap = np.zeros(2)
                     if self.position[1] > other.position[1]:
                         overlap[1] = other.top() - self.bottom()
+                        supports.append(self.position - np.array([0, self.radius]))
                     else:
                         overlap[1] = other.bottom() - self.top()
-
-                    return overlap
-
-            if other.bottom() < self.position[1] < other.top():
+                        supports.append(self.position + np.array([0, self.radius]))
+            elif other.bottom() < self.position[1] < other.top():
                 if self.left() < other.right() and other.left() < self.right():
-                    overlap = np.zeros(2)
                     if self.position[0] > other.position[0]:
                         overlap[0] = other.right() - self.left()
+                        supports.append(self.position - np.array([self.radius, 0]))
                     else:
                         overlap[0] = other.left() - self.right()
+                        supports.append(self.position + np.array([self.radius, 0]))
+            else:
+                for corner in other.corners():
+                    dist = np.linalg.norm(self.position - corner)
+                    if dist < self.radius:
+                        unit = (self.position - corner) / dist
+                        overlap = (self.radius - dist) * unit
+                        supports.append(self.position - self.radius * unit)
 
-                    return overlap
-
-            for corner in other.corners():
-                dist = np.linalg.norm(self.position - corner)
-                if dist < self.radius:
-                    overlap = (self.radius - dist) * (self.position - corner) / dist
-
-                    return overlap
-
-        return None
+        return overlap, supports
 
 
     def draw(self, screen, camera):
+        super().draw(screen, camera)
+
         color = (255, 0, 255)
         center = camera.world_to_screen(self.position)
         pygame.draw.circle(screen, color, center, int(self.radius * camera.zoom), 1)

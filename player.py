@@ -30,6 +30,9 @@ class Player(gameobject.PhysicsObject):
         self.hand.draw(screen, camera)
 
     def input(self, input_handler):
+        if not input_handler.controllers:
+            return
+
         if input_handler.controllers[self.number].buttons['A']:
             if self.on_ground:
                 self.velocity[1] = 0.7

@@ -1,6 +1,6 @@
 import numpy as np
 
-from collider import Group
+from collider import Group, Type
 
 
 class GameObject:
@@ -38,6 +38,9 @@ class PhysicsObject(GameObject):
         self.bounce = 0.5
         self.on_ground = False
 
+    def draw(self, screen, camera):
+        super().draw(screen, camera)
+
     def update(self, gravity, time_step, colliders):
         if self.velocity[1] > 0:
             self.on_ground = False
@@ -45,39 +48,53 @@ class PhysicsObject(GameObject):
         delta_pos = self.velocity * time_step + 0.5 * (gravity + self.acceleration) * time_step**2
         self.position += delta_pos
 
-        old_acceleration = gravity + self.acceleration
+        self.angle += self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
+
+        acc_old = gravity + self.acceleration
+        ang_acc_old = float(self.angular_acceleration)
 
         collisions = []
         for collider in self.colliders:
             collider.position += delta_pos
-            collisions += collider.get_collisions(colliders)
+            collider.update_collisions(colliders)
+            collisions += collider.collisions
 
-        if collisions:
-            for collision in collisions:
-                if collision.overlap[1] > 0:
-                    self.on_ground = True
+        for collision in collisions:
+            if collision.overlap[1] > 0:
+                self.on_ground = True
 
-                self.position += collision.overlap
+            self.position += collision.overlap
 
-                for collider in self.colliders:
-                    collider.position += collision.overlap
+            for collider in self.colliders:
+                collider.position += collision.overlap
 
-                if self.bounce:
-                    n = collision.overlap
-                    self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
-                    self.velocity *= self.bounce
-                else:
-                    if collision.overlap[0] == 0:
-                        self.velocity[1] = 0.0
-                    elif collision.overlap[1] == 0:
-                        self.velocity[0] = 0.0
+            if self.bounce:
+                n = collision.overlap
+                self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
+                self.velocity *= self.bounce
+            else:
+                if collision.overlap[0] == 0:
+                    self.velocity[1] = 0.0
+                elif collision.overlap[1] == 0:
+                    self.velocity[0] = 0.0
 
                 if collision.overlap[0] == 0:
-                    friction = np.sign(self.velocity[0]) * collision.collider.friction
-                    self.acceleration -= np.array([friction, 0])
+                    self.acceleration[0] -= np.sign(self.velocity[0]) * collision.collider.friction
 
-        self.velocity += 0.5 * (old_acceleration + gravity + self.acceleration) * time_step
+            #for c in self.colliders:
+            #    for s in collision.supports:
+            #        if c.left() <= s[0] <= c.right():
+            #            self.angular_acceleration += np.cross(self.position - s, gravity)
+
+        self.velocity += 0.5 * (acc_old + gravity + self.acceleration) * time_step
+        self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
 
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0
             self.acceleration[0] = 0
+
+        #for c in self.colliders:
+        #    r = np.array([[np.cos(self.angle), -np.sin(self.angle)], [np.sin(self.angle), np.cos(self.angle)]])
+        #    if c.type is Type.RECTANGLE:
+        #        c.half_width = r @ c.half_width
+        #        c.half_height = r @ c.half_height
