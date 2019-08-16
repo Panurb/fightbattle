@@ -40,7 +40,7 @@ class Player(gameobject.PhysicsObject):
             self.set_position([-2, 0])
             self.velocity = np.zeros(2)
 
-        acceleration = 0.5 * input_handler.controllers[self.number].left_stick[0]
+        acceleration = 5 * input_handler.controllers[self.number].left_stick[0]
         if acceleration > 0:
             if self.velocity[0] < self.max_speed:
                 self.acceleration[0] = acceleration

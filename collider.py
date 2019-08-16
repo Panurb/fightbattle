@@ -72,6 +72,9 @@ class Rectangle(Collider):
         super().__init__(parent, position, group)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
+        self.width = width
+        self.height = height
+        self.radius = np.linalg.norm(self.half_width + self.half_height)
         self.type = Type.RECTANGLE
 
     def transformation_matrix(self):
@@ -104,40 +107,48 @@ class Rectangle(Collider):
     def corners(self):
         return self.topright(), self.topleft(), self.bottomleft(), self.bottomright()
 
+    def point_overlap(self, point):
+        overlap = np.zeros(2)
+
+        p = point - self.position
+
+        w = 2 * self.half_width / self.width
+        h = 2 * self.half_height / self.height
+
+        p_w = np.dot(p, w)
+        p_h = np.dot(p, h)
+
+        o_w = 0.5 * self.width - abs(p_w)
+        o_h = 0.5 * self.height - abs(p_h)
+
+        if o_w >= 0 and o_h >= 0:
+            if o_w < o_h:
+                overlap = -np.sign(p_w) * o_w * w
+            else:
+                overlap = -np.sign(p_h) * o_h * h
+
+        return overlap
+
     def overlap(self, other):
         overlap = np.zeros(2)
         supports = []
 
+        if np.linalg.norm(self.position - other.position) > self.radius + other.radius:
+            return overlap, supports
+
         if other.type is Type.RECTANGLE:
-            #m = self.transformation_matrix()
-            #pos = np.matmul(m, other.position)
-
-            #for c in other.corners:
-            #    c = np.matmul(m, c)
-
-            if other.left() < self.right() and self.left() < other.right():
-                if other.bottom() < self.top() and self.bottom() < other.top():
-                    if self.position[0] > other.position[0]:
-                        overlap[0] = other.right() - self.left()
-                    else:
-                        overlap[0] = other.left() - self.right()
-
-                    if self.position[1] > other.position[1]:
-                        overlap[1] = other.top() - self.bottom()
-
-                        if self.right() < other.right():
-                            supports.append(self.bottomright())
-                        if self.left() > other.left():
-                            supports.append(self.bottomleft())
-                        if self.right() > other.right():
-                            supports.append(other.topright())
-                        if self.left() < other.left():
-                            supports.append(other.topleft())
-                    else:
-                        overlap[1] = other.bottom() - self.top()
-
-                    i = np.argmax(np.abs(overlap))
-                    overlap[i] = 0.0
+            for c in other.corners():
+                o = self.point_overlap(c)
+                if o.any():
+                    supports.append(c)
+                    if np.linalg.norm(o) > np.linalg.norm(overlap):
+                        overlap = o
+            for c in self.corners():
+                o = -other.point_overlap(c)
+                if o.any():
+                    supports.append(c)
+                    if np.linalg.norm(o) > np.linalg.norm(overlap):
+                        overlap = o
         elif other.type is Type.CIRCLE:
             overlap, supports = other.overlap(self)
             overlap *= -1
