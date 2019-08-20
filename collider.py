@@ -10,15 +10,6 @@ class Type(enum.Enum):
     CIRCLE = 2
 
 
-class Group(enum.IntEnum):
-    NONE = 0
-    PLAYERS = 1
-    WALLS = 2
-    GUNS = 3
-    HAND = 4
-    BOXES = 5
-
-
 COLLISION_MATRIX = [[False, False, False, False, False, False],
                     [False, True, True, False, False, False],
                     [False, True, True, True, False, True],
@@ -37,11 +28,10 @@ class Collision:
 class Collider:
     id_iter = itertools.count()
 
-    def __init__(self, parent, position, group=Group.NONE):
+    def __init__(self, parent, position):
         self.id = next(self.id_iter)
         self.parent = parent
         self.position = np.array(position, dtype=float)
-        self.group = group
         self.friction = 0.5
         self.type = None
         self.collisions = []
@@ -73,8 +63,8 @@ class Collider:
 
 
 class Rectangle(Collider):
-    def __init__(self, parent, position, width, height, group=Group.NONE):
-        super().__init__(parent, position, group)
+    def __init__(self, parent, position, width, height):
+        super().__init__(parent, position)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
         self.width = width
@@ -177,8 +167,8 @@ class Rectangle(Collider):
 
 
 class Circle(Collider):
-    def __init__(self, parent, position, radius, group=Group.NONE):
-        super().__init__(parent, position, group)
+    def __init__(self, parent, position, radius):
+        super().__init__(parent, position)
         self.radius = radius
         self.type = Type.CIRCLE
 

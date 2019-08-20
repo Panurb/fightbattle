@@ -1,7 +1,7 @@
 import numpy as np
 
-from gameobject import GameObject, PhysicsObject
-from collider import Rectangle, Group, Circle
+from gameobject import GameObject, PhysicsObject, Group
+from collider import Rectangle, Circle
 from player import Player
 from camera import Camera
 
@@ -9,21 +9,21 @@ from camera import Camera
 class Wall(GameObject):
     def __init__(self, position, width, height):
         super().__init__(position, group=Group.WALLS)
-        collider = Rectangle(self, position, width, height, Group.WALLS)
+        collider = Rectangle(self, position, width, height)
         self.add_collider(collider)
 
 
 class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.GUNS)
-        self.add_collider(Rectangle(self, position + np.array([0.4, 0.3]), 1, 0.2, Group.GUNS))
-        self.add_collider(Rectangle(self, position, 0.2, 0.5, Group.GUNS))
+        self.add_collider(Rectangle(self, position + np.array([0.4, 0.3]), 1, 0.2))
+        self.add_collider(Rectangle(self, position, 0.2, 0.5))
 
 
 class Box(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Rectangle(self, position, 1, 1, Group.BOXES))
+        self.add_collider(Rectangle(self, position, 1, 1))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -32,7 +32,7 @@ class Box(PhysicsObject):
 class Ball(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Circle(self, position, 0.5, Group.BOXES))
+        self.add_collider(Circle(self, position, 0.5))
 
 
 class Level:

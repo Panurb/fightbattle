@@ -1,7 +1,17 @@
 import numpy as np
 from numpy.linalg import norm
+import enum
 
-from collider import Group, COLLISION_MATRIX
+from collider import COLLISION_MATRIX
+
+
+class Group(enum.IntEnum):
+    NONE = 0
+    PLAYERS = 1
+    WALLS = 2
+    GUNS = 3
+    HAND = 4
+    BOXES = 5
 
 
 class GameObject:
@@ -43,7 +53,7 @@ class PhysicsObject(GameObject):
         self.bounce = 0.5
         self.on_ground = False
         self.mass = 1.0
-        self.inertia = 0.0
+        self.inertia = 1.0
         self.gravity_scale = 1.0
 
     def draw(self, screen, camera):
@@ -79,7 +89,7 @@ class PhysicsObject(GameObject):
             right = None
 
             for collision in collider.collisions:
-                if not COLLISION_MATRIX[collider.group][collision.collider.group]:
+                if not COLLISION_MATRIX[self.group][collision.collider.parent.group]:
                     continue
 
                 if collision.overlap[1] > 0:
@@ -92,10 +102,10 @@ class PhysicsObject(GameObject):
 
                 if self.bounce:
                     n = collision.overlap
-                    #impact = -self.bounce * self.velocity.dot(n) * n / n.dot(n)
-                    #self.acceleration += impact
-                    self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
-                    self.velocity *= self.bounce
+                    impact = -5 * self.bounce * self.velocity.dot(n) * n / n.dot(n)
+                    self.acceleration += impact
+                    #self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
+                    #self.velocity *= self.bounce
                 else:
                     if not collision.overlap[0]:
                         self.velocity[1] = 0.0
@@ -120,7 +130,7 @@ class PhysicsObject(GameObject):
                     # Steiner's theorem
                     inertia = self.inertia + self.mass * np.sum(r**2)
 
-                    self.angular_acceleration += np.cross(r, self.gravity_scale * gravity) / inertia
+                    #self.angular_acceleration += np.cross(r, self.gravity_scale * gravity) / inertia
                     self.angular_acceleration += np.cross(-r, impact) / self.inertia
 
                     t = np.cross(r, np.array([0, 0, 1]))[:-1]
