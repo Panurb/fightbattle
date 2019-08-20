@@ -64,7 +64,7 @@ class InputHandler:
         self.keys_pressed = {}
         for i in range(len(pygame.key.get_pressed())):
             self.keys_pressed[i] = False
-        self.mouse_position = [0, 0]
+        self.mouse_position = np.zeros(2)
         self.mouse_down = []
         self.mouse_pressed = []
         self.mouse_released = []
@@ -91,7 +91,7 @@ class InputHandler:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_released[event.button] = True
 
-                self.mouse_position = pygame.mouse.get_pos()
+                self.mouse_position[:] = pygame.mouse.get_pos()
 
         self.keys_down = pygame.key.get_pressed()
         self.mouse_down = pygame.mouse.get_pressed()

@@ -58,7 +58,7 @@ class Level:
             self.add_ball(self.camera.screen_to_world(input_handler.mouse_position))
 
         for player in self.players:
-            player.input(input_handler)
+            player.keyboard_input(input_handler, self.camera)
 
     def add_box(self, position):
         box = Box(position)

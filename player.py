@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.linalg import norm
+import pygame
 
 from gameobject import PhysicsObject, Group
 from collider import Rectangle, Circle
@@ -50,10 +51,47 @@ class Player(PhysicsObject):
         super().draw(screen, camera)
         self.hand.draw(screen, camera)
 
-    def input(self, input_handler):
-        if not input_handler.controllers:
-            return
+    def keyboard_input(self, input_handler, camera):
+        if input_handler.keys_pressed[pygame.K_w]:
+            if self.on_ground:
+                self.velocity[1] = 0.7
+        elif input_handler.keys_pressed[pygame.K_r]:
+            self.set_position([-2, 0])
+            self.velocity = np.zeros(2)
 
+        if input_handler.keys_down[pygame.K_d]:
+            if self.velocity[0] < self.max_speed:
+                self.acceleration[0] = 5
+        elif input_handler.keys_down[pygame.K_a]:
+            if self.velocity[0] > -self.max_speed:
+                self.acceleration[0] = -5
+        else:
+            self.acceleration[0] = 0.0
+
+        if abs(self.velocity[0]) > self.max_speed:
+            self.velocity[0] *= self.max_speed / abs(self.velocity[0])
+
+        pos = camera.screen_to_world(input_handler.mouse_position) - self.position
+        self.hand_position = self.shoulder + self.hand_radius * pos / norm(pos)
+
+        if input_handler.keys_pressed[pygame.K_e]:
+            if self.object:
+                self.object.group = self.object_group
+                self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0])
+                self.object = None
+            else:
+                for c in self.hand.collisions:
+                    if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
+                        if norm(c.collider.parent.velocity) < 0.5:
+                            self.object = c.collider.parent
+                            self.object_group = c.collider.parent.group
+                            c.collider.parent.group = Group.NONE
+                            if self.hand_position[0] < 0:
+                                self.object_flipped = True
+                            else:
+                                self.object_flipped = False
+
+    def input(self, input_handler):
         controller = input_handler.controllers[self.number]
 
         if controller.button_pressed['A']:
