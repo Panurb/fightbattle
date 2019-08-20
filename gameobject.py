@@ -1,13 +1,19 @@
 import numpy as np
+from numpy.linalg import norm
 
-from collider import Group, Type
+from collider import Group, COLLISION_MATRIX
 
 
 class GameObject:
-    def __init__(self, position, group=Group.WALLS):
+    def __init__(self, position, group=Group.NONE):
         self.position = np.array(position, dtype=float)
         self.colliders = []
         self.group = group
+
+    def flip_horizontally(self):
+        for c in self.colliders:
+            #c.flip_horizontally()
+            c.position[0] -= 2 * (c.position - self.position)[0]
 
     def set_position(self, position):
         delta_pos = position - self.position
@@ -17,7 +23,6 @@ class GameObject:
             c.position += delta_pos
 
     def add_collider(self, collider):
-        collider.group = self.group
         self.colliders.append(collider)
 
     def draw(self, screen, camera):
@@ -26,7 +31,7 @@ class GameObject:
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0), group=Group.WALLS):
+    def __init__(self, position, velocity=(0, 0), group=Group.NONE):
         super().__init__(position, group)
         self.velocity = np.array(velocity, dtype=float)
         self.acceleration = np.zeros(2)
@@ -38,11 +43,15 @@ class PhysicsObject(GameObject):
         self.bounce = 0.5
         self.on_ground = False
         self.mass = 1.0
-        self.inertia = self.mass * (1**2 + 1**2) / 12
-        self.inertia = 50
+        self.inertia = 0.0
+        self.gravity_scale = 1.0
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
+
+    def set_position(self, position):
+        super().set_position(position)
+        self.velocity[:] = np.zeros(2)
 
     def update(self, gravity, time_step, colliders):
         if self.velocity[1] > 0:
@@ -50,20 +59,29 @@ class PhysicsObject(GameObject):
 
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
+        acc_old = self.acceleration.copy()
+        self.acceleration[:] = self.gravity_scale * gravity
 
-        self.angle += self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
-
-        acc_old = self.acceleration
+        delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
+        self.angle += delta_angle
         ang_acc_old = float(self.angular_acceleration)
-
-        self.acceleration[:] = gravity
         self.angular_acceleration = 0.0
 
         for collider in self.colliders:
+            impact = None
+
             collider.position += delta_pos
+            collider.rotate(delta_angle)
+
             collider.update_collisions(colliders)
 
+            left = None
+            right = None
+
             for collision in collider.collisions:
+                if not COLLISION_MATRIX[collider.group][collision.collider.group]:
+                    continue
+
                 if collision.overlap[1] > 0:
                     self.on_ground = True
 
@@ -74,6 +92,8 @@ class PhysicsObject(GameObject):
 
                 if self.bounce:
                     n = collision.overlap
+                    #impact = -self.bounce * self.velocity.dot(n) * n / n.dot(n)
+                    #self.acceleration += impact
                     self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
                     self.velocity *= self.bounce
                 else:
@@ -83,35 +103,32 @@ class PhysicsObject(GameObject):
                     elif not collision.overlap[1]:
                         self.velocity[0] = 0.0
 
-                left = collider.right()
-                right = collider.left()
                 for s in collision.supports:
-                    left = min(left, s[0])
-                    right = max(right, s[0])
+                    if left is None or s[0] < left[0]:
+                        left = s
+                    if right is None or s[0] > right[0]:
+                        right = s
 
-                if not left < self.position[0] < right:
-                    for s in collision.supports:
-                        r = self.position - s
+            if self.inertia:
+                r = None
+                if left is not None and self.position[0] < left[0]:
+                    r = self.position - left
+                if right is not None and self.position[0] > right[0]:
+                    r = self.position - right
 
-                        # Steiner's theorem
-                        inertia = self.inertia + self.mass * np.sum(r**2)
+                if r is not None:
+                    # Steiner's theorem
+                    inertia = self.inertia + self.mass * np.sum(r**2)
 
-                        alpha = np.cross(r, gravity) / inertia
-                        self.angular_acceleration += alpha
+                    self.angular_acceleration += np.cross(r, self.gravity_scale * gravity) / inertia
+                    self.angular_acceleration += np.cross(-r, impact) / self.inertia
 
-                        t = np.cross(r, np.array([0, 0, 1]))[:-1]
-                        t /= np.linalg.norm(t)
-                        self.acceleration += np.linalg.norm(r) * alpha * t
+                    t = np.cross(r, np.array([0, 0, 1]))[:-1]
+                    t /= norm(t)
+                    self.acceleration += norm(r) * self.angular_acceleration * t
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
 
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0
-            self.acceleration[0] = 0
-
-        for c in self.colliders:
-            r = np.array([[np.cos(self.angle), -np.sin(self.angle)], [np.sin(self.angle), np.cos(self.angle)]])
-            if c.type is Type.RECTANGLE:
-                c.half_width = np.matmul(r, c.half_width)
-                c.half_height = np.matmul(r, c.half_height)

@@ -9,21 +9,21 @@ from camera import Camera
 class Wall(GameObject):
     def __init__(self, position, width, height):
         super().__init__(position, group=Group.WALLS)
-        collider = Rectangle(self, position, width, height)
+        collider = Rectangle(self, position, width, height, Group.WALLS)
         self.add_collider(collider)
 
 
 class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.GUNS)
-        self.add_collider(Rectangle(self, position, 1, 0.2))
-        self.add_collider(Rectangle(self, position - np.array([0.4, 0.3]), 0.2, 0.5))
+        self.add_collider(Rectangle(self, position + np.array([0.4, 0.3]), 1, 0.2, Group.GUNS))
+        self.add_collider(Rectangle(self, position, 0.2, 0.5, Group.GUNS))
 
 
 class Box(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Rectangle(self, position, 1, 1))
+        self.add_collider(Rectangle(self, position, 1, 1, Group.BOXES))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -32,7 +32,7 @@ class Box(PhysicsObject):
 class Ball(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Circle(self, position, 0.5))
+        self.add_collider(Circle(self, position, 0.5, Group.BOXES))
 
 
 class Level:
@@ -49,7 +49,7 @@ class Level:
         self.add_player([-2, 0])
         self.add_wall(np.array([0, -3]), 12, 1)
         self.add_wall(np.array([5, -1]), 12, 1)
-        #self.add_gun([0, 2])
+        self.add_gun([0, 2])
 
     def input(self, input_handler):
         if input_handler.mouse_pressed[1]:

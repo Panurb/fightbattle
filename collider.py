@@ -1,6 +1,8 @@
 import numpy as np
+from numpy.linalg import norm
 import enum
 import pygame
+import itertools
 
 
 class Type(enum.Enum):
@@ -18,11 +20,11 @@ class Group(enum.IntEnum):
 
 
 COLLISION_MATRIX = [[False, False, False, False, False, False],
-                    [False, True, True, False, False, True],
+                    [False, True, True, False, False, False],
                     [False, True, True, True, False, True],
                     [False, False, True, False, False, True],
                     [False, False, False, False, False, False],
-                    [False, True, True, True, False, True]]
+                    [False, False, True, True, False, True]]
 
 
 class Collision:
@@ -33,7 +35,10 @@ class Collision:
 
 
 class Collider:
-    def __init__(self, parent, position, group=Group.WALLS):
+    id_iter = itertools.count()
+
+    def __init__(self, parent, position, group=Group.NONE):
+        self.id = next(self.id_iter)
         self.parent = parent
         self.position = np.array(position, dtype=float)
         self.group = group
@@ -51,12 +56,12 @@ class Collider:
             if c.parent is self.parent:
                 continue
 
-            if not COLLISION_MATRIX[self.group][c.group]:
-                continue
-
             overlap, supports = self.overlap(c)
             if overlap.any():
                 self.collisions.append(Collision(c, overlap, supports))
+
+    def rotate(self, angle):
+        pass
 
     def draw(self, screen, camera):
         for c in self.collisions:
@@ -68,13 +73,13 @@ class Collider:
 
 
 class Rectangle(Collider):
-    def __init__(self, parent, position, width, height, group=Group.WALLS):
+    def __init__(self, parent, position, width, height, group=Group.NONE):
         super().__init__(parent, position, group)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
         self.width = width
         self.height = height
-        self.radius = np.linalg.norm(self.half_width + self.half_height)
+        self.radius = norm(self.half_width + self.half_height)
         self.type = Type.RECTANGLE
 
     def transformation_matrix(self):
@@ -121,7 +126,7 @@ class Rectangle(Collider):
         o_w = 0.5 * self.width - abs(p_w)
         o_h = 0.5 * self.height - abs(p_h)
 
-        if o_w >= 0 and o_h >= 0:
+        if o_w > 0 and o_h > 0:
             if o_w < o_h:
                 overlap = -np.sign(p_w) * o_w * w
             else:
@@ -133,7 +138,7 @@ class Rectangle(Collider):
         overlap = np.zeros(2)
         supports = []
 
-        if np.linalg.norm(self.position - other.position) > self.radius + other.radius:
+        if norm(self.position - other.position) > self.radius + other.radius:
             return overlap, supports
 
         if other.type is Type.RECTANGLE:
@@ -141,19 +146,24 @@ class Rectangle(Collider):
                 o = self.point_overlap(c)
                 if o.any():
                     supports.append(c)
-                    if np.linalg.norm(o) > np.linalg.norm(overlap):
+                    if norm(o) > norm(overlap):
                         overlap = o
             for c in self.corners():
                 o = -other.point_overlap(c)
                 if o.any():
-                    supports.append(c)
-                    if np.linalg.norm(o) > np.linalg.norm(overlap):
+                    supports.append(c + o)
+                    if norm(o) > norm(overlap):
                         overlap = o
         elif other.type is Type.CIRCLE:
             overlap, supports = other.overlap(self)
             overlap *= -1
 
         return overlap, supports
+
+    def rotate(self, angle):
+        r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        self.half_width = np.matmul(r, self.half_width)
+        self.half_height = np.matmul(r, self.half_height)
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
@@ -167,7 +177,7 @@ class Rectangle(Collider):
 
 
 class Circle(Collider):
-    def __init__(self, parent, position, radius, group=Group.WALLS):
+    def __init__(self, parent, position, radius, group=Group.NONE):
         super().__init__(parent, position, group)
         self.radius = radius
         self.type = Type.CIRCLE
@@ -188,34 +198,35 @@ class Circle(Collider):
         overlap = np.zeros(2)
         supports = []
 
+        dist = norm(self.position - other.position)
+        if dist > self.radius + other.radius:
+            return overlap, supports
+
+        if dist == 0:
+            overlap = 2 * self.radius * np.array([0, 1])
+            supports.append(self.position + 0.5 * overlap)
+            return overlap, supports
+
         if other.type is Type.CIRCLE:
-            dist = np.linalg.norm(self.position - other.position)
-            if dist < self.radius + other.radius:
-                unit = (self.position - other.position) / dist
-                overlap = (self.radius + other.radius - dist) * unit
-                supports.append(other.position + other.radius * unit)
+            unit = (self.position - other.position) / dist
+            overlap = (self.radius + other.radius - dist) * unit
+            supports.append(other.position + other.radius * unit)
         elif other.type is Type.RECTANGLE:
             overlap = np.zeros(2)
-            if other.left() < self.position[0] < other.right():
-                if self.bottom() < other.top() and other.bottom() < self.top():
-                    if self.position[1] > other.position[1]:
-                        overlap[1] = other.top() - self.bottom()
-                        supports.append(self.position - np.array([0, self.radius]))
-                    else:
-                        overlap[1] = other.bottom() - self.top()
-                        supports.append(self.position + np.array([0, self.radius]))
-            elif other.bottom() < self.position[1] < other.top():
-                if self.left() < other.right() and other.left() < self.right():
-                    if self.position[0] > other.position[0]:
-                        overlap[0] = other.right() - self.left()
-                        supports.append(self.position - np.array([self.radius, 0]))
-                    else:
-                        overlap[0] = other.left() - self.right()
-                        supports.append(self.position + np.array([self.radius, 0]))
+
+            r_w = 2 * other.half_width / other.width * self.radius
+            r_h = 2 * other.half_height / other.height * self.radius
+
+            for r in [r_w, -r_w, r_h, -r_h]:
+                p = self.position + r
+                o = other.point_overlap(p)
+                if o.any():
+                    overlap = -o
+                    break
             else:
                 for corner in other.corners():
-                    dist = np.linalg.norm(self.position - corner)
-                    if dist < self.radius:
+                    dist = norm(self.position - corner)
+                    if dist <= self.radius:
                         unit = (self.position - corner) / dist
                         overlap = (self.radius - dist) * unit
                         supports.append(self.position - self.radius * unit)

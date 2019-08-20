@@ -13,7 +13,13 @@ class Controller:
         self.left_trigger = 0.0
         self.right_trigger = 0.0
 
-        self.buttons = {'A': False, 'B': False}
+        self.button_down = {}
+        self.button_pressed = {}
+        self.button_released = {}
+        for b in ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']:
+            self.button_down[b] = False
+            self.button_pressed[b] = False
+            self.button_released[b] = False
 
         self.deadzone = 0.3
 
@@ -34,8 +40,18 @@ class Controller:
         else:
             self.right_trigger = -trigger
 
-        self.buttons['A'] = self.joystick.get_button(0)
-        self.buttons['B'] = self.joystick.get_button(1)
+        for i, b in enumerate(['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']):
+            self.button_pressed[b] = False
+            self.button_released[b] = False
+
+            if self.joystick.get_button(i):
+                if not self.button_down[b]:
+                    self.button_pressed[b] = True
+            else:
+                if self.button_down[b]:
+                    self.button_released[b] = True
+
+            self.button_down[b] = self.joystick.get_button(i)
 
 
 class InputHandler:
