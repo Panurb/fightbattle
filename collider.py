@@ -4,18 +4,12 @@ import enum
 import pygame
 import itertools
 
+from gameobject import COLLISION_MATRIX, Group
+
 
 class Type(enum.Enum):
     RECTANGLE = 1
     CIRCLE = 2
-
-
-COLLISION_MATRIX = [[False, False, False, False, False, False],
-                    [False, True, True, False, False, False],
-                    [False, True, True, True, False, True],
-                    [False, False, True, False, False, True],
-                    [False, False, False, False, False, False],
-                    [False, False, True, True, False, True]]
 
 
 class Collision:
@@ -28,9 +22,9 @@ class Collision:
 class Collider:
     id_iter = itertools.count()
 
-    def __init__(self, parent, position):
+    def __init__(self, position):
         self.id = next(self.id_iter)
-        self.parent = parent
+        self.parent = None
         self.position = np.array(position, dtype=float)
         self.friction = 0.5
         self.type = None
@@ -44,6 +38,9 @@ class Collider:
                 continue
 
             if c.parent is self.parent:
+                continue
+
+            if not COLLISION_MATRIX[self.parent.group][c.parent.group]:
                 continue
 
             overlap, supports = self.overlap(c)
@@ -63,8 +60,8 @@ class Collider:
 
 
 class Rectangle(Collider):
-    def __init__(self, parent, position, width, height):
-        super().__init__(parent, position)
+    def __init__(self, position, width, height):
+        super().__init__(position)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
         self.width = width
@@ -116,10 +113,10 @@ class Rectangle(Collider):
         o_w = 0.5 * self.width - abs(p_w)
         o_h = 0.5 * self.height - abs(p_h)
 
-        if o_w > 0 and o_h > 0:
-            if o_w < o_h:
+        if o_w >= 0 and o_h >= 0:
+            if o_w != 0 and o_w < o_h:
                 overlap = -np.sign(p_w) * o_w * w
-            else:
+            elif o_h != 0:
                 overlap = -np.sign(p_h) * o_h * h
 
         return overlap
@@ -128,7 +125,13 @@ class Rectangle(Collider):
         overlap = np.zeros(2)
         supports = []
 
-        if norm(self.position - other.position) > self.radius + other.radius:
+        dist = norm(self.position - other.position)
+        if dist > self.radius + other.radius:
+            return overlap, supports
+
+        if dist == 0:
+            overlap = 2 * self.half_height
+            supports.append(self.position + self.half_height)
             return overlap, supports
 
         if other.type is Type.RECTANGLE:
@@ -167,8 +170,8 @@ class Rectangle(Collider):
 
 
 class Circle(Collider):
-    def __init__(self, parent, position, radius):
-        super().__init__(parent, position)
+    def __init__(self, position, radius):
+        super().__init__(position)
         self.radius = radius
         self.type = Type.CIRCLE
 

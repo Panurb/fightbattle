@@ -2,8 +2,6 @@ import numpy as np
 from numpy.linalg import norm
 import enum
 
-from collider import COLLISION_MATRIX
-
 
 class Group(enum.IntEnum):
     NONE = 0
@@ -12,6 +10,13 @@ class Group(enum.IntEnum):
     GUNS = 3
     HAND = 4
     BOXES = 5
+
+COLLISION_MATRIX = [[False, False, False, False, False, False],
+                    [False, True, True, False, False, False],
+                    [False, True, True, True, False, True],
+                    [False, False, True, False, True, True],
+                    [False, False, False, True, False, True],
+                    [False, False, True, True, True, True]]
 
 
 class GameObject:
@@ -34,6 +39,7 @@ class GameObject:
 
     def add_collider(self, collider):
         self.colliders.append(collider)
+        collider.parent = self
 
     def draw(self, screen, camera):
         for collider in self.colliders:
@@ -89,9 +95,6 @@ class PhysicsObject(GameObject):
             right = None
 
             for collision in collider.collisions:
-                if not COLLISION_MATRIX[self.group][collision.collider.parent.group]:
-                    continue
-
                 if collision.overlap[1] > 0:
                     self.on_ground = True
 

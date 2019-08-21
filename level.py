@@ -9,21 +9,22 @@ from camera import Camera
 class Wall(GameObject):
     def __init__(self, position, width, height):
         super().__init__(position, group=Group.WALLS)
-        collider = Rectangle(self, position, width, height)
+        collider = Rectangle(position, width, height)
         self.add_collider(collider)
 
 
 class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.GUNS)
-        self.add_collider(Rectangle(self, position + np.array([0.4, 0.3]), 1, 0.2))
-        self.add_collider(Rectangle(self, position, 0.2, 0.5))
+        self.add_collider(Rectangle(position + np.array([0.4, 0.3]), 1, 0.2))
+        self.add_collider(Rectangle(position, 0.2, 0.5))
+        self.inertia = 0.0
 
 
 class Box(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Rectangle(self, position, 1, 1))
+        self.add_collider(Rectangle(position, 1, 1))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -32,7 +33,7 @@ class Box(PhysicsObject):
 class Ball(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Circle(self, position, 0.5))
+        self.add_collider(Circle(position, 0.5))
 
 
 class Level:
@@ -47,6 +48,8 @@ class Level:
         self.gravity = np.array([0, -0.1])
 
         self.add_player([-2, 0])
+        #self.add_player([2, 2])
+
         self.add_wall(np.array([0, -3]), 12, 1)
         self.add_wall(np.array([5, -1]), 12, 1)
         self.add_gun([0, 2])
@@ -57,8 +60,11 @@ class Level:
         if input_handler.mouse_pressed[3]:
             self.add_ball(self.camera.screen_to_world(input_handler.mouse_position))
 
-        for player in self.players:
-            player.keyboard_input(input_handler, self.camera)
+        for i, player in enumerate(self.players):
+            if i == 0:
+                player.keyboard_input(input_handler, self.camera)
+            else:
+                player.input(input_handler)
 
     def add_box(self, position):
         box = Box(position)
@@ -81,10 +87,10 @@ class Level:
         self.colliders += gun.colliders
 
     def add_player(self, position):
-        player = Player(position)
+        n = len(self.players) - 1
+        player = Player(position, n)
         self.players.append(player)
         self.colliders += player.colliders
-        self.colliders.append(player.hand)
 
     def update(self, time_step):
         for player in self.players:
