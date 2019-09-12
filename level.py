@@ -61,10 +61,7 @@ class Level:
             self.add_ball(self.camera.screen_to_world(input_handler.mouse_position))
 
         for i, player in enumerate(self.players):
-            if i == 0:
-                player.keyboard_input(input_handler, self.camera)
-            else:
-                player.input(input_handler)
+            player.input(input_handler)
 
     def add_box(self, position):
         box = Box(position)

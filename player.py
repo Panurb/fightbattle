@@ -29,6 +29,8 @@ class Player(PhysicsObject):
         self.object_flipped = False
 
         self.number = number
+        self.crouched = 0
+        self.crouch_speed = 1
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -51,13 +53,26 @@ class Player(PhysicsObject):
         super().draw(screen, camera)
         self.hand.draw(screen, camera)
 
-    def keyboard_input(self, input_handler, camera):
+    def keyboard_input(self, input_handler):
+        if input_handler.keys_pressed[pygame.K_r]:
+            self.set_position([-2, 0])
+            self.velocity = np.zeros(2)
+
         if input_handler.keys_pressed[pygame.K_w]:
             if self.on_ground:
                 self.velocity[1] = 0.7
-        elif input_handler.keys_pressed[pygame.K_r]:
-            self.set_position([-2, 0])
-            self.velocity = np.zeros(2)
+
+        if input_handler.keys_down[pygame.K_s]:
+            if not self.crouched:
+                self.colliders[2].position[1] -= 1
+                self.colliders[1].position[1] -= 0.5
+                self.colliders[1].half_height[1] = 0.5
+                self.crouched = True
+        elif self.crouched:
+            self.colliders[2].position[1] += 1
+            self.colliders[1].position[1] += 0.5
+            self.colliders[1].half_height[1] = 1
+            self.crouched = False
 
         if input_handler.keys_down[pygame.K_d]:
             if self.velocity[0] < self.max_speed:
@@ -71,7 +86,7 @@ class Player(PhysicsObject):
         if abs(self.velocity[0]) > self.max_speed:
             self.velocity[0] *= self.max_speed / abs(self.velocity[0])
 
-        pos = camera.screen_to_world(input_handler.mouse_position) - self.position
+        pos = input_handler.mouse_position
         self.hand_position = self.shoulder + self.hand_radius * pos / norm(pos)
 
         if input_handler.keys_pressed[pygame.K_e]:

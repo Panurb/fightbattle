@@ -64,10 +64,10 @@ class Rectangle(Collider):
         super().__init__(position)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
-        self.width = width
-        self.height = height
-        self.radius = norm(self.half_width + self.half_height)
         self.type = Type.RECTANGLE
+
+    def radius(self):
+        return norm(self.half_width + self.half_height)
 
     def transformation_matrix(self):
         return np.inv(np.array([2 * self.half_width, 2 * self.half_height]).T)
@@ -104,14 +104,17 @@ class Rectangle(Collider):
 
         p = point - self.position
 
-        w = 2 * self.half_width / self.width
-        h = 2 * self.half_height / self.height
+        hw = norm(self.half_width)
+        hh = norm(self.half_height)
+
+        w = self.half_width / hw
+        h = self.half_height / hh
 
         p_w = np.dot(p, w)
         p_h = np.dot(p, h)
 
-        o_w = 0.5 * self.width - abs(p_w)
-        o_h = 0.5 * self.height - abs(p_h)
+        o_w = hw - abs(p_w)
+        o_h = hh - abs(p_h)
 
         if o_w >= 0 and o_h >= 0:
             if o_w != 0 and o_w < o_h:
@@ -126,7 +129,7 @@ class Rectangle(Collider):
         supports = []
 
         dist = norm(self.position - other.position)
-        if dist > self.radius + other.radius:
+        if dist > self.radius() + other.radius():
             return overlap, supports
 
         if dist == 0:
@@ -172,43 +175,46 @@ class Rectangle(Collider):
 class Circle(Collider):
     def __init__(self, position, radius):
         super().__init__(position)
-        self.radius = radius
+        self._radius = radius
         self.type = Type.CIRCLE
 
+    def radius(self):
+        return self._radius
+
     def right(self):
-        return self.position[0] + self.radius
+        return self.position[0] + self._radius
 
     def left(self):
-        return self.position[0] - self.radius
+        return self.position[0] - self._radius
 
     def top(self):
-        return self.position[1] + self.radius
+        return self.position[1] + self._radius
 
     def bottom(self):
-        return self.position[1] - self.radius
+        return self.position[1] - self._radius
 
     def overlap(self, other):
         overlap = np.zeros(2)
         supports = []
 
         dist = norm(self.position - other.position)
-        if dist > self.radius + other.radius:
+        if dist > self._radius + other.radius():
             return overlap, supports
 
         if dist == 0:
-            overlap = 2 * self.radius * np.array([0, 1])
+            overlap = 2 * self._radius * np.array([0, 1])
             supports.append(self.position + 0.5 * overlap)
             return overlap, supports
 
         if other.type is Type.CIRCLE:
             unit = (self.position - other.position) / dist
-            overlap = (self.radius + other.radius - dist) * unit
-            supports.append(other.position + other.radius * unit)
+            overlap = (self._radius + other.radius() - dist) * unit
+            supports.append(other.position + other.radius() * unit)
         elif other.type is Type.RECTANGLE:
             overlap = np.zeros(2)
 
-            r_w = 2 * other.half_width / other.width * self.radius
-            r_h = 2 * other.half_height / other.height * self.radius
+            r_w = other.half_width / norm(other.half_width) * self._radius
+            r_h = other.half_height / norm(other.half_height) * self._radius
 
             for r in [r_w, -r_w, r_h, -r_h]:
                 p = self.position + r
@@ -219,10 +225,10 @@ class Circle(Collider):
             else:
                 for corner in other.corners():
                     dist = norm(self.position - corner)
-                    if dist <= self.radius:
+                    if dist <= self._radius:
                         unit = (self.position - corner) / dist
-                        overlap = (self.radius - dist) * unit
-                        supports.append(self.position - self.radius * unit)
+                        overlap = (self._radius - dist) * unit
+                        supports.append(self.position - self._radius * unit)
 
         return overlap, supports
 
@@ -232,4 +238,4 @@ class Circle(Collider):
 
         color = (255, 0, 255)
         center = camera.world_to_screen(self.position)
-        pygame.draw.circle(screen, color, center, int(self.radius * camera.zoom), 1)
+        pygame.draw.circle(screen, color, center, int(self._radius * camera.zoom), 1)

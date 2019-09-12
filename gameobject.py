@@ -59,7 +59,7 @@ class PhysicsObject(GameObject):
         self.bounce = 0.5
         self.on_ground = False
         self.mass = 1.0
-        self.inertia = 1.0
+        self.inertia = 0.0
         self.gravity_scale = 1.0
 
     def draw(self, screen, camera):
