@@ -1,6 +1,5 @@
 import numpy as np
 from numpy.linalg import norm
-import pygame
 
 from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
@@ -12,11 +11,15 @@ class Player(PhysicsObject):
         self.bounce = 0.0
         self.inertia = 0.0
 
-        self.add_collider(Circle(position + np.array([0, -1]), 0.5))
-        self.add_collider(Rectangle(self.position, 1, 2))
-        self.add_collider(Circle(position + np.array([0, 1]), 0.5))
+        self.legs = Circle(position + np.array([0, -1]), 0.5)
+        self.body = Rectangle(self.position, 1, 2)
+        self.head = Circle(position + np.array([0, 1]), 0.5)
 
-        self.max_speed = 0.5
+        self.add_collider(self.head)
+        self.add_collider(self.body)
+        self.add_collider(self.legs)
+
+        self.max_speed = 0.25
 
         self.shoulder = np.array([0.0, 0.25])
         self.hand_position = np.array([1.0, 0.0])
@@ -30,16 +33,16 @@ class Player(PhysicsObject):
 
         self.number = number
         self.crouched = 0
-        self.crouch_speed = 1
+        self.crouch_speed = 0.25
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
-        self.hand.set_position(self.position + self.hand_position)
+        self.hand.set_position(self.position + self.shoulder + self.hand_position)
         self.hand.colliders[0].update_collisions(colliders)
 
         if self.object:
-            self.object.set_position(self.position + self.hand_position)
+            self.object.set_position(self.position + self.shoulder + self.hand_position)
             if self.hand_position[0] < 0:
                 if not self.object_flipped:
                     self.object.flip_horizontally()
@@ -53,62 +56,6 @@ class Player(PhysicsObject):
         super().draw(screen, camera)
         self.hand.draw(screen, camera)
 
-    def keyboard_input(self, input_handler):
-        if input_handler.keys_pressed[pygame.K_r]:
-            self.set_position([-2, 0])
-            self.velocity = np.zeros(2)
-
-        if input_handler.keys_pressed[pygame.K_w]:
-            if self.on_ground:
-                self.velocity[1] = 0.7
-
-        if input_handler.keys_down[pygame.K_s]:
-            if not self.crouched:
-                self.colliders[2].position[1] -= 1
-                self.colliders[1].position[1] -= 0.5
-                self.colliders[1].half_height[1] = 0.5
-                self.crouched = True
-        elif self.crouched:
-            self.colliders[2].position[1] += 1
-            self.colliders[1].position[1] += 0.5
-            self.colliders[1].half_height[1] = 1
-            self.crouched = False
-
-        if input_handler.keys_down[pygame.K_d]:
-            if self.velocity[0] < self.max_speed:
-                self.acceleration[0] = 5
-        elif input_handler.keys_down[pygame.K_a]:
-            if self.velocity[0] > -self.max_speed:
-                self.acceleration[0] = -5
-        else:
-            self.acceleration[0] = 0.0
-
-        if abs(self.velocity[0]) > self.max_speed:
-            self.velocity[0] *= self.max_speed / abs(self.velocity[0])
-
-        pos = input_handler.mouse_position
-        self.hand_position = self.shoulder + self.hand_radius * pos / norm(pos)
-
-        if input_handler.keys_pressed[pygame.K_e]:
-            if self.object:
-                for c in self.object.colliders:
-                    if c.collisions:
-                        break
-                else:
-                    self.object.group = self.object_group
-                    self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0])
-                    self.object = None
-            else:
-                for c in self.hand.colliders[0].collisions:
-                    if norm(c.collider.parent.velocity) < 0.5:
-                        self.object = c.collider.parent
-                        self.object_group = c.collider.parent.group
-                        c.collider.parent.group = Group.NONE
-                        if self.hand_position[0] < 0:
-                            self.object_flipped = True
-                        else:
-                            self.object_flipped = False
-
     def input(self, input_handler):
         controller = input_handler.controllers[self.number]
 
@@ -119,7 +66,7 @@ class Player(PhysicsObject):
             self.set_position([-2, 0])
             self.velocity = np.zeros(2)
 
-        acceleration = 5 * input_handler.controllers[self.number].left_stick[0]
+        acceleration = 5 * controller.left_stick[0]
         if acceleration > 0:
             if self.velocity[0] < self.max_speed:
                 self.acceleration[0] = acceleration
@@ -132,23 +79,47 @@ class Player(PhysicsObject):
         if abs(self.velocity[0]) > self.max_speed:
             self.velocity[0] *= self.max_speed / abs(self.velocity[0])
 
-        stick_norm = np.linalg.norm(input_handler.controllers[self.number].right_stick)
+        if controller.left_stick[1] < -0.5:
+            self.crouched = min(1, self.crouched + self.crouch_speed)
+        else:
+            self.crouched = max(0, self.crouched - self.crouch_speed)
+
+        self.head.position[1] = self.position[1] + 1 - self.crouched
+        self.body.position[1] = self.position[1] - 0.5 * self.crouched
+        self.body.half_height[1] = 1 - 0.5 * self.crouched
+        self.shoulder[1] = 0.15 - 0.5 * self.crouched
+
+        stick_norm = norm(controller.right_stick)
         if stick_norm != 0:
-            self.hand_position = self.shoulder + self.hand_radius * input_handler.controllers[self.number].right_stick / stick_norm
+            self.hand_position = self.shoulder + self.hand_radius * controller.right_stick / stick_norm
 
         if controller.button_pressed['RB']:
             if self.object:
-                self.object.group = self.object_group
-                self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0])
-                self.object = None
+                self.throw_object()
             else:
-                for c in self.hand.colliders[0].collisions:
-                    if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
-                        if norm(c.collider.parent.velocity) < 0.5:
-                            self.object = c.collider.parent
-                            self.object_group = c.collider.parent.group
-                            c.collider.parent.group = Group.NONE
-                            if self.hand_position[0] < 0:
-                                self.object_flipped = True
-                            else:
-                                self.object_flipped = False
+                self.grab_object()
+
+    def throw_object(self):
+        for col in self.object.colliders:
+            for c in col.collisions:
+                if c.collider.parent.collides_with(self.object_group):
+                    return
+
+        self.object.group = self.object_group
+        self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0])
+        self.object = None
+
+    def grab_object(self):
+        for c in self.hand.colliders[0].collisions:
+            if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
+                if norm(c.collider.parent.velocity) < 0.5:
+                    self.object = c.collider.parent
+                    self.object_group = c.collider.parent.group
+                    c.collider.parent.group = Group.NONE
+
+    def attack(self):
+        if self.object:
+            try:
+                self.object.attack()
+            except:
+                pass

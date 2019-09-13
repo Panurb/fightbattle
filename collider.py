@@ -40,8 +40,8 @@ class Collider:
             if c.parent is self.parent:
                 continue
 
-            if not COLLISION_MATRIX[self.parent.group][c.parent.group]:
-                continue
+            #if not COLLISION_MATRIX[self.parent.group][c.parent.group]:
+            #    continue
 
             overlap, supports = self.overlap(c)
             if overlap.any():

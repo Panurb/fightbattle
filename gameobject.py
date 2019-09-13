@@ -25,6 +25,9 @@ class GameObject:
         self.colliders = []
         self.group = group
 
+    def collides_with(self, group):
+        return COLLISION_MATRIX[self.group][group]
+
     def flip_horizontally(self):
         for c in self.colliders:
             #c.flip_horizontally()
@@ -95,6 +98,9 @@ class PhysicsObject(GameObject):
             right = None
 
             for collision in collider.collisions:
+                if not self.collides_with(collision.collider.parent.group):
+                    continue
+
                 if collision.overlap[1] > 0:
                     self.on_ground = True
 
@@ -105,10 +111,10 @@ class PhysicsObject(GameObject):
 
                 if self.bounce:
                     n = collision.overlap
-                    impact = -5 * self.bounce * self.velocity.dot(n) * n / n.dot(n)
-                    self.acceleration += impact
-                    #self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
-                    #self.velocity *= self.bounce
+                    #impact = -5 * self.bounce * self.velocity.dot(n) * n / n.dot(n)
+                    #self.acceleration += impact
+                    self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
+                    self.velocity *= self.bounce
                 else:
                     if not collision.overlap[0]:
                         self.velocity[1] = 0.0

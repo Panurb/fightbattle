@@ -20,6 +20,9 @@ class Gun(PhysicsObject):
         self.add_collider(Rectangle(position, 0.2, 0.5))
         self.inertia = 0.0
 
+    def attack(self):
+        pass
+
 
 class Box(PhysicsObject):
     def __init__(self, position):
@@ -47,11 +50,10 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_player([-2, 0])
+        self.add_player([0, 0])
         #self.add_player([2, 2])
 
-        self.add_wall(np.array([0, -3]), 12, 1)
-        self.add_wall(np.array([5, -1]), 12, 1)
+        self.add_wall(np.array([0, -3]), 100, 1)
         self.add_gun([0, 2])
 
     def input(self, input_handler):

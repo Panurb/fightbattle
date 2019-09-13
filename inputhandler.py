@@ -149,7 +149,7 @@ class InputHandler:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_released[event.button] = True
 
-                self.mouse_position[:] = camera.screen_to_world(pygame.mouse.get_pos() - camera.position)
+                self.mouse_position[:] = pygame.mouse.get_pos() - camera.half_width - camera.half_height
 
         for key in self.keys_down:
             if self.keys_down[key] and not pygame.key.get_pressed()[key]:
