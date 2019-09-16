@@ -10,13 +10,15 @@ class Group(enum.IntEnum):
     GUNS = 3
     HAND = 4
     BOXES = 5
+    BULLETS = 6
 
-COLLISION_MATRIX = [[False, False, False, False, False, False],
-                    [False, True, True, False, False, False],
-                    [False, True, True, True, False, True],
-                    [False, False, True, False, True, True],
-                    [False, False, False, True, False, True],
-                    [False, False, True, True, True, True]]
+COLLISION_MATRIX = [[False, False, False, False, False, False, False],
+                    [False, True, True, False, False, False, True],
+                    [False, True, True, True, False, True, True],
+                    [False, False, True, False, True, True, False],
+                    [False, False, False, True, False, True, False],
+                    [False, False, True, True, True, True, True],
+                    [False, False, True, False, False, True, False]]
 
 
 class GameObject:
@@ -24,14 +26,18 @@ class GameObject:
         self.position = np.array(position, dtype=float)
         self.colliders = []
         self.group = group
+        self.collision = True
+        self.flipped = False
 
-    def collides_with(self, group):
-        return COLLISION_MATRIX[self.group][group]
+    def collides_with(self, other):
+        return COLLISION_MATRIX[self.group][other.group]
 
     def flip_horizontally(self):
         for c in self.colliders:
             #c.flip_horizontally()
             c.position[0] -= 2 * (c.position - self.position)[0]
+
+        self.flipped = not self.flipped
 
     def set_position(self, position):
         delta_pos = position - self.position
@@ -87,18 +93,24 @@ class PhysicsObject(GameObject):
         self.angular_acceleration = 0.0
 
         for collider in self.colliders:
-            impact = None
-
             collider.position += delta_pos
             collider.rotate(delta_angle)
 
             collider.update_collisions(colliders)
 
+            if not self.collision:
+                continue
+
+            impact = None
+
             left = None
             right = None
 
             for collision in collider.collisions:
-                if not self.collides_with(collision.collider.parent.group):
+                if not collision.collider.parent.collision:
+                    continue
+
+                if not self.collides_with(collision.collider.parent):
                     continue
 
                 if collision.overlap[1] > 0:

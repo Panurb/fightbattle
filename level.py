@@ -13,6 +13,13 @@ class Wall(GameObject):
         self.add_collider(collider)
 
 
+class Bullet(PhysicsObject):
+    def __init__(self, position, velocity):
+        super().__init__(position, velocity, group=Group.BULLETS)
+        self.add_collider(Circle(self.position, 0.2))
+        self.gravity_scale = 0
+
+
 class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.GUNS)
@@ -20,8 +27,25 @@ class Gun(PhysicsObject):
         self.add_collider(Rectangle(position, 0.2, 0.5))
         self.inertia = 0.0
 
+        self.bullets = []
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        for b in self.bullets:
+            b.update(gravity, time_step, colliders)
+
+    def draw(self, screen, camera):
+        super().draw(screen, camera)
+
+        for b in self.bullets:
+            b.draw(screen, camera)
+
     def attack(self):
-        pass
+        if self.flipped:
+            self.bullets.append(Bullet(self.position + np.array([0, 0.25]), (-5, 0)))
+        else:
+            self.bullets.append(Bullet(self.position + np.array([0, 0.25]), (5, 0)))
 
 
 class Box(PhysicsObject):
@@ -51,16 +75,16 @@ class Level:
         self.gravity = np.array([0, -0.1])
 
         self.add_player([0, 0])
-        #self.add_player([2, 2])
+        self.add_player([5, 0])
 
         self.add_wall(np.array([0, -3]), 100, 1)
         self.add_gun([0, 2])
 
     def input(self, input_handler):
         if input_handler.mouse_pressed[1]:
-            self.add_box(self.camera.screen_to_world(input_handler.mouse_position))
+            self.add_box(input_handler.mouse_position + self.camera.position)
         if input_handler.mouse_pressed[3]:
-            self.add_ball(self.camera.screen_to_world(input_handler.mouse_position))
+            self.add_ball(input_handler.mouse_position + self.camera.position)
 
         for i, player in enumerate(self.players):
             player.input(input_handler)
@@ -98,7 +122,16 @@ class Level:
         for obj in self.objects:
             obj.update(self.gravity, time_step, self.colliders)
 
-        self.camera.position[:] = self.players[0].position
+        self.camera.position[:] = np.zeros(2)
+        for player in self.players:
+            self.camera.position += player.position
+        self.camera.position /= len(self.players)
+
+        dist = 0
+        for player in self.players:
+            dist = max(dist, np.sum((player.position - self.camera.position)**2))
+
+        self.camera.zoom = min(500 / np.sqrt(dist), 50)
 
     def draw(self, screen):
         for wall in self.walls:

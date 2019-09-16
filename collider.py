@@ -40,12 +40,10 @@ class Collider:
             if c.parent is self.parent:
                 continue
 
-            #if not COLLISION_MATRIX[self.parent.group][c.parent.group]:
-            #    continue
-
             overlap, supports = self.overlap(c)
             if overlap.any():
                 self.collisions.append(Collision(c, overlap, supports))
+                #c.collisions.append(Collision(self, -overlap, supports))
 
     def rotate(self, angle):
         pass

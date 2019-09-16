@@ -23,7 +23,8 @@ class Controller:
             self.button_pressed[b] = False
             self.button_released[b] = False
 
-        self.deadzone = 0.3
+        self.stick_deadzone = 0.3
+        self.trigger_deadzone = 0.01
 
     def update(self):
         self.left_stick[0] = self.joystick.get_axis(0)
@@ -33,14 +34,20 @@ class Controller:
         self.right_stick[1] = -self.joystick.get_axis(3)
 
         for stick in [self.left_stick, self.right_stick]:
-            if np.linalg.norm(stick) < self.deadzone:
+            if norm(stick) < self.stick_deadzone:
                 stick[:] = np.zeros(2)
 
         trigger = self.joystick.get_axis(2)
+        if abs(trigger) < self.trigger_deadzone:
+            trigger = 0
+
         if trigger > 0:
             self.left_trigger = trigger
-        else:
+        elif trigger < 0:
             self.right_trigger = -trigger
+        else:
+            self.left_trigger = 0
+            self.right_trigger = 0
 
         for i, b in enumerate(['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']):
             self.button_pressed[b] = False
@@ -80,9 +87,9 @@ class Keyboard(Controller):
             self.left_stick[0] = 0
 
         if self.input_handler.keys_down[pygame.K_w]:
-            self.left_stick[1] = -1
-        elif self.input_handler.keys_down[pygame.K_s]:
             self.left_stick[1] = 1
+        elif self.input_handler.keys_down[pygame.K_s]:
+            self.left_stick[1] = -1
         else:
             self.left_stick[1] = 0
 
@@ -149,7 +156,7 @@ class InputHandler:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_released[event.button] = True
 
-                self.mouse_position[:] = pygame.mouse.get_pos() - camera.half_width - camera.half_height
+                self.mouse_position[:] = camera.screen_to_world(pygame.mouse.get_pos()) - camera.position
 
         for key in self.keys_down:
             if self.keys_down[key] and not pygame.key.get_pressed()[key]:

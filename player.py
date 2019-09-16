@@ -12,7 +12,7 @@ class Player(PhysicsObject):
         self.inertia = 0.0
 
         self.legs = Circle(position + np.array([0, -1]), 0.5)
-        self.body = Rectangle(self.position, 1, 2)
+        self.body = Rectangle(self.position, 0.5, 2)
         self.head = Circle(position + np.array([0, 1]), 0.5)
 
         self.add_collider(self.head)
@@ -28,12 +28,16 @@ class Player(PhysicsObject):
         self.hand.add_collider(Circle(position, 0.2))
 
         self.object = None
-        self.object_group = None
-        self.object_flipped = False
 
         self.number = number
         self.crouched = 0
         self.crouch_speed = 0.25
+
+        self.trigger_pressed = False
+
+        self.throw_speed = 2
+        self.throw_charge = 0
+        self.charge_speed = 0.05
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -44,13 +48,11 @@ class Player(PhysicsObject):
         if self.object:
             self.object.set_position(self.position + self.shoulder + self.hand_position)
             if self.hand_position[0] < 0:
-                if not self.object_flipped:
+                if not self.object.flipped:
                     self.object.flip_horizontally()
-                    self.object_flipped = True
             else:
-                if self.object_flipped:
+                if self.object.flipped:
                     self.object.flip_horizontally()
-                    self.object_flipped = False
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
@@ -95,18 +97,34 @@ class Player(PhysicsObject):
 
         if controller.button_pressed['RB']:
             if self.object:
-                self.throw_object()
+                self.throw_object(0)
             else:
                 self.grab_object()
 
-    def throw_object(self):
+        if controller.right_trigger > 0.5:
+            if not self.trigger_pressed:
+                self.attack()
+                self.trigger_pressed = True
+        else:
+            self.trigger_pressed = False
+
+        if self.object:
+            if controller.left_trigger > 0.5:
+                self.throw_charge = min(1, self.throw_charge + self.charge_speed)
+            elif self.throw_charge:
+                self.throw_object(self.throw_charge)
+                self.throw_charge = 0
+        else:
+            self.throw_charge = 0
+
+    def throw_object(self, velocity):
         for col in self.object.colliders:
             for c in col.collisions:
-                if c.collider.parent.collides_with(self.object_group):
+                if self.object.collides_with(c.collider.parent):
                     return
 
-        self.object.group = self.object_group
-        self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0])
+        self.object.collision = True
+        self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0]) * velocity * self.throw_speed
         self.object = None
 
     def grab_object(self):
@@ -114,8 +132,7 @@ class Player(PhysicsObject):
             if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
                 if norm(c.collider.parent.velocity) < 0.5:
                     self.object = c.collider.parent
-                    self.object_group = c.collider.parent.group
-                    c.collider.parent.group = Group.NONE
+                    self.object.collision = False
 
     def attack(self):
         if self.object:
