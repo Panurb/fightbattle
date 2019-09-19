@@ -11,13 +11,14 @@ class Player(PhysicsObject):
         self.bounce = 0.0
         self.inertia = 0.0
 
-        self.legs = Circle(position + np.array([0, -1]), 0.5)
-        self.body = Rectangle(self.position, 0.5, 2)
-        self.head = Circle(position + np.array([0, 1]), 0.5)
+        self.add_collider(Rectangle([0, 0], 1, 3))
 
-        self.add_collider(self.head)
-        self.add_collider(self.body)
-        self.add_collider(self.legs)
+        self.legs = GameObject(self.position)
+        self.legs.add_collider(Circle([0, -1], 0.5))
+        self.body = GameObject(self.position)
+        self.body.add_collider(Rectangle([0, 0], 1, 1))
+        self.head = GameObject(self.position)
+        self.head.add_collider(Circle([0, 1], 0.5))
 
         self.max_speed = 0.25
 
@@ -25,7 +26,7 @@ class Player(PhysicsObject):
         self.hand_position = np.array([1.0, 0.0])
         self.hand_radius = 1.0
         self.hand = GameObject(self.position, group=Group.HAND)
-        self.hand.add_collider(Circle(position, 0.2))
+        self.hand.add_collider(Circle([0, 0], 0.2))
 
         self.object = None
 
@@ -42,6 +43,10 @@ class Player(PhysicsObject):
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
+        self.legs.set_position(self.position)
+        self.body.set_position(self.position)
+        self.head.set_position(self.position + np.array([0, -self.crouched]))
+
         self.hand.set_position(self.position + self.shoulder + self.hand_position)
         self.hand.colliders[0].update_collisions(colliders)
 
@@ -56,7 +61,10 @@ class Player(PhysicsObject):
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
+
         self.hand.draw(screen, camera)
+        #for part in (self.legs, self.body, self.head):
+        #    part.draw(screen, camera)
 
     def input(self, input_handler):
         controller = input_handler.controllers[self.number]
@@ -81,14 +89,15 @@ class Player(PhysicsObject):
         if abs(self.velocity[0]) > self.max_speed:
             self.velocity[0] *= self.max_speed / abs(self.velocity[0])
 
-        if controller.left_stick[1] < -0.5:
+        if self.on_ground and controller.left_stick[1] < -0.5:
             self.crouched = min(1, self.crouched + self.crouch_speed)
         else:
             self.crouched = max(0, self.crouched - self.crouch_speed)
 
-        self.head.position[1] = self.position[1] + 1 - self.crouched
-        self.body.position[1] = self.position[1] - 0.5 * self.crouched
-        self.body.half_height[1] = 1 - 0.5 * self.crouched
+        #self.head.position[1] = self.position[1] + 1 - self.crouched
+        #self.body.position[1] = self.position[1] - 0.5 * self.crouched
+        self.colliders[0].position[1] = self.position[1] - 0.5 * self.crouched
+        self.colliders[0].half_height[1] = 1.5 - 0.5 * self.crouched
         self.shoulder[1] = 0.15 - 0.5 * self.crouched
 
         stick_norm = norm(controller.right_stick)
@@ -133,6 +142,7 @@ class Player(PhysicsObject):
                 if norm(c.collider.parent.velocity) < 0.5:
                     self.object = c.collider.parent
                     self.object.collision = False
+                    self.object.on_ground = False
 
     def attack(self):
         if self.object:

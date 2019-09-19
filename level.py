@@ -9,22 +9,43 @@ from camera import Camera
 class Wall(GameObject):
     def __init__(self, position, width, height):
         super().__init__(position, group=Group.WALLS)
-        collider = Rectangle(position, width, height)
+        collider = Rectangle([0, 0], width, height)
         self.add_collider(collider)
 
 
 class Bullet(PhysicsObject):
     def __init__(self, position, velocity):
         super().__init__(position, velocity, group=Group.BULLETS)
-        self.add_collider(Circle(self.position, 0.2))
+        self.add_collider(Circle(np.zeros(2), 0.2))
         self.gravity_scale = 0
+
+        self.lifetime = 15
+        self.time = 0
+        self.destroyed = False
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        if self.time < self.lifetime:
+            self.time += time_step
+        else:
+            self.destroyed = True
+
+        for c in self.colliders[0].collisions:
+            try:
+                c.collider.parent.damage(10)
+            except AttributeError:
+                pass
+
+            self.destroyed = True
+            return
 
 
 class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.GUNS)
-        self.add_collider(Rectangle(position + np.array([0.4, 0.3]), 1, 0.2))
-        self.add_collider(Rectangle(position, 0.2, 0.5))
+        self.add_collider(Rectangle([0.4, 0.3], 1, 0.2))
+        self.add_collider(Rectangle(np.zeros(2), 0.2, 0.5))
         self.inertia = 0.0
 
         self.bullets = []
@@ -34,6 +55,8 @@ class Gun(PhysicsObject):
 
         for b in self.bullets:
             b.update(gravity, time_step, colliders)
+            if b.destroyed:
+                self.bullets.remove(b)
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
@@ -43,15 +66,17 @@ class Gun(PhysicsObject):
 
     def attack(self):
         if self.flipped:
-            self.bullets.append(Bullet(self.position + np.array([0, 0.25]), (-5, 0)))
+            v = -5
         else:
-            self.bullets.append(Bullet(self.position + np.array([0, 0.25]), (5, 0)))
+            v = 5
+
+        self.bullets.append(Bullet(self.position + [0, 0.25], (v, 0)))
 
 
 class Box(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Rectangle(position, 1, 1))
+        self.add_collider(Rectangle([0, 0], 1, 1))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -60,7 +85,7 @@ class Box(PhysicsObject):
 class Ball(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
-        self.add_collider(Circle(position, 0.5))
+        self.add_collider(Circle([0, 0], 0.5))
 
 
 class Level:
@@ -74,7 +99,7 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_player([0, 0])
+        self.add_player([0, 10])
         self.add_player([5, 0])
 
         self.add_wall(np.array([0, -3]), 100, 1)

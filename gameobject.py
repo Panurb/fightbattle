@@ -13,7 +13,7 @@ class Group(enum.IntEnum):
     BULLETS = 6
 
 COLLISION_MATRIX = [[False, False, False, False, False, False, False],
-                    [False, True, True, False, False, False, True],
+                    [False, True, True, False, False, True, True],
                     [False, True, True, True, False, True, True],
                     [False, False, True, False, True, True, False],
                     [False, False, False, True, False, True, False],
@@ -23,11 +23,19 @@ COLLISION_MATRIX = [[False, False, False, False, False, False, False],
 
 class GameObject:
     def __init__(self, position, group=Group.NONE):
+        super().__init__()
         self.position = np.array(position, dtype=float)
         self.colliders = []
         self.group = group
         self.collision = True
         self.flipped = False
+        self.health = 100
+
+    def damage(self, amount):
+        if self.health > 0:
+            self.health -= amount
+        else:
+            self.health = 0
 
     def collides_with(self, other):
         return COLLISION_MATRIX[self.group][other.group]
@@ -49,6 +57,7 @@ class GameObject:
     def add_collider(self, collider):
         self.colliders.append(collider)
         collider.parent = self
+        collider.position += self.position
 
     def draw(self, screen, camera):
         for collider in self.colliders:
@@ -70,9 +79,6 @@ class PhysicsObject(GameObject):
         self.mass = 1.0
         self.inertia = 0.0
         self.gravity_scale = 1.0
-
-    def draw(self, screen, camera):
-        super().draw(screen, camera)
 
     def set_position(self, position):
         super().set_position(position)

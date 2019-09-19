@@ -2,9 +2,10 @@ import numpy as np
 from numpy.linalg import norm
 import enum
 import pygame
-import itertools
 
-from gameobject import COLLISION_MATRIX, Group
+
+def projection(v, a, b):
+    return np.array([np.dot(v, a), np.dot(v, b)])
 
 
 class Type(enum.Enum):
@@ -20,10 +21,7 @@ class Collision:
 
 
 class Collider:
-    id_iter = itertools.count()
-
     def __init__(self, position):
-        self.id = next(self.id_iter)
         self.parent = None
         self.position = np.array(position, dtype=float)
         self.friction = 0.5
@@ -122,6 +120,9 @@ class Rectangle(Collider):
 
         return overlap
 
+    def axis_half_width(self, axis):
+        return abs(np.dot(self.half_width, axis)) + abs(np.dot(self.half_height, axis))
+
     def overlap(self, other):
         overlap = np.zeros(2)
         supports = []
@@ -130,24 +131,49 @@ class Rectangle(Collider):
         if dist > self.radius() + other.radius():
             return overlap, supports
 
-        if dist == 0:
+        if dist < 0.1:
             overlap = 2 * self.half_height
             supports.append(self.position + self.half_height)
             return overlap, supports
 
         if other.type is Type.RECTANGLE:
+            w = norm(self.half_width)
+            h = norm(self.half_height)
+
+            wu = self.half_width / w
+            hu = self.half_height / h
+
+            r = projection(other.position - self.position, wu, hu)
+
+            o = w + other.axis_half_width(wu) - r[0]
+            if o > 0:
+                overlap[0] = np.sign(r[0]) * o
+            else:
+                return np.zeros(2), []
+
+            o = h + other.axis_half_width(hu) - r[1]
+            if o > 0:
+                overlap[1] = np.sign(r[1]) * o
+            else:
+                return np.zeros(2), []
+
+            overlap[np.argmax(overlap)] = 0
+            overlap = projection(overlap, wu, hu)
+
+            '''
             for c in other.corners():
                 o = self.point_overlap(c)
                 if o.any():
                     supports.append(c)
-                    if norm(o) > norm(overlap):
+                    if np.sum(o**2) > np.sum(overlap**2):
                         overlap = o
             for c in self.corners():
                 o = -other.point_overlap(c)
                 if o.any():
                     supports.append(c + o)
-                    if norm(o) > norm(overlap):
+                    if np.sum(o**2) > np.sum(overlap**2):
                         overlap = o
+            '''
         elif other.type is Type.CIRCLE:
             overlap, supports = other.overlap(self)
             overlap *= -1
@@ -237,3 +263,8 @@ class Circle(Collider):
         color = (255, 0, 255)
         center = camera.world_to_screen(self.position)
         pygame.draw.circle(screen, color, center, int(self._radius * camera.zoom), 1)
+
+
+class Capsule(Collider):
+    def __init__(self, position):
+        super().__init__(position)
