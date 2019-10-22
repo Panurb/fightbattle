@@ -52,7 +52,6 @@ class Player(PhysicsObject):
         self.hand.update(gravity, time_step, colliders)
 
         if self.object:
-            self.object.set_position(self.hand.position)
             if self.hand_position[0] < 0:
                 if not self.object.flipped:
                     self.object.flip_horizontally()
@@ -60,8 +59,14 @@ class Player(PhysicsObject):
                 if self.object.flipped:
                     self.object.flip_horizontally()
 
+            #self.object.set_position(self.hand.position)
+            self.object.velocity = 0.5 * (self.hand.position - self.object.position)
+
             self.object.update(gravity, time_step, colliders)
-            self.hand.set_position(self.object.position)
+            if norm(self.position + self.shoulder - self.object.position) > 1.5 * self.hand_radius:
+                self.throw_object(0)
+            else:
+                self.hand.set_position(self.object.position)
 
     def draw(self, screen, camera):
         super().draw(screen, camera)

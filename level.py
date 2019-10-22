@@ -19,7 +19,7 @@ class Level:
         self.gravity = np.array([0, -0.1])
 
         self.add_player([0, 0])
-        self.add_player([5, 0])
+        #self.add_player([5, 0])
 
         self.add_wall(np.array([0, -3]), 100, 1)
         self.add_wall([-5, 0], 1, 10)
@@ -36,7 +36,7 @@ class Level:
 
     def add_box(self, position):
         box = Box(position)
-        box.angular_velocity = 0.1
+        #box.angular_velocity = 0.1
         self.objects.append(box)
         self.colliders += box.colliders
 
