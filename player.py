@@ -48,10 +48,9 @@ class Player(PhysicsObject):
         self.body.set_position(self.position)
         self.head.set_position(self.position + np.array([0, -self.crouched]))
 
-        self.hand.set_position(self.position + self.shoulder + self.hand_position)
-        self.hand.update(gravity, time_step, colliders)
-
         if self.object:
+            self.hand.set_position(self.position + self.shoulder + self.hand_position)
+
             if self.hand_position[0] < 0:
                 if not self.object.flipped:
                     self.object.flip_horizontally()
@@ -67,6 +66,10 @@ class Player(PhysicsObject):
                 self.throw_object(0)
             else:
                 self.hand.set_position(self.object.position)
+        else:
+            self.hand.velocity = self.velocity + 1 * (self.position + self.shoulder
+                                                        + self.hand_position - self.hand.position)
+            self.hand.update(gravity, time_step, colliders)
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
