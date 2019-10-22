@@ -5,6 +5,13 @@ from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
 
 
+class Hand(PhysicsObject):
+    def __init__(self, position):
+        super().__init__(position, group=Group.HANDS)
+        self.add_collider(Circle([0, 0], 0.2))
+        self.gravity_scale = 0.0
+
+
 class Player(PhysicsObject):
     def __init__(self, position, number=0):
         super().__init__(position, group=Group.PLAYERS)
@@ -25,9 +32,7 @@ class Player(PhysicsObject):
         self.shoulder = np.array([0.0, 0.25])
         self.hand_position = np.array([1.0, 0.0])
         self.hand_radius = 1.0
-        self.hand = PhysicsObject(self.position, group=Group.HAND)
-        self.hand.add_collider(Circle([0, 0], 0.2))
-        self.hand.gravity_scale = 0
+        self.hand = Hand(self.position)
 
         self.object = None
 
@@ -44,6 +49,9 @@ class Player(PhysicsObject):
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
+        if self.destroyed:
+            self.angular_velocity = -0.125 * np.sign(self.angle + np.pi / 2)
+
         self.legs.set_position(self.position)
         self.body.set_position(self.position)
         self.head.set_position(self.position + np.array([0, -self.crouched]))
@@ -58,7 +66,6 @@ class Player(PhysicsObject):
                 if self.object.flipped:
                     self.object.flip_horizontally()
 
-            #self.object.set_position(self.hand.position)
             self.object.velocity = 0.5 * (self.hand.position - self.object.position)
 
             self.object.update(gravity, time_step, colliders)
@@ -147,7 +154,6 @@ class Player(PhysicsObject):
         else:
             self.health = 0
             if not self.destroyed:
-                self.angular_velocity = -0.125
                 self.velocity = np.array([0.5, 0.5])
                 self.destroyed = True
                 self.inertia = 1.0

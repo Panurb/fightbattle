@@ -30,10 +30,15 @@ class Main:
 
         self.time_step = 15.0 / self.option_handler.fps
 
+        self.font = pygame.font.Font(None, 30)
+
     def main_loop(self):
         while self.loop.state != gameloop.State.QUIT:
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen)
+
+            fps = self.font.render(str(int(self.clock.get_fps())), True, pygame.Color('white'))
+            self.screen.blit(fps, (50, 50))
 
             pygame.display.update()
             self.clock.tick(self.option_handler.fps)

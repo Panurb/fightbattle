@@ -14,7 +14,10 @@ class Level:
         self.players = []
         self.walls = []
         self.objects = []
-        self.colliders = []
+
+        self.colliders = dict()
+        for g in Group:
+            self.colliders[g] = []
 
         self.gravity = np.array([0, -0.1])
 
@@ -38,28 +41,28 @@ class Level:
         box = Box(position)
         #box.angular_velocity = 0.1
         self.objects.append(box)
-        self.colliders.append(box.collider)
+        self.colliders[box.group].append(box.collider)
 
     def add_ball(self, position):
         ball = Ball(position)
         self.objects.append(ball)
-        self.colliders.append(ball.collider)
+        self.colliders[ball.group].append(ball.collider)
 
     def add_wall(self, position, width, height):
         wall = Wall(position, width, height)
         self.walls.append(wall)
-        self.colliders.append(wall.collider)
+        self.colliders[wall.group].append(wall.collider)
 
     def add_gun(self, position):
         gun = Gun(position)
         self.objects.append(gun)
-        self.colliders.append(gun.collider)
+        self.colliders[gun.group].append(gun.collider)
 
     def add_player(self, position):
         n = len(self.players) - 1
         player = Player(position, n)
         self.players.append(player)
-        self.colliders.append(player.collider)
+        self.colliders[player.group].append(player.collider)
 
     def update(self, time_step):
         for player in self.players:
