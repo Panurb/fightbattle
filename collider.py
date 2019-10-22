@@ -54,12 +54,7 @@ class Collider:
         pass
 
     def overlap(self, other):
-        overlap = np.zeros(2)
-        supports = []
-
-        dist = np.sum((self.position - other.position)**2)
-        if dist > (self.radius() + other.radius())**2:
-            return overlap, supports
+        pass
 
 
 class Rectangle(Collider):
@@ -82,13 +77,18 @@ class Rectangle(Collider):
         return abs(np.dot(self.half_width, axis)) + abs(np.dot(self.half_height, axis))
 
     def overlap(self, other):
-        super().overlap(other)
-
         overlap = np.zeros(2)
         supports = []
 
+        dist = np.sum((self.position - other.position)**2)
+        if dist > (self.radius() + other.radius())**2:
+            return overlap, supports
+
         if other.type is Type.RECTANGLE:
-            axes = [self.half_width, self.half_height, other.half_width, other.half_height]
+            axes = [self.half_width, self.half_height]
+            if self.parent.angle != other.parent.angle:
+                axes += [other.half_width, other.half_height]
+
             min_axis = None
             min_overlap = other.radius() + self.radius()
 
@@ -180,14 +180,14 @@ class Circle(Collider):
         overlap = np.zeros(2)
         supports = []
 
-        dist = norm(self.position - other.position)
-        if dist > self._radius + other.radius():
+        dist = np.sum((self.position - other.position)**2)
+        if dist > (self._radius + other.radius())**2:
             return overlap, supports
 
         if other.type is Type.CIRCLE:
+            dist = np.sqrt(dist)
             unit = (self.position - other.position) / dist
             overlap = (self._radius + other.radius() - dist) * unit
-            supports.append(other.position + other.radius() * unit)
         elif other.type is Type.RECTANGLE:
             overlap, supports = other.overlap(self)
             overlap *= -1

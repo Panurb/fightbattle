@@ -111,8 +111,8 @@ class Player(PhysicsObject):
 
         self.head.position[1] = self.position[1] + 1 - self.crouched
         self.body.position[1] = self.position[1] - 0.5 * self.crouched
-        self.colliders[0].position[1] = self.position[1] - 0.5 * self.crouched
-        self.colliders[0].half_height[1] = 1.5 - 0.5 * self.crouched
+        self.collider.position[1] = self.position[1] - 0.5 * self.crouched
+        self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
         self.shoulder[1] = 0.15 - 0.5 * self.crouched
 
         stick_norm = norm(controller.right_stick)
@@ -153,11 +153,12 @@ class Player(PhysicsObject):
                 self.inertia = 1.0
 
     def throw_object(self, velocity):
-        self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0]) * velocity * self.throw_speed
+        if velocity:
+            self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0]) * velocity * self.throw_speed
         self.object = None
 
     def grab_object(self):
-        for c in self.hand.colliders[0].collisions:
+        for c in self.hand.collider.collisions:
             if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
                 if norm(c.collider.parent.velocity) < 0.5:
                     self.object = c.collider.parent

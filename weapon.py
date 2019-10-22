@@ -7,8 +7,7 @@ from collider import Rectangle, Circle
 class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.GUNS)
-        self.add_collider(Rectangle([0.4, 0.3], 1, 0.2))
-        self.add_collider(Rectangle(np.zeros(2), 0.2, 0.5))
+        self.add_collider(Rectangle(np.zeros(2), 1, 0.5))
         self.inertia = 0.0
 
         self.bullets = []
@@ -29,11 +28,13 @@ class Gun(PhysicsObject):
 
     def attack(self):
         if self.flipped:
-            v = -5
+            p = self.position + [-0.5, 0.25]
+            v = -3
         else:
-            v = 5
+            p = self.position + [0.5, 0.25]
+            v = 3
 
-        self.bullets.append(Bullet(self.position + [0, 0.25], (v, 0)))
+        self.bullets.append(Bullet(p, (v, 0)))
 
 
 class Bullet(PhysicsObject):
@@ -54,7 +55,7 @@ class Bullet(PhysicsObject):
         else:
             self.destroyed = True
 
-        for c in self.colliders[0].collisions:
+        for c in self.collider.collisions:
             try:
                 c.collider.parent.damage(100)
             except AttributeError:
