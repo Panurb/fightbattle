@@ -5,7 +5,7 @@ import pygame
 
 
 def projection(v, a, b):
-    return np.array([np.dot(v, a), np.dot(v, b)])
+    return np.array([np.dot(v, a) / norm(a), np.dot(v, b) / norm(b)])
 
 
 class Type(enum.Enum):
@@ -65,60 +65,11 @@ class Rectangle(Collider):
     def radius(self):
         return norm(self.half_width + self.half_height)
 
-    def transformation_matrix(self):
-        return np.inv(np.array([2 * self.half_width, 2 * self.half_height]).T)
-
-    def right(self):
-        return (self.position + self.half_width)[0]
-
-    def left(self):
-        return (self.position - self.half_width)[0]
-
-    def top(self):
-        return (self.position + self.half_height)[1]
-
-    def bottom(self):
-        return (self.position - self.half_height)[1]
-
-    def topleft(self):
-        return self.position - self.half_width + self.half_height
-
-    def topright(self):
-        return self.position + self.half_width + self.half_height
-
-    def bottomleft(self):
-        return self.position - self.half_width - self.half_height
-
-    def bottomright(self):
-        return self.position + self.half_width - self.half_height
-
     def corners(self):
-        return self.topright(), self.topleft(), self.bottomleft(), self.bottomright()
-
-    def point_overlap(self, point):
-        overlap = np.zeros(2)
-
-        p = point - self.position
-
-        hw = norm(self.half_width)
-        hh = norm(self.half_height)
-
-        w = self.half_width / hw
-        h = self.half_height / hh
-
-        p_w = np.dot(p, w)
-        p_h = np.dot(p, h)
-
-        o_w = hw - abs(p_w)
-        o_h = hh - abs(p_h)
-
-        if o_w >= 0 and o_h >= 0:
-            if o_w != 0 and o_w < o_h:
-                overlap = -np.sign(p_w) * o_w * w
-            elif o_h != 0:
-                overlap = -np.sign(p_h) * o_h * h
-
-        return overlap
+        return [self.position + self.half_width + self.half_height,
+                self.position - self.half_width + self.half_height,
+                self.position - self.half_width - self.half_height,
+                self.position + self.half_width - self.half_height]
 
     def axis_half_width(self, axis):
         return abs(np.dot(self.half_width, axis)) + abs(np.dot(self.half_height, axis))
@@ -131,49 +82,33 @@ class Rectangle(Collider):
         if dist > self.radius() + other.radius():
             return overlap, supports
 
-        if dist < 0.1:
-            overlap = 2 * self.half_height
-            supports.append(self.position + self.half_height)
-            return overlap, supports
-
         if other.type is Type.RECTANGLE:
-            w = norm(self.half_width)
-            h = norm(self.half_height)
+            axes = [self.half_width, self.half_height, other.half_width, other.half_height]
+            min_axis = None
+            min_overlap = other.radius() + self.radius()
 
-            wu = self.half_width / w
-            hu = self.half_height / h
+            for axis in axes:
+                x = norm(axis)
+                u = axis / x
 
-            r = projection(other.position - self.position, wu, hu)
+                r = np.dot(self.position - other.position, u)
 
-            o = w + other.axis_half_width(wu) - r[0]
-            if o > 0:
-                overlap[0] = np.sign(r[0]) * o
-            else:
-                return np.zeros(2), []
+                o = self.axis_half_width(u) + other.axis_half_width(u) - abs(r)
 
-            o = h + other.axis_half_width(hu) - r[1]
-            if o > 0:
-                overlap[1] = np.sign(r[1]) * o
-            else:
-                return np.zeros(2), []
-
-            overlap[np.argmax(overlap)] = 0
-            overlap = projection(overlap, wu, hu)
-
-            '''
-            for c in other.corners():
-                o = self.point_overlap(c)
-                if o.any():
-                    supports.append(c)
-                    if np.sum(o**2) > np.sum(overlap**2):
+                if o > 0:
+                    if r == 0:
                         overlap = o
-            for c in self.corners():
-                o = -other.point_overlap(c)
-                if o.any():
-                    supports.append(c + o)
-                    if np.sum(o**2) > np.sum(overlap**2):
-                        overlap = o
-            '''
+                    else:
+                        overlap = np.sign(r) * o
+
+                    if abs(overlap) < abs(min_overlap):
+                        min_overlap = overlap
+                        min_axis = u
+                else:
+                    return np.zeros(2), []
+
+            overlap = min_overlap * min_axis
+
         elif other.type is Type.CIRCLE:
             overlap, supports = other.overlap(self)
             overlap *= -1
@@ -205,17 +140,8 @@ class Circle(Collider):
     def radius(self):
         return self._radius
 
-    def right(self):
-        return self.position[0] + self._radius
-
-    def left(self):
-        return self.position[0] - self._radius
-
-    def top(self):
-        return self.position[1] + self._radius
-
-    def bottom(self):
-        return self.position[1] - self._radius
+    def axis_half_width(self, axis):
+        return self.radius()
 
     def overlap(self, other):
         overlap = np.zeros(2)
@@ -237,25 +163,35 @@ class Circle(Collider):
         elif other.type is Type.RECTANGLE:
             overlap = np.zeros(2)
 
-            r_w = other.half_width / norm(other.half_width) * self._radius
-            r_h = other.half_height / norm(other.half_height) * self._radius
+            for corner in other.corners():
+                dist = norm(self.position - corner)
+                if dist <= self._radius:
+                    unit = (self.position - corner) / dist
+                    overlap = (self._radius - dist) * unit
+                    supports.append(self.position - self._radius * unit)
 
-            for r in [r_w, -r_w, r_h, -r_h]:
-                p = self.position + r
-                o = other.point_overlap(p)
-                if o.any():
-                    overlap = -o
-                    break
+            wu = np.array([1, 0])
+            hu = np.array([0, 1])
+
+            r = projection(self.position - other.position, wu, hu)
+
+            o = self.radius() + other.axis_half_width(wu) - abs(r[0])
+            if o > 0:
+                overlap[0] = np.sign(r[0]) * o
             else:
-                for corner in other.corners():
-                    dist = norm(self.position - corner)
-                    if dist <= self._radius:
-                        unit = (self.position - corner) / dist
-                        overlap = (self._radius - dist) * unit
-                        supports.append(self.position - self._radius * unit)
+                return np.zeros(2), []
+
+            o = self.radius() + other.axis_half_width(hu) - abs(r[1])
+            if o > 0:
+                overlap[1] = np.sign(r[1]) * o
+            else:
+                return np.zeros(2), []
+
+            if overlap[0] and overlap[1]:
+                overlap[np.argmax(np.abs(overlap))] = 0
+            overlap = projection(overlap, wu, hu)
 
         return overlap, supports
-
 
     def draw(self, screen, camera):
         super().draw(screen, camera)

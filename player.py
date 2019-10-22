@@ -25,8 +25,9 @@ class Player(PhysicsObject):
         self.shoulder = np.array([0.0, 0.25])
         self.hand_position = np.array([1.0, 0.0])
         self.hand_radius = 1.0
-        self.hand = GameObject(self.position, group=Group.HAND)
+        self.hand = PhysicsObject(self.position, group=Group.HAND)
         self.hand.add_collider(Circle([0, 0], 0.2))
+        self.hand.gravity_scale = 0
 
         self.object = None
 
@@ -48,16 +49,19 @@ class Player(PhysicsObject):
         self.head.set_position(self.position + np.array([0, -self.crouched]))
 
         self.hand.set_position(self.position + self.shoulder + self.hand_position)
-        self.hand.colliders[0].update_collisions(colliders)
+        self.hand.update(gravity, time_step, colliders)
 
         if self.object:
-            self.object.set_position(self.position + self.shoulder + self.hand_position)
+            self.object.set_position(self.hand.position)
             if self.hand_position[0] < 0:
                 if not self.object.flipped:
                     self.object.flip_horizontally()
             else:
                 if self.object.flipped:
                     self.object.flip_horizontally()
+
+            self.object.update(gravity, time_step, colliders)
+            self.hand.set_position(self.object.position)
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
@@ -67,6 +71,9 @@ class Player(PhysicsObject):
         #    part.draw(screen, camera)
 
     def input(self, input_handler):
+        if self.destroyed:
+            return
+
         controller = input_handler.controllers[self.number]
 
         if controller.button_pressed['A']:
@@ -94,8 +101,8 @@ class Player(PhysicsObject):
         else:
             self.crouched = max(0, self.crouched - self.crouch_speed)
 
-        #self.head.position[1] = self.position[1] + 1 - self.crouched
-        #self.body.position[1] = self.position[1] - 0.5 * self.crouched
+        self.head.position[1] = self.position[1] + 1 - self.crouched
+        self.body.position[1] = self.position[1] - 0.5 * self.crouched
         self.colliders[0].position[1] = self.position[1] - 0.5 * self.crouched
         self.colliders[0].half_height[1] = 1.5 - 0.5 * self.crouched
         self.shoulder[1] = 0.15 - 0.5 * self.crouched
@@ -126,13 +133,18 @@ class Player(PhysicsObject):
         else:
             self.throw_charge = 0
 
-    def throw_object(self, velocity):
-        for col in self.object.colliders:
-            for c in col.collisions:
-                if self.object.collides_with(c.collider.parent):
-                    return
+    def damage(self, amount):
+        if self.health > 0:
+            self.health -= amount
+        else:
+            self.health = 0
+            if not self.destroyed:
+                self.angular_velocity = -0.125
+                self.velocity = np.array([0.5, 0.5])
+                self.destroyed = True
+                self.inertia = 1.0
 
-        self.object.collision = True
+    def throw_object(self, velocity):
         self.object.velocity[:] = np.sign(self.hand_position[0]) * np.array([1.0, 0.0]) * velocity * self.throw_speed
         self.object = None
 
@@ -141,8 +153,8 @@ class Player(PhysicsObject):
             if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
                 if norm(c.collider.parent.velocity) < 0.5:
                     self.object = c.collider.parent
-                    self.object.collision = False
                     self.object.on_ground = False
+                    break
 
     def attack(self):
         if self.object:

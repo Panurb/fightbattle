@@ -12,12 +12,13 @@ class Group(enum.IntEnum):
     BOXES = 5
     BULLETS = 6
 
+
 COLLISION_MATRIX = [[False, False, False, False, False, False, False],
-                    [False, True, True, False, False, True, True],
+                    [False, True, True, False, False, False, True],
                     [False, True, True, True, False, True, True],
-                    [False, False, True, False, True, True, False],
-                    [False, False, False, True, False, True, False],
-                    [False, False, True, True, True, True, True],
+                    [False, False, True, False, False, False, False],
+                    [False, False, True, False, False, False, False],
+                    [False, False, True, False, False, True, True],
                     [False, False, True, False, False, True, False]]
 
 
@@ -30,12 +31,14 @@ class GameObject:
         self.collision = True
         self.flipped = False
         self.health = 100
+        self.destroyed = False
 
     def damage(self, amount):
         if self.health > 0:
             self.health -= amount
         else:
             self.health = 0
+            self.destroyed = True
 
     def collides_with(self, other):
         return COLLISION_MATRIX[self.group][other.group]
@@ -84,6 +87,12 @@ class PhysicsObject(GameObject):
         super().set_position(position)
         self.velocity[:] = np.zeros(2)
 
+    def rotate(self, delta_angle):
+        self.angle += delta_angle
+
+        for collider in self.colliders:
+            collider.rotate(delta_angle)
+
     def update(self, gravity, time_step, colliders):
         if self.velocity[1] > 0:
             self.on_ground = False
@@ -100,7 +109,9 @@ class PhysicsObject(GameObject):
 
         for collider in self.colliders:
             collider.position += delta_pos
-            collider.rotate(delta_angle)
+
+            if delta_angle:
+                collider.rotate(delta_angle)
 
             collider.update_collisions(colliders)
 
