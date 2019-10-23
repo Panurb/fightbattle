@@ -29,10 +29,10 @@ class Gun(PhysicsObject):
     def attack(self):
         if self.flipped:
             p = self.position + [-0.5, 0.25]
-            v = -3
+            v = -2
         else:
             p = self.position + [0.5, 0.25]
-            v = 3
+            v = 2
 
         self.bullets.append(Bullet(p, (v, 0)))
 

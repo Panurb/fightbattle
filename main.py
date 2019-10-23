@@ -17,12 +17,13 @@ class Main:
         pygame.init()
         pygame.display.set_caption('NEXTGAME')
 
-        self.image_handler = imagehandler.ImageHandler()
-        self.sound_handler = soundhandler.SoundHandler()
-        self.input_handler = inputhandler.InputHandler()
         self.option_handler = optionhandler.OptionsHandler()
 
         self.screen = pygame.display.set_mode(self.option_handler.resolution)
+
+        self.image_handler = imagehandler.ImageHandler()
+        self.sound_handler = soundhandler.SoundHandler()
+        self.input_handler = inputhandler.InputHandler()
 
         self.loop = gameloop.GameLoop()
 
@@ -34,11 +35,16 @@ class Main:
 
     def main_loop(self):
         while self.loop.state != gameloop.State.QUIT:
+            fps = self.clock.get_fps()
+
+            #if fps != 0:
+            #    self.time_step = 15.0 / fps
+
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen)
 
-            fps = self.font.render(str(int(self.clock.get_fps())), True, pygame.Color('white'))
-            self.screen.blit(fps, (50, 50))
+            fps_str = self.font.render(str(int(fps)), True, pygame.Color('white'))
+            self.screen.blit(fps_str, (50, 50))
 
             pygame.display.update()
             self.clock.tick(self.option_handler.fps)

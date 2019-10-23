@@ -50,7 +50,11 @@ class Player(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if self.destroyed:
-            self.angular_velocity = -0.125 * np.sign(self.angle + np.pi / 2)
+            if self.angle > -np.pi / 2:
+                self.angular_velocity = -0.125
+            else:
+                self.angle = -np.pi / 2
+                self.angular_velocity = 0.0
 
         self.legs.set_position(self.position)
         self.body.set_position(self.position)
@@ -74,9 +78,9 @@ class Player(PhysicsObject):
             else:
                 self.hand.set_position(self.object.position)
         else:
-            self.hand.velocity = self.velocity + 1 * (self.position + self.shoulder
-                                                        + self.hand_position - self.hand.position)
+            self.hand.velocity = self.velocity + self.position + self.shoulder + self.hand_position - self.hand.position
             self.hand.update(gravity, time_step, colliders)
+            self.hand.collider.update_collisions(colliders, [Group.BOXES, Group.GUNS])
 
     def draw(self, screen, camera):
         super().draw(screen, camera)
@@ -112,9 +116,9 @@ class Player(PhysicsObject):
             self.velocity[0] *= self.max_speed / abs(self.velocity[0])
 
         if self.on_ground and controller.left_stick[1] < -0.5:
-            self.crouched = min(1, self.crouched + self.crouch_speed)
+            self.crouched = min(1.0, self.crouched + self.crouch_speed)
         else:
-            self.crouched = max(0, self.crouched - self.crouch_speed)
+            self.crouched = max(0.0, self.crouched - self.crouch_speed)
 
         self.head.position[1] = self.position[1] + 1 - self.crouched
         self.body.position[1] = self.position[1] - 0.5 * self.crouched
@@ -151,8 +155,8 @@ class Player(PhysicsObject):
     def damage(self, amount):
         if self.health > 0:
             self.health -= amount
-        else:
-            self.health = 0
+
+        if self.health <= 0:
             if not self.destroyed:
                 self.velocity = np.array([0.5, 0.5])
                 self.destroyed = True

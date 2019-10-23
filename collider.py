@@ -7,10 +7,6 @@ from gameobject import COLLIDES_WITH
 from helpers import norm2
 
 
-def projection(v, a, b):
-    return np.array([np.dot(v, a) / norm(a), np.dot(v, b) / norm(b)])
-
-
 class Type(enum.Enum):
     RECTANGLE = 1
     CIRCLE = 2
@@ -79,6 +75,21 @@ class Rectangle(Collider):
     def axis_half_width(self, axis):
         return abs(np.dot(self.half_width, axis)) + abs(np.dot(self.half_height, axis))
 
+    def axis_overlap(self, other, axis):
+        overlap = 0
+
+        r = np.dot(self.position - other.position, axis)
+
+        o = self.axis_half_width(axis) + other.axis_half_width(axis) - abs(r)
+
+        if o > 0:
+            if r == 0:
+                overlap = o
+            else:
+                overlap = np.sign(r) * o
+
+        return overlap
+
     def overlap(self, other):
         overlap = np.zeros(2)
 
@@ -95,56 +106,55 @@ class Rectangle(Collider):
             min_overlap = other.radius + self.radius
 
             for axis in axes:
-                x = norm(axis)
-                u = axis / x
+                u = axis / norm(axis)
+                overlap = self.axis_overlap(other, u)
 
-                r = np.dot(self.position - other.position, u)
-
-                o = self.axis_half_width(u) + other.axis_half_width(u) - abs(r)
-
-                if o > 0:
-                    if r == 0:
-                        overlap = o
-                    else:
-                        overlap = np.sign(r) * o
-
-                    if abs(overlap) < abs(min_overlap):
-                        min_overlap = overlap
-                        min_axis = u
-                else:
+                if abs(overlap) <= 0:
                     return np.zeros(2)
+                elif abs(overlap) < abs(min_overlap):
+                    min_overlap = overlap
+                    min_axis = u
 
             overlap = min_overlap * min_axis
 
         elif other.type is Type.CIRCLE:
-            axes = [self.half_width, self.half_height]
-
-            # TODO: figure out closest corner
-            for c in self.corners():
-                axes.append(c - other.position)
-
             min_axis = None
             min_overlap = other.radius + self.radius
+            overlaps = []
+            near_corner = True
 
-            for axis in axes:
-                x = norm(axis)
-                u = axis / x
+            for axis in [self.half_width, self.half_height]:
+                u = axis / norm(axis)
+                overlap = self.axis_overlap(other, u)
+                o = abs(overlap)
 
-                r = np.dot(self.position - other.position, u)
-
-                o = self.axis_half_width(u) + other.axis_half_width(u) - abs(r)
-
-                if o > 0:
-                    if r == 0:
-                        overlap = o
-                    else:
-                        overlap = np.sign(r) * o
-
-                    if abs(overlap) < abs(min_overlap):
-                        min_overlap = overlap
-                        min_axis = u
+                if o >= other.radius:
+                    near_corner = False
                 else:
+                    overlaps.append(overlap)
+
+                if o <= 0:
                     return np.zeros(2)
+                elif o < abs(min_overlap):
+                    min_overlap = overlap
+                    min_axis = u
+
+            if not near_corner:
+                return min_overlap * min_axis
+
+            corner = self.position - np.sign(overlaps[0]) * self.half_width - np.sign(overlaps[1]) * self.half_height
+
+            axis = corner - other.position
+            axis /= norm(axis)
+
+            overlap = self.axis_overlap(other, axis)
+
+            if 0 < abs(overlap) < abs(min_overlap):
+                min_overlap = overlap
+                min_axis = axis
+                overlaps.append(overlap)
+            else:
+                return np.zeros(2)
 
             overlap = min_overlap * min_axis
 

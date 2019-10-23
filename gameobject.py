@@ -19,11 +19,11 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.GUNS: [Group.WALLS],
                  Group.HANDS: [Group.WALLS],
                  Group.BOXES: [Group. WALLS, Group.BOXES, Group.BULLETS],
-                 Group.BULLETS: [Group.BOXES]}
+                 Group.BULLETS: [Group.WALLS, Group.PLAYERS, Group.BOXES]}
 
 
 class GameObject:
-    def __init__(self, position, group=Group.NONE):
+    def __init__(self, position, group=Group.NONE, image=None):
         super().__init__()
         self.position = np.array(position, dtype=float)
         self.collider = None
@@ -33,6 +33,8 @@ class GameObject:
         self.health = 100
         self.destroyed = False
         self.angle = 0.0
+
+        self.image = None
 
     def damage(self, amount):
         if self.health > 0:
@@ -57,7 +59,7 @@ class GameObject:
         collider.parent = self
         collider.position += self.position
 
-    def draw(self, screen, camera):
+    def draw(self, screen, camera, image_handler):
         self.collider.draw(screen, camera)
 
 
