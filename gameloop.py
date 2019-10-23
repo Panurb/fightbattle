@@ -25,7 +25,7 @@ class GameLoop:
         if input_handler.quit:
             self.state = State.QUIT
 
-    def draw(self, screen):
-        screen.fill((0, 0, 0))
+    def draw(self, screen, image_handler):
+        screen.fill((255, 255, 255))
 
-        self.level.draw(screen)
+        self.level.draw(screen, image_handler)

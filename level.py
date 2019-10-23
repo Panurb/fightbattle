@@ -1,4 +1,5 @@
 import numpy as np
+import pygame
 
 from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
@@ -83,15 +84,15 @@ class Level:
 
             self.camera.zoom = min(500 / np.sqrt(dist), 50)
 
-    def draw(self, screen):
+    def draw(self, screen, image_handler):
         for wall in self.walls:
-            wall.draw(screen, self.camera)
+            wall.draw(screen, self.camera, image_handler)
 
         for player in self.players:
-            player.draw(screen, self.camera)
+            player.draw(screen, self.camera, image_handler)
 
         for obj in self.objects:
-            obj.draw(screen, self.camera)
+            obj.draw(screen, self.camera, image_handler)
 
 
 class Wall(GameObject):
@@ -105,9 +106,28 @@ class Box(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
         self.add_collider(Rectangle([0, 0], 1, 1))
+        self.image = None
+        self.rect = None
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
+
+    def draw(self, screen, camera, image_handler):
+        if not self.image:
+            self.image = image_handler.images['crate']
+
+        scale = (camera.zoom * np.array([1, 1])).astype(int)
+        self.image = pygame.transform.scale(self.image, scale)
+        self.rect = self.image.get_rect()
+        pos = camera.world_to_screen(self.position)
+        pos[0] -= 0.5 * self.rect.width
+        pos[1] -= 0.5 * self.rect.height
+        self.rect = self.rect.move(pos)
+
+        screen.blit(self.image, self.rect)
+
+    def debug_draw(self, screen, camera):
+        self.collider.draw(screen, camera)
 
 
 class Ball(PhysicsObject):

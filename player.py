@@ -82,10 +82,10 @@ class Player(PhysicsObject):
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_collisions(colliders, [Group.BOXES, Group.GUNS])
 
-    def draw(self, screen, camera):
-        super().draw(screen, camera)
+    def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
 
-        self.hand.draw(screen, camera)
+        self.hand.draw(screen, camera, image_handler)
         #for part in (self.legs, self.body, self.head):
         #    part.draw(screen, camera)
 

@@ -10,7 +10,6 @@ class ImageHandler:
         self.scale = 100
         self.images = dict()
         self.load_images()
-        print(self.images)
 
     def load_images(self):
         path = os.path.join('data', 'images')

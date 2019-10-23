@@ -17,7 +17,7 @@ class Camera:
         pos = (position - self.position) * self.zoom + self.half_width - self.half_height
         pos[1] *= -1
 
-        return int(pos[0]), int(pos[1])
+        return [int(pos[0]), int(pos[1])]
 
     def screen_to_world(self, position):
         pos = np.array([position[0], -position[1]], dtype=float)

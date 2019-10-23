@@ -20,8 +20,8 @@ class Gun(PhysicsObject):
             if b.destroyed:
                 self.bullets.remove(b)
 
-    def draw(self, screen, camera):
-        super().draw(screen, camera)
+    def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
 
         for b in self.bullets:
             b.draw(screen, camera)

@@ -41,7 +41,7 @@ class Main:
             #    self.time_step = 15.0 / fps
 
             self.loop.update(self.input_handler, self.time_step)
-            self.loop.draw(self.screen)
+            self.loop.draw(self.screen, self.image_handler)
 
             fps_str = self.font.render(str(int(fps)), True, pygame.Color('white'))
             self.screen.blit(fps_str, (50, 50))
