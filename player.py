@@ -25,11 +25,14 @@ class Player(PhysicsObject):
 
         self.legs = GameObject(self.position + np.array([0, -1]))
         self.legs.add_collider(Circle([0, 0], 0.5))
+
         self.body = GameObject(self.position)
         self.body.add_collider(Rectangle([0, 0], 1, 1))
+
         self.head = GameObject(self.position + np.array([0, 1]))
         self.head.image_path = 'head'
         self.head.add_collider(Circle([0, 0], 0.5))
+        self.head.size = 0.85
 
         self.max_speed = 0.25
 
@@ -50,6 +53,12 @@ class Player(PhysicsObject):
         self.throw_charge = 0
         self.charge_speed = 0.05
 
+    def flip_horizontally(self):
+        super().flip_horizontally()
+
+        self.head.flip_horizontally()
+        #self.hand.flip_horizontally()
+
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
@@ -57,14 +66,21 @@ class Player(PhysicsObject):
             if self.angle > -np.pi / 2:
                 self.angular_velocity = -0.125
             else:
-                self.angle = -np.pi / 2
+                self.rotate(-np.pi / 2 - self.angle)
                 self.angular_velocity = 0.0
 
             return
 
-        self.legs.set_position(self.position)
+        self.legs.set_position(self.position - np.array([0, 1]))
         self.body.set_position(self.position)
         self.head.set_position(self.position + np.array([0, 1-self.crouched]))
+
+        if self.hand_position[0] < 0:
+            if not self.flipped:
+                self.flip_horizontally()
+        else:
+            if self.flipped:
+                self.flip_horizontally()
 
         if self.object:
             self.hand.set_position(self.position + self.shoulder + self.hand_position)
@@ -101,7 +117,7 @@ class Player(PhysicsObject):
 
         self.hand.draw(screen, camera, image_handler)
 
-        #for part in (self.head, self.body, self.head):
+        #for part in (self.head, self.body, self.legs):
         #    part.debug_draw(screen, camera)
 
     def input(self, input_handler):

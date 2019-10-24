@@ -25,14 +25,18 @@ class Level:
         self.add_player([0, 0])
         #self.add_player([5, 0])
 
-        self.add_wall(np.array([0, -3]), 100, 1)
-        self.add_wall([-5, 0], 1, 10)
+        self.add_wall(np.array([0, -3]), 19, 1)
+        self.add_wall([-10, 1.5], 1, 10)
+        self.add_wall([10, 1.5], 1, 10)
+
+        self.add_wall([5, -1.5], 5, 2)
+
         self.add_gun([0, 2])
 
     def input(self, input_handler):
-        if input_handler.mouse_pressed[1]:
+        if input_handler.keys_pressed[pygame.K_c]:
             self.add_crate(input_handler.mouse_position + self.camera.position)
-        if input_handler.mouse_pressed[3]:
+        if input_handler.keys_pressed[pygame.K_b]:
             self.add_ball(input_handler.mouse_position + self.camera.position)
 
         for i, player in enumerate(self.players):

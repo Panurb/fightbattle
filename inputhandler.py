@@ -97,7 +97,7 @@ class Keyboard(Controller):
         if n != 0:
             self.right_stick[:] = self.input_handler.mouse_position / n
 
-        if self.input_handler.mouse_down[1]:
+        if self.input_handler.mouse_down[2]:
             self.left_trigger = 1
         else:
             self.left_trigger = 0
@@ -115,12 +115,14 @@ class Keyboard(Controller):
             self.button_down[b] = self.input_handler.keys_down[self.buttons[b]]
             self.button_released[b] = self.input_handler.keys_released[self.buttons[b]]
 
+
 class InputHandler:
     def __init__(self):
         self.controllers = []
         self.controllers.append(Keyboard(self))
         for i in range(pygame.joystick.get_count()):
-            self.controllers.append(Controller(i))
+            if 'Xbox 360' in pygame.joystick.Joystick(i).get_name():
+                self.controllers.append(Controller(i))
 
         self.keys_down = {}
         self.keys_pressed = {}

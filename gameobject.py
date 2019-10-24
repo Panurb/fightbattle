@@ -72,6 +72,9 @@ class GameObject:
             rect = image.get_rect()
             rect.center = camera.world_to_screen(self.position)
 
+            if self.flipped:
+                image = pygame.transform.flip(image, True, False)
+
             screen.blit(image, rect)
         else:
             self.debug_draw(screen, camera)
