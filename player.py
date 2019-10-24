@@ -3,6 +3,7 @@ from numpy.linalg import norm
 
 from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
+from helpers import norm2
 
 
 class Hand(PhysicsObject):
@@ -10,6 +11,8 @@ class Hand(PhysicsObject):
         super().__init__(position, group=Group.HANDS)
         self.add_collider(Circle([0, 0], 0.2))
         self.gravity_scale = 0.0
+        self.image_path = 'hand'
+        self.size = 0.7
 
 
 class Player(PhysicsObject):
@@ -20,18 +23,19 @@ class Player(PhysicsObject):
 
         self.add_collider(Rectangle([0, 0], 1, 3))
 
-        self.legs = GameObject(self.position)
-        self.legs.add_collider(Circle([0, -1], 0.5))
+        self.legs = GameObject(self.position + np.array([0, -1]))
+        self.legs.add_collider(Circle([0, 0], 0.5))
         self.body = GameObject(self.position)
         self.body.add_collider(Rectangle([0, 0], 1, 1))
-        self.head = GameObject(self.position)
-        self.head.add_collider(Circle([0, 1], 0.5))
+        self.head = GameObject(self.position + np.array([0, 1]))
+        self.head.image_path = 'head'
+        self.head.add_collider(Circle([0, 0], 0.5))
 
         self.max_speed = 0.25
 
         self.shoulder = np.array([0.0, 0.25])
         self.hand_position = np.array([1.0, 0.0])
-        self.hand_radius = 1.0
+        self.arm_length = 1.0
         self.hand = Hand(self.position)
 
         self.object = None
@@ -56,9 +60,11 @@ class Player(PhysicsObject):
                 self.angle = -np.pi / 2
                 self.angular_velocity = 0.0
 
+            return
+
         self.legs.set_position(self.position)
         self.body.set_position(self.position)
-        self.head.set_position(self.position + np.array([0, -self.crouched]))
+        self.head.set_position(self.position + np.array([0, 1-self.crouched]))
 
         if self.object:
             self.hand.set_position(self.position + self.shoulder + self.hand_position)
@@ -73,8 +79,8 @@ class Player(PhysicsObject):
             self.object.velocity = 0.5 * (self.hand.position - self.object.position)
 
             self.object.update(gravity, time_step, colliders)
-            if norm(self.position + self.shoulder - self.object.position) > 1.5 * self.hand_radius:
-                self.throw_object(0)
+            if norm(self.position + self.shoulder - self.object.position) > 1.5 * self.arm_length:
+                self.throw_object(0.0)
             else:
                 self.hand.set_position(self.object.position)
         else:
@@ -82,12 +88,21 @@ class Player(PhysicsObject):
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_collisions(colliders, [Group.BOXES, Group.GUNS])
 
+        r = self.hand.position - (self.position + self.shoulder)
+        self.hand.angle = np.arctan2(r[1], r[0])
+
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
 
+        self.head.draw(screen, camera, image_handler)
+
+        if self.object:
+            self.object.draw(screen, camera, image_handler)
+
         self.hand.draw(screen, camera, image_handler)
-        #for part in (self.legs, self.body, self.head):
-        #    part.draw(screen, camera)
+
+        #for part in (self.head, self.body, self.head):
+        #    part.debug_draw(screen, camera)
 
     def input(self, input_handler):
         if self.destroyed:
@@ -120,15 +135,13 @@ class Player(PhysicsObject):
         else:
             self.crouched = max(0.0, self.crouched - self.crouch_speed)
 
-        self.head.position[1] = self.position[1] + 1 - self.crouched
-        self.body.position[1] = self.position[1] - 0.5 * self.crouched
         self.collider.position[1] = self.position[1] - 0.5 * self.crouched
         self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
         self.shoulder[1] = 0.15 - 0.5 * self.crouched
 
         stick_norm = norm(controller.right_stick)
         if stick_norm != 0:
-            self.hand_position = self.shoulder + self.hand_radius * controller.right_stick / stick_norm
+            self.hand_position = self.shoulder + self.arm_length * controller.right_stick / stick_norm
 
         if controller.button_pressed['RB']:
             if self.object:
@@ -170,7 +183,7 @@ class Player(PhysicsObject):
     def grab_object(self):
         for c in self.hand.collider.collisions:
             if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
-                if norm(c.collider.parent.velocity) < 0.5:
+                if norm2(self.velocity - c.collider.parent.velocity) < 0.25:
                     self.object = c.collider.parent
                     self.object.on_ground = False
                     break

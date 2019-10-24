@@ -43,7 +43,7 @@ class Main:
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen, self.image_handler)
 
-            fps_str = self.font.render(str(int(fps)), True, pygame.Color('white'))
+            fps_str = self.font.render(str(int(fps)), True, pygame.Color('magenta'))
             self.screen.blit(fps_str, (50, 50))
 
             pygame.display.update()

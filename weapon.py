@@ -24,7 +24,7 @@ class Gun(PhysicsObject):
         super().draw(screen, camera, image_handler)
 
         for b in self.bullets:
-            b.draw(screen, camera)
+            b.draw(screen, camera, image_handler)
 
     def attack(self):
         if self.flipped:

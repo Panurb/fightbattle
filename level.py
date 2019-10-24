@@ -31,15 +31,15 @@ class Level:
 
     def input(self, input_handler):
         if input_handler.mouse_pressed[1]:
-            self.add_box(input_handler.mouse_position + self.camera.position)
+            self.add_crate(input_handler.mouse_position + self.camera.position)
         if input_handler.mouse_pressed[3]:
             self.add_ball(input_handler.mouse_position + self.camera.position)
 
         for i, player in enumerate(self.players):
             player.input(input_handler)
 
-    def add_box(self, position):
-        box = Box(position)
+    def add_crate(self, position):
+        box = Crate(position)
         #box.angular_velocity = 0.1
         self.objects.append(box)
         self.colliders[box.group].append(box.collider)
@@ -88,11 +88,11 @@ class Level:
         for wall in self.walls:
             wall.draw(screen, self.camera, image_handler)
 
-        for player in self.players:
-            player.draw(screen, self.camera, image_handler)
-
         for obj in self.objects:
             obj.draw(screen, self.camera, image_handler)
+
+        for player in self.players:
+            player.draw(screen, self.camera, image_handler)
 
 
 class Wall(GameObject):
@@ -101,36 +101,25 @@ class Wall(GameObject):
         collider = Rectangle([0, 0], width, height)
         self.add_collider(collider)
 
+    def draw(self, screen, camera, image_handler):
+        points = []
+        for c in self.collider.corners():
+            points.append(camera.world_to_screen(c))
 
-class Box(PhysicsObject):
+        pygame.draw.polygon(screen, pygame.Color('gray'), points)
+        pygame.draw.polygon(screen, pygame.Color('black'), points, 2)
+
+
+class Crate(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
         self.add_collider(Rectangle([0, 0], 1, 1))
-        self.image = None
-        self.rect = None
-
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
-
-    def draw(self, screen, camera, image_handler):
-        if not self.image:
-            self.image = image_handler.images['crate']
-
-        scale = (camera.zoom * np.array([1, 1])).astype(int)
-        self.image = pygame.transform.scale(self.image, scale)
-        self.rect = self.image.get_rect()
-        pos = camera.world_to_screen(self.position)
-        pos[0] -= 0.5 * self.rect.width
-        pos[1] -= 0.5 * self.rect.height
-        self.rect = self.rect.move(pos)
-
-        screen.blit(self.image, self.rect)
-
-    def debug_draw(self, screen, camera):
-        self.collider.draw(screen, camera)
+        self.image_path = 'crate'
+        self.rotate(np.random.randint(0, 4) * np.pi / 2)
 
 
 class Ball(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, group=Group.BOXES)
         self.add_collider(Circle([0, 0], 0.5))
+        self.bounce = 0.8

@@ -1,6 +1,7 @@
 import numpy as np
-from numpy.linalg import norm
 import enum
+
+import pygame
 
 
 class Group(enum.IntEnum):
@@ -35,6 +36,8 @@ class GameObject:
         self.angle = 0.0
 
         self.image = None
+        self.image_path = ''
+        self.size = 1
 
     def damage(self, amount):
         if self.health > 0:
@@ -60,6 +63,20 @@ class GameObject:
         collider.position += self.position
 
     def draw(self, screen, camera, image_handler):
+        if self.image_path:
+            image = image_handler.images[self.image_path]
+
+            scale = self.size / 1.9
+            image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
+
+            rect = image.get_rect()
+            rect.center = camera.world_to_screen(self.position)
+
+            screen.blit(image, rect)
+        else:
+            self.debug_draw(screen, camera)
+
+    def debug_draw(self, screen, camera):
         self.collider.draw(screen, camera)
 
 
