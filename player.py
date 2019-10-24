@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.linalg import norm
+import pygame
 
 from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
@@ -13,6 +14,9 @@ class Hand(PhysicsObject):
         self.gravity_scale = 0.0
         self.image_path = 'hand'
         self.size = 0.7
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
 
 
 class Player(PhysicsObject):
@@ -41,9 +45,11 @@ class Player(PhysicsObject):
         self.arm_length = 1.0
         self.hand = Hand(self.position)
 
+        r = self.hand.position - (self.position + self.shoulder)
+        self.elbow = 0.5 * r - 0.5 * np.sqrt(1.5**2 - norm2(r)) * np.array([-r[1], r[0]]) / norm(r)
+
         self.object = None
 
-        self.number = number
         self.crouched = 0
         self.crouch_speed = 0.25
 
@@ -53,11 +59,13 @@ class Player(PhysicsObject):
         self.throw_charge = 0
         self.charge_speed = 0.05
 
+        self.number = number
+
     def flip_horizontally(self):
         super().flip_horizontally()
 
         self.head.flip_horizontally()
-        #self.hand.flip_horizontally()
+        self.hand.flip_horizontally()
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -85,12 +93,13 @@ class Player(PhysicsObject):
         if self.object:
             self.hand.set_position(self.position + self.shoulder + self.hand_position)
 
-            if self.hand_position[0] < 0:
-                if not self.object.flipped:
-                    self.object.flip_horizontally()
-            else:
-                if self.object.flipped:
-                    self.object.flip_horizontally()
+            if self.object.group is Group.GUNS:
+                if self.hand_position[0] < 0:
+                    if not self.object.flipped:
+                        self.object.flip_horizontally()
+                else:
+                    if self.object.flipped:
+                        self.object.flip_horizontally()
 
             self.object.velocity = 0.5 * (self.hand.position - self.object.position)
 
@@ -99,13 +108,28 @@ class Player(PhysicsObject):
                 self.throw_object(0.0)
             else:
                 self.hand.set_position(self.object.position)
+                self.hand.update(gravity, time_step, colliders)
         else:
             self.hand.velocity = self.velocity + self.position + self.shoulder + self.hand_position - self.hand.position
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_collisions(colliders, [Group.BOXES, Group.GUNS])
 
         r = self.hand.position - (self.position + self.shoulder)
-        self.hand.angle = np.arctan2(r[1], r[0])
+
+        # TODO
+        #angle = np.arctan(r[1] / r[0])
+        #delta_angle = angle - self.hand.angle
+        #self.hand.angular_velocity = 0.5 * delta_angle
+
+        angle = np.arctan2(r[1], r[0])
+        if self.flipped:
+            angle += np.pi
+        self.hand.angle = angle
+        self.hand.update_image = True
+
+        r = self.hand_position
+
+        self.elbow = self.position + self.shoulder + 0.5 * r
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
@@ -114,6 +138,13 @@ class Player(PhysicsObject):
 
         if self.object:
             self.object.draw(screen, camera, image_handler)
+
+        a = camera.world_to_screen(self.position + self.shoulder)
+        b = camera.world_to_screen(self.elbow)
+        c = camera.world_to_screen(self.hand.position)
+
+        pygame.draw.line(screen, (255, 0, 255), a, b, 5)
+        pygame.draw.line(screen, (255, 0, 255), b, c, 5)
 
         self.hand.draw(screen, camera, image_handler)
 

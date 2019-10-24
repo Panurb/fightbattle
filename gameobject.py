@@ -37,7 +37,8 @@ class GameObject:
 
         self.image = None
         self.image_path = ''
-        self.size = 1
+        self.size = 1.0
+        self.update_image = False
 
     def damage(self, amount):
         if self.health > 0:
@@ -50,6 +51,7 @@ class GameObject:
         self.collider.position[0] -= 2 * (self.collider.position - self.position)[0]
 
         self.flipped = not self.flipped
+        self.update_image = True
 
     def set_position(self, position):
         delta_pos = position - self.position
@@ -63,21 +65,26 @@ class GameObject:
         collider.position += self.position
 
     def draw(self, screen, camera, image_handler):
-        if self.image_path:
+        if not self.image_path:
+            self.debug_draw(screen, camera)
+            return
+
+        if not self.image or self.update_image:
             image = image_handler.images[self.image_path]
 
-            scale = self.size / 1.9
-            image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
-
-            rect = image.get_rect()
-            rect.center = camera.world_to_screen(self.position)
+            scale = 1.05 * camera.zoom * self.size / 100
 
             if self.flipped:
                 image = pygame.transform.flip(image, True, False)
 
-            screen.blit(image, rect)
-        else:
-            self.debug_draw(screen, camera)
+            self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
+
+            self.update_image = False
+
+        rect = self.image.get_rect()
+        rect.center = camera.world_to_screen(self.position)
+
+        screen.blit(self.image, rect)
 
     def debug_draw(self, screen, camera):
         self.collider.draw(screen, camera)
@@ -155,3 +162,16 @@ class PhysicsObject(GameObject):
 
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0
+
+    def draw(self, screen, camera, image_handler):
+        if self.angular_velocity:
+            image = image_handler.images[self.image_path]
+
+            scale = 1.05 * camera.zoom * self.size / 100
+
+            if self.flipped:
+                image = pygame.transform.flip(image, True, False)
+
+            self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
+
+        super().draw(screen, camera, image_handler)

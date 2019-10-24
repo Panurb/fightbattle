@@ -23,15 +23,3 @@ class ImageHandler:
                         self.images[file.replace('.png', '')] = image
                     except pygame.error as message:
                         raise SystemExit(message)
-
-
-class Image:
-    def __init__(self):
-        self.sprite = pygame.sprite.Sprite()
-        self.angle = 0.0
-        self.rect = pygame.rect.Rect()
-
-    def rotate(self, angle):
-        self.angle = angle
-        self.sprite = pygame.transform.rotate(self.sprite, angle)
-        self.rect = self.sprite.get_rect()
