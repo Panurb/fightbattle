@@ -10,17 +10,17 @@ class Group(enum.IntEnum):
     WALLS = 2
     GUNS = 3
     HANDS = 4
-    BOXES = 5
+    PROPS = 5
     BULLETS = 6
 
 
 COLLIDES_WITH = {Group.NONE: [],
                  Group.PLAYERS: [Group.PLAYERS, Group.WALLS, Group.BULLETS],
-                 Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.BOXES, Group.BULLETS],
+                 Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.PROPS, Group.BULLETS],
                  Group.GUNS: [Group.WALLS],
                  Group.HANDS: [Group.WALLS],
-                 Group.BOXES: [Group. WALLS, Group.BOXES, Group.BULLETS],
-                 Group.BULLETS: [Group.WALLS, Group.PLAYERS, Group.BOXES]}
+                 Group.PROPS: [Group. WALLS, Group.PROPS, Group.BULLETS],
+                 Group.BULLETS: [Group.WALLS, Group.PLAYERS, Group.PROPS]}
 
 
 class GameObject:
@@ -164,7 +164,7 @@ class PhysicsObject(GameObject):
             self.velocity[0] = 0
 
     def draw(self, screen, camera, image_handler):
-        if self.angular_velocity:
+        if self.image_path and self.angular_velocity:
             image = image_handler.images[self.image_path]
 
             scale = 1.05 * camera.zoom * self.size / 100

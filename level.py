@@ -116,7 +116,7 @@ class Wall(GameObject):
 
 class Crate(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, group=Group.BOXES)
+        super().__init__(position, group=Group.PROPS)
         self.add_collider(Rectangle([0, 0], 1, 1))
         self.image_path = 'crate'
         self.rotate(np.random.randint(0, 4) * np.pi / 2)
@@ -124,6 +124,6 @@ class Crate(PhysicsObject):
 
 class Ball(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, group=Group.BOXES)
+        super().__init__(position, group=Group.PROPS)
         self.add_collider(Circle([0, 0], 0.5))
         self.bounce = 0.8

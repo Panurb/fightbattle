@@ -89,6 +89,9 @@ class Player(PhysicsObject):
         self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
         self.shoulder = self.position + (0.15 - 0.5 * self.crouched) * basis(1)
 
+        self.foot_1 = self.position - 1.5 * basis(1) - 0.25 * basis(0)
+        self.foot_2 = self.position - 1.5 * basis(1) + 0.25 * basis(0)
+
         d = self.hand.position[0] - self.position[0]
         if abs(d) > 0.1 and np.sign(d) != self.direction:
             self.flip_horizontally()
@@ -102,17 +105,19 @@ class Player(PhysicsObject):
                     self.object.flip_horizontally()
 
             self.object.velocity = 0.5 * (self.hand.position - self.object.position)
-
+            self.object.angular_velocity = -0.25 * self.angle
             self.object.update(gravity, time_step, colliders)
+
             if norm(self.shoulder - self.object.position) > 1.5 * self.arm_length:
                 self.throw_object(0.0)
             else:
                 self.hand.set_position(self.object.position)
                 self.hand.update(gravity, time_step, colliders)
+
         else:
             self.hand.velocity = self.velocity[0] * basis(0) + self.shoulder + self.hand_goal - self.hand.position
             self.hand.update(gravity, time_step, colliders)
-            self.hand.collider.update_collisions(colliders, [Group.BOXES, Group.GUNS])
+            self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS])
 
         r = self.hand.position - self.shoulder
 
@@ -133,6 +138,16 @@ class Player(PhysicsObject):
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
 
+        color = pygame.Color('black')
+        width = int(camera.zoom / 10)
+
+        a = camera.world_to_screen(self.position - 0.5 * basis(1))
+        b = camera.world_to_screen(self.foot_1)
+        c = camera.world_to_screen(self.foot_2)
+
+        pygame.draw.line(screen, color, a, b, width)
+        pygame.draw.line(screen, color, a, c, width)
+
         self.head.draw(screen, camera, image_handler)
 
         if self.object:
@@ -141,9 +156,6 @@ class Player(PhysicsObject):
         a = camera.world_to_screen(self.shoulder)
         b = camera.world_to_screen(self.elbow)
         c = camera.world_to_screen(self.hand.position)
-
-        color = pygame.Color('black')
-        width = int(camera.zoom / 10)
 
         pygame.draw.line(screen, color, a, b, width)
         pygame.draw.line(screen, color, b, c, width)
@@ -236,7 +248,7 @@ class Player(PhysicsObject):
 
     def grab_object(self):
         for c in self.hand.collider.collisions:
-            if c.collider.parent.group is Group.BOXES or c.collider.parent.group is Group.GUNS:
+            if c.collider.parent.group is Group.PROPS or c.collider.parent.group is Group.GUNS:
                 if norm2(self.velocity - c.collider.parent.velocity) < 0.25:
                     self.object = c.collider.parent
                     self.object.on_ground = False
@@ -244,4 +256,9 @@ class Player(PhysicsObject):
 
     def attack(self):
         if self.object:
-            self.object.attack()
+            try:
+                self.object.attack()
+                self.hand.angular_velocity = self.direction * 2
+                self.object.angular_velocity = self.direction * 2
+            except AttributeError:
+                pass
