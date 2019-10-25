@@ -10,6 +10,7 @@ class ImageHandler:
         self.scale = 100
         self.images = dict()
         self.load_images()
+        self.debug_color = (255, 0, 255)
 
     def load_images(self):
         path = os.path.join('data', 'images')

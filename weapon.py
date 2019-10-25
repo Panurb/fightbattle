@@ -27,12 +27,8 @@ class Gun(PhysicsObject):
             b.draw(screen, camera, image_handler)
 
     def attack(self):
-        if self.flipped:
-            p = self.position + [-0.5, 0.25]
-            v = -2
-        else:
-            p = self.position + [0.5, 0.25]
-            v = 2
+        p = self.position + [self.direction * 0.5, 0.25]
+        v = self.direction * 2
 
         self.bullets.append(Bullet(p, (v, 0)))
 

@@ -47,7 +47,7 @@ class Collider:
     def rotate(self, angle):
         pass
 
-    def draw(self, screen, camera):
+    def draw(self, screen, camera, image_handler):
         return
 
     def radius(self):
@@ -165,15 +165,12 @@ class Rectangle(Collider):
         self.half_width = np.matmul(r, self.half_width)
         self.half_height = np.matmul(r, self.half_height)
 
-    def draw(self, screen, camera):
-        super().draw(screen, camera)
-
-        color = (255, 0, 255)
+    def draw(self, screen, camera, image_handler):
         points = []
         for c in self.corners():
             points.append(camera.world_to_screen(c))
 
-        pygame.draw.polygon(screen, color, points, 1)
+        pygame.draw.polygon(screen, image_handler.debug_color, points, 1)
 
 
 class Circle(Collider):
@@ -201,12 +198,9 @@ class Circle(Collider):
 
         return overlap
 
-    def draw(self, screen, camera):
-        super().draw(screen, camera)
-
-        color = (255, 0, 255)
+    def draw(self, screen, camera, image_handler):
         center = camera.world_to_screen(self.position)
-        pygame.draw.circle(screen, color, center, int(self.radius * camera.zoom), 1)
+        pygame.draw.circle(screen, image_handler.debug_color, center, int(self.radius * camera.zoom), 1)
 
 
 class Capsule(Collider):

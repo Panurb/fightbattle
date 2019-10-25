@@ -30,7 +30,7 @@ class GameObject:
         self.collider = None
         self.group = group
         self.collision = True
-        self.flipped = False
+        self.direction = 1
         self.health = 100
         self.destroyed = False
         self.angle = 0.0
@@ -50,7 +50,7 @@ class GameObject:
     def flip_horizontally(self):
         self.collider.position[0] -= 2 * (self.collider.position - self.position)[0]
 
-        self.flipped = not self.flipped
+        self.direction *= -1
         self.update_image = True
 
     def set_position(self, position):
@@ -66,7 +66,7 @@ class GameObject:
 
     def draw(self, screen, camera, image_handler):
         if not self.image_path:
-            self.debug_draw(screen, camera)
+            self.debug_draw(screen, camera, image_handler)
             return
 
         if not self.image or self.update_image:
@@ -74,7 +74,7 @@ class GameObject:
 
             scale = 1.05 * camera.zoom * self.size / 100
 
-            if self.flipped:
+            if self.direction == -1:
                 image = pygame.transform.flip(image, True, False)
 
             self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
@@ -86,8 +86,8 @@ class GameObject:
 
         screen.blit(self.image, rect)
 
-    def debug_draw(self, screen, camera):
-        self.collider.draw(screen, camera)
+    def debug_draw(self, screen, camera, image_handler):
+        self.collider.draw(screen, camera, image_handler)
 
 
 class PhysicsObject(GameObject):
@@ -169,7 +169,7 @@ class PhysicsObject(GameObject):
 
             scale = 1.05 * camera.zoom * self.size / 100
 
-            if self.flipped:
+            if self.direction == -1:
                 image = pygame.transform.flip(image, True, False)
 
             self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
