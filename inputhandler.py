@@ -63,6 +63,43 @@ class Controller:
             self.button_down[b] = self.joystick.get_button(i)
 
 
+class DualShock4(Controller):
+    def update(self):
+        self.left_stick[0] = self.joystick.get_axis(0)
+        self.left_stick[1] = -self.joystick.get_axis(1)
+
+        self.right_stick[0] = self.joystick.get_axis(2)
+        self.right_stick[1] = -self.joystick.get_axis(3)
+
+        for stick in [self.left_stick, self.right_stick]:
+            if norm(stick) < self.stick_deadzone:
+                stick[:] = np.zeros(2)
+
+        self.left_trigger = (self.joystick.get_axis(5) + 1) / 2
+        if abs(self.left_trigger) < self.trigger_deadzone:
+            self.left_trigger = 0
+
+        self.right_trigger = (self.joystick.get_axis(4) + 1) / 2
+        if abs(self.right_trigger) < self.trigger_deadzone:
+            self.right_trigger = 0
+
+        for i, b in enumerate(['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']):
+            if not b:
+                continue
+
+            self.button_pressed[b] = False
+            self.button_released[b] = False
+
+            if self.joystick.get_button(i):
+                if not self.button_down[b]:
+                    self.button_pressed[b] = True
+            else:
+                if self.button_down[b]:
+                    self.button_released[b] = True
+
+            self.button_down[b] = self.joystick.get_button(i)
+
+
 class Keyboard(Controller):
     def __init__(self, input_handler):
         super().__init__(-1)
@@ -123,6 +160,11 @@ class InputHandler:
         for i in range(pygame.joystick.get_count()):
             if 'Xbox 360' in pygame.joystick.Joystick(i).get_name():
                 self.controllers.append(Controller(i))
+            else:
+                try:
+                    self.controllers.append(DualShock4(i))
+                except:
+                    pass
 
         self.keys_down = {}
         self.keys_pressed = {}

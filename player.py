@@ -4,23 +4,12 @@ import pygame
 
 from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
-from helpers import norm2, basis, perp
-
-
-class Hand(PhysicsObject):
-    def __init__(self, position):
-        super().__init__(position, group=Group.HANDS)
-        self.add_collider(Circle([0, 0], 0.2))
-        self.gravity_scale = 0.0
-        self.image_path = 'hand'
-        self.size = 0.7
+from helpers import norm2, basis, perp, normalized
 
 
 class Player(PhysicsObject):
     def __init__(self, position, number=0):
         super().__init__(position, group=Group.PLAYERS)
-        self.image_path = 'body'
-        self.size = 0.75
         self.bounce = 0.0
         self.inertia = 0.0
 
@@ -30,6 +19,8 @@ class Player(PhysicsObject):
         self.legs.add_collider(Circle([0, 0], 0.5))
 
         self.body = GameObject(self.position)
+        self.body.image_path = 'body'
+        self.body.size = 0.75
         self.body.add_collider(Rectangle([0, 0], 1, 1))
 
         self.head = GameObject(self.position + basis(1))
@@ -37,8 +28,8 @@ class Player(PhysicsObject):
         self.head.add_collider(Circle([0, 0], 0.5))
         self.head.size = 0.85
 
-        self.foot_1 = np.zeros(2)
-        self.foot_2 = np.zeros(2)
+        self.back_foot = Foot(np.zeros(2))
+        self.front_foot = Foot(np.zeros(2))
 
         self.max_speed = 0.25
 
@@ -54,10 +45,11 @@ class Player(PhysicsObject):
         self.crouched = 0
         self.crouch_speed = 0.25
 
-        self.trigger_pressed = False
+        self.lt_pressed = False
+        self.rt_pressed = False
 
-        self.throw_speed = 2
-        self.throw_charge = 0
+        self.throw_speed = 1.0
+        self.throw_charge = 0.0
         self.charge_speed = 0.05
 
         self.number = number
@@ -67,6 +59,8 @@ class Player(PhysicsObject):
 
         self.head.flip_horizontally()
         self.hand.flip_horizontally()
+        self.back_foot.flip_horizontally()
+        self.front_foot.flip_horizontally()
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -87,21 +81,23 @@ class Player(PhysicsObject):
 
         self.collider.position[1] = self.position[1] - 0.5 * self.crouched
         self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
-        self.shoulder = self.position + (0.15 - 0.5 * self.crouched) * basis(1)
+        self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * basis(1)
 
-        self.foot_1 = self.position - 1.5 * basis(1) - 0.25 * basis(0)
-        self.foot_2 = self.position - 1.5 * basis(1) + 0.25 * basis(0)
+        self.back_foot.set_position(self.position - np.array([0.3 + 0.05 * self.direction, 1.5]))
+        self.front_foot.set_position(self.position - np.array([0.3 + 0.25 * self.direction, 1.5]))
+        self.back_foot.update(time_step)
+        self.front_foot.update(time_step)
 
         d = self.hand.position[0] - self.position[0]
         if abs(d) > 0.1 and np.sign(d) != self.direction:
             self.flip_horizontally()
 
         if self.object:
-            self.hand.set_position(self.shoulder + self.hand_goal)
+            self.hand.set_position(self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal)
 
             if self.object.group is Group.GUNS:
                 d = self.hand.position[0] - self.position[0]
-                if abs(d) > 0.1 and np.sign(d) != self.direction:
+                if abs(d) > 0.1 and np.sign(d) != self.object.direction:
                     self.object.flip_horizontally()
 
             self.object.velocity = 0.5 * (self.hand.position - self.object.position)
@@ -113,7 +109,6 @@ class Player(PhysicsObject):
             else:
                 self.hand.set_position(self.object.position)
                 self.hand.update(gravity, time_step, colliders)
-
         else:
             self.hand.velocity = self.velocity[0] * basis(0) + self.shoulder + self.hand_goal - self.hand.position
             self.hand.update(gravity, time_step, colliders)
@@ -121,7 +116,10 @@ class Player(PhysicsObject):
 
         r = self.hand.position - self.shoulder
 
-        angle = np.arctan(r[1] / r[0])
+        if r[0] == 0:
+            angle = np.sign(r[1]) * np.pi / 2
+        else:
+            angle = np.arctan(r[1] / r[0])
         delta_angle = angle - self.hand.angle
         self.hand.angular_velocity = 0.5 * delta_angle
 
@@ -131,41 +129,69 @@ class Player(PhysicsObject):
         #self.hand.angle = angle
         #self.hand.update_image = True
 
-        r = self.hand.position - self.shoulder
-        r_norm = norm(r)
-        self.elbow = self.shoulder + 0.5 * r - 0.5 * self.direction * np.sqrt(max(1 - r_norm**2, 0)) * perp(r) / r_norm
+        self.animate()
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-
+    def draw_limb(self, start, end, length, screen, camera, direction=1):
         color = pygame.Color('black')
-        width = int(camera.zoom / 10)
+        width = int(camera.zoom / 5)
 
-        a = camera.world_to_screen(self.position - 0.5 * basis(1))
-        b = camera.world_to_screen(self.foot_1)
-        c = camera.world_to_screen(self.foot_2)
+        r = end - start
+        r_norm = norm(r)
+        joint = start + 0.5 * (r - direction * self.direction * np.sqrt(max(length - r_norm**2, 0)) * perp(r) / r_norm)
+
+        a = camera.world_to_screen(start)
+        b = camera.world_to_screen(joint)
+        c = camera.world_to_screen(end)
 
         pygame.draw.line(screen, color, a, b, width)
-        pygame.draw.line(screen, color, a, c, width)
+        pygame.draw.line(screen, color, b, c, width)
+
+        for x in (a, b):
+            pygame.draw.circle(screen, color, x, width // 2)
+
+    def animate(self):
+        self.back_foot.animation_direction = np.sign(self.velocity[0])
+        self.front_foot.animation_direction = np.sign(self.velocity[0])
+
+        if self.on_ground:
+            v = abs(self.velocity[0])
+            if self.back_foot.animation != 'walk' and v > 0.1:
+                self.back_foot.play_animation('walk', 3)
+                self.front_foot.play_animation('walk')
+            elif self.back_foot.animation != 'idle' and v < 0.1:
+                self.back_foot.play_animation('idle')
+                self.front_foot.play_animation('idle')
+        else:
+            self.back_foot.play_animation('jump')
+            self.front_foot.play_animation('jump')
+
+        if self.object:
+            self.hand.image_path = 'hand'
+        else:
+            self.hand.image_path = 'fist'
+
+    def draw(self, screen, camera, image_handler):
+        self.back_foot.draw(screen, camera, image_handler)
+        self.draw_limb(self.position + np.array([0.1 * self.direction, -0.5 * (1 + self.crouched)]),
+                       self.back_foot.position, 1.0, screen, camera, -1)
+
+        self.body.draw(screen, camera, image_handler)
+
+        self.front_foot.draw(screen, camera, image_handler)
+        self.draw_limb(self.position + np.array([-0.1 * self.direction, -0.5 * (1 + self.crouched)]),
+                       self.front_foot.position, 1.0, screen, camera, -1)
 
         self.head.draw(screen, camera, image_handler)
 
         if self.object:
             self.object.draw(screen, camera, image_handler)
 
-        a = camera.world_to_screen(self.shoulder)
-        b = camera.world_to_screen(self.elbow)
-        c = camera.world_to_screen(self.hand.position)
-
-        pygame.draw.line(screen, color, a, b, width)
-        pygame.draw.line(screen, color, b, c, width)
+        self.draw_limb(self.shoulder, self.hand.position, 1.0, screen, camera)
 
         self.hand.draw(screen, camera, image_handler)
 
-        #self.debug_draw(screen, camera, image_handler)
-
     def debug_draw(self, screen, camera, image_handler):
-        #self.collider.draw(screen, camera)
+        self.collider.draw(screen, camera, image_handler)
 
         self.hand.debug_draw(screen, camera, image_handler)
 
@@ -183,6 +209,10 @@ class Player(PhysicsObject):
         if controller.button_pressed['A']:
             if self.on_ground:
                 self.velocity[1] = 0.7
+        elif controller.button_pressed['B']:
+            if self.throw_charge:
+                self.throw_charge = 0.0
+                self.lt_pressed = True
         elif controller.button_pressed['START']:
             self.set_position([-2, 0])
             self.velocity = np.zeros(2)
@@ -216,20 +246,24 @@ class Player(PhysicsObject):
                 self.grab_object()
 
         if controller.right_trigger > 0.5:
-            if not self.trigger_pressed:
-                self.attack()
-                self.trigger_pressed = True
+            if self.object:
+                if not self.rt_pressed:
+                    self.attack()
+                    self.rt_pressed = True
         else:
-            self.trigger_pressed = False
+            self.rt_pressed = False
 
         if self.object:
             if controller.left_trigger > 0.5:
-                self.throw_charge = min(1.0, self.throw_charge + self.charge_speed)
-            elif self.throw_charge:
-                self.throw_object(self.throw_charge)
-                self.throw_charge = 0
+                if not self.lt_pressed:
+                    self.throw_charge = min(1.0, self.throw_charge + self.charge_speed)
+            else:
+                self.lt_pressed = False
+                if self.throw_charge:
+                    self.throw_object(self.throw_charge)
+                    self.throw_charge = 0.0
         else:
-            self.throw_charge = 0
+            self.throw_charge = 0.0
 
     def damage(self, amount):
         if self.health > 0:
@@ -243,7 +277,9 @@ class Player(PhysicsObject):
 
     def throw_object(self, velocity):
         if velocity:
-            self.object.velocity[:] = np.sign(self.hand_goal[0]) * np.array([1.0, 0.0]) * velocity * self.throw_speed
+            self.object.velocity[:] = normalized(self.hand_goal) * velocity * self.throw_speed
+
+        self.object.gravity_scale = 1
         self.object = None
 
     def grab_object(self):
@@ -252,13 +288,87 @@ class Player(PhysicsObject):
                 if norm2(self.velocity - c.collider.parent.velocity) < 0.25:
                     self.object = c.collider.parent
                     self.object.on_ground = False
+                    self.object.gravity_scale = 0
                     break
 
     def attack(self):
-        if self.object:
-            try:
-                self.object.attack()
-                self.hand.angular_velocity = self.direction * 2
-                self.object.angular_velocity = self.direction * 2
-            except AttributeError:
-                pass
+        try:
+            self.object.attack()
+            self.hand.angular_velocity = self.direction * 2
+            self.object.angular_velocity = self.direction * 2
+        except AttributeError:
+            pass
+
+
+class Hand(PhysicsObject):
+    def __init__(self, position):
+        super().__init__(position, group=Group.HANDS)
+        self.add_collider(Circle([0, 0], 0.2))
+        self.gravity_scale = 0.0
+        self.image_path = 'fist'
+        self.size = 1.2
+
+
+class Animation:
+    def __init__(self, xs, ys, angles):
+        self.xs = xs
+        self.ys = ys
+        self.angles = angles
+        self.times = np.arange(len(xs))
+        self.time = 0.0
+        self.direction = 1
+
+    def update(self, time_step):
+        self.time += time_step
+        if self.time < 0:
+            self.time += self.times[-1]
+        if self.time > self.times[-1]:
+            self.time -= self.times[-1]
+
+        x = np.interp(self.time, self.times, self.xs)
+        y = np.interp(self.time, self.times, self.ys)
+
+        position = np.array([x, y])
+        angle = np.interp(self.time, self.times, self.angles)
+
+        return position, angle
+
+
+class Foot(GameObject):
+    def __init__(self, position):
+        super().__init__(position, group=Group.NONE)
+        self.image_path = 'foot'
+        self.size = 0.8
+        self.animations = dict()
+
+        xs = 0.3 * np.ones(1)
+        ys = np.zeros(1)
+        angles = np.zeros(1)
+        self.animations['idle'] = Animation(xs, ys, angles)
+
+        xs = 0.3 * np.ones(1)
+        ys = 0.3 * np.ones(1)
+        angles = -0.25 * np.ones(1)
+        self.animations['jump'] = Animation(xs, ys, angles)
+
+        xs = 0.25 * np.array([3, 2, 1, 0, 0.5, 1, 2, 2.5])
+        ys = 0.25 * np.array([0, 0, 0, 0, 0.5, 1, 1, 0.5])
+        angles = 0.25 * np.array([0, 0, -1, -1, -1, -1, 0, 0])
+        self.animations['walk'] = Animation(xs, ys, angles)
+
+        self.animation = 'idle'
+        self.animation_direction = 1
+
+    def play_animation(self, name, time=0):
+        self.animation = name
+        self.animations[self.animation].time = time
+
+    def update(self, time_step):
+        self.image_position = np.array([self.direction * 0.15, 0])
+
+        pos, angle = self.animations[self.animation].update(self.animation_direction * time_step)
+
+        self.position += pos
+        self.angle = self.direction * angle
+
+        self.update_image = True

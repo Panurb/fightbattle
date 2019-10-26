@@ -18,3 +18,7 @@ def perp(v):
 
 def projection(v, a, b):
     return np.array([np.dot(v, a) / norm(a), np.dot(v, b) / norm(b)])
+
+
+def normalized(v):
+    return v / norm(v)

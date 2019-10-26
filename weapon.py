@@ -27,7 +27,7 @@ class Gun(PhysicsObject):
             b.draw(screen, camera, image_handler)
 
     def attack(self):
-        p = self.position + [self.direction * 0.5, 0.25]
+        p = self.position + np.array([self.direction * 0.5, 0.25])
         v = self.direction * 2
 
         self.bullets.append(Bullet(p, (v, 0)))

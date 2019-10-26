@@ -18,20 +18,22 @@ class Level:
 
         self.colliders = dict()
         for g in Group:
-            self.colliders[g] = []
+            if g is not Group.NONE:
+                self.colliders[g] = []
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_player([0, 0])
+        self.add_player([-5, 0])
         #self.add_player([5, 0])
 
         self.add_wall(np.array([0, -3]), 19, 1)
         self.add_wall([-10, 1.5], 1, 10)
         self.add_wall([10, 1.5], 1, 10)
 
-        self.add_wall([5, -1.5], 5, 2)
+        self.add_wall([-8, 3], 0.2, 0.2)
+        self.add_wall([8, 3], 0.2, 0.2)
 
-        self.add_gun([0, 2])
+        self.add_ball([0, 2])
 
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
@@ -44,7 +46,6 @@ class Level:
 
     def add_crate(self, position):
         box = Crate(position)
-        #box.angular_velocity = 0.1
         self.objects.append(box)
         self.colliders[box.group].append(box.collider)
 
@@ -86,7 +87,7 @@ class Level:
             for player in self.players:
                 dist = max(dist, np.sum((player.position - self.camera.position)**2))
 
-            self.camera.zoom = min(500 / np.sqrt(dist), 50)
+            self.camera.zoom = min(500 / np.sqrt(dist), self.camera.max_zoom)
 
     def draw(self, screen, image_handler):
         for wall in self.walls:
@@ -127,3 +128,10 @@ class Ball(PhysicsObject):
         super().__init__(position, group=Group.PROPS)
         self.add_collider(Circle([0, 0], 0.5))
         self.bounce = 0.8
+        self.image_path = 'ball'
+        self.size = 1.05
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        self.angular_velocity = - self.gravity_scale * self.velocity[0]

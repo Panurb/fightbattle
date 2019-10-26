@@ -15,7 +15,7 @@ class Group(enum.IntEnum):
 
 
 COLLIDES_WITH = {Group.NONE: [],
-                 Group.PLAYERS: [Group.PLAYERS, Group.WALLS, Group.BULLETS],
+                 Group.PLAYERS: [Group.WALLS, Group.BULLETS],
                  Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.PROPS, Group.BULLETS],
                  Group.GUNS: [Group.WALLS],
                  Group.HANDS: [Group.WALLS],
@@ -39,6 +39,7 @@ class GameObject:
         self.image_path = ''
         self.size = 1.0
         self.update_image = False
+        self.image_position = np.zeros(2)
 
     def damage(self, amount):
         if self.health > 0:
@@ -48,7 +49,8 @@ class GameObject:
             self.destroyed = True
 
     def flip_horizontally(self):
-        self.collider.position[0] -= 2 * (self.collider.position - self.position)[0]
+        if self.collider:
+            self.collider.position[0] -= 2 * (self.collider.position - self.position)[0]
 
         self.direction *= -1
         self.update_image = True
@@ -57,7 +59,8 @@ class GameObject:
         delta_pos = position - self.position
 
         self.position += delta_pos
-        self.collider.position += delta_pos
+        if self.collider:
+            self.collider.position += delta_pos
 
     def add_collider(self, collider):
         self.collider = collider
@@ -69,20 +72,19 @@ class GameObject:
             self.debug_draw(screen, camera, image_handler)
             return
 
-        if not self.image or self.update_image:
-            image = image_handler.images[self.image_path]
+        image = image_handler.images[self.image_path]
 
-            scale = 1.05 * camera.zoom * self.size / 100
+        scale = 1.05 * camera.zoom * self.size / 100
 
-            if self.direction == -1:
-                image = pygame.transform.flip(image, True, False)
+        if self.direction == -1:
+            image = pygame.transform.flip(image, True, False)
 
-            self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
+        self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
 
-            self.update_image = False
+        self.update_image = False
 
         rect = self.image.get_rect()
-        rect.center = camera.world_to_screen(self.position)
+        rect.center = camera.world_to_screen(self.position + self.image_position)
 
         screen.blit(self.image, rect)
 

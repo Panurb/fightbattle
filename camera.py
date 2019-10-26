@@ -4,7 +4,8 @@ import numpy as np
 class Camera:
     def __init__(self, position):
         self.position = np.array(position, dtype=float)
-        self.zoom = 50.0
+        self.max_zoom = 50.0
+        self.zoom = self.max_zoom
         self.half_width = 0.5 * np.array([1280, 0.0])
         self.half_height = 0.5 * np.array([0.0, 720])
 
