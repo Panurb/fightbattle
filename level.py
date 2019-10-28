@@ -5,12 +5,12 @@ from gameobject import GameObject, PhysicsObject, Group
 from collider import Rectangle, Circle
 from player import Player
 from camera import Camera
-from weapon import Gun
+from weapon import Revolver
 
 
 class Level:
-    def __init__(self):
-        self.camera = Camera([0, 0])
+    def __init__(self, option_handler):
+        self.camera = Camera([0, 0], option_handler.resolution)
 
         self.players = []
         self.walls = []
@@ -24,7 +24,7 @@ class Level:
         self.gravity = np.array([0, -0.1])
 
         self.add_player([-5, 0])
-        #self.add_player([5, 0])
+        self.add_player([5, 0])
 
         self.add_wall(np.array([0, -3]), 19, 1)
         self.add_wall([-10, 1.5], 1, 10)
@@ -34,6 +34,7 @@ class Level:
         self.add_wall([8, 3], 0.2, 0.2)
 
         self.add_ball([0, 2])
+        self.add_gun([2, 2])
 
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
@@ -60,7 +61,7 @@ class Level:
         self.colliders[wall.group].append(wall.collider)
 
     def add_gun(self, position):
-        gun = Gun(position)
+        gun = Revolver(position)
         self.objects.append(gun)
         self.colliders[gun.group].append(gun.collider)
 
@@ -112,7 +113,7 @@ class Wall(GameObject):
             points.append(camera.world_to_screen(c))
 
         pygame.draw.polygon(screen, pygame.Color('gray'), points)
-        pygame.draw.polygon(screen, pygame.Color('black'), points, 2)
+        pygame.draw.polygon(screen, pygame.Color('black'), points, int(camera.zoom / 25))
 
 
 class Crate(PhysicsObject):

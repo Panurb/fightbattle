@@ -1,13 +1,14 @@
 import numpy as np
+from helpers import basis
 
 
 class Camera:
-    def __init__(self, position):
+    def __init__(self, position, resolution):
         self.position = np.array(position, dtype=float)
-        self.max_zoom = 50.0
+        self.max_zoom = resolution[1] / 720 * 50.0
         self.zoom = self.max_zoom
-        self.half_width = 0.5 * np.array([1280, 0.0])
-        self.half_height = 0.5 * np.array([0.0, 720])
+        self.half_width = 0.5 * resolution[0] * basis(0)
+        self.half_height = 0.5 * resolution[1] * basis(1)
 
     def set_zoom(self, zoom):
         self.half_width *= zoom / self.zoom

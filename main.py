@@ -19,13 +19,17 @@ class Main:
 
         self.option_handler = optionhandler.OptionsHandler()
 
-        self.screen = pygame.display.set_mode(self.option_handler.resolution)
+        mode = 0
+        if self.option_handler.fullscreen:
+            mode = pygame.FULLSCREEN
+
+        self.screen = pygame.display.set_mode(self.option_handler.resolution, mode)
 
         self.image_handler = imagehandler.ImageHandler()
         self.sound_handler = soundhandler.SoundHandler()
         self.input_handler = inputhandler.InputHandler()
 
-        self.loop = gameloop.GameLoop()
+        self.loop = gameloop.GameLoop(self.option_handler)
 
         self.clock = pygame.time.Clock()
 

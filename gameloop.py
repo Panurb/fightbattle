@@ -9,10 +9,10 @@ class State(enum.Enum):
 
 
 class GameLoop:
-    def __init__(self):
+    def __init__(self, option_handler):
         self.state = State.PLAY
 
-        self.level = level.Level()
+        self.level = level.Level(option_handler)
 
     def update(self, input_handler, time_step):
         if self.state is State.PLAY:

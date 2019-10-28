@@ -15,16 +15,16 @@ class Group(enum.IntEnum):
 
 
 COLLIDES_WITH = {Group.NONE: [],
-                 Group.PLAYERS: [Group.WALLS, Group.BULLETS],
+                 Group.PLAYERS: [Group.WALLS],
                  Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.PROPS, Group.BULLETS],
                  Group.GUNS: [Group.WALLS],
                  Group.HANDS: [Group.WALLS],
                  Group.PROPS: [Group. WALLS, Group.PROPS, Group.BULLETS],
-                 Group.BULLETS: [Group.WALLS, Group.PLAYERS, Group.PROPS]}
+                 Group.BULLETS: [Group.PLAYERS, Group.WALLS, Group.PROPS]}
 
 
 class GameObject:
-    def __init__(self, position, group=Group.NONE, image=None):
+    def __init__(self, position, group=Group.NONE):
         super().__init__()
         self.position = np.array(position, dtype=float)
         self.collider = None
@@ -38,10 +38,9 @@ class GameObject:
         self.image = None
         self.image_path = ''
         self.size = 1.0
-        self.update_image = False
         self.image_position = np.zeros(2)
 
-    def damage(self, amount):
+    def damage(self, amount, position, velocity):
         if self.health > 0:
             self.health -= amount
         else:
@@ -53,7 +52,7 @@ class GameObject:
             self.collider.position[0] -= 2 * (self.collider.position - self.position)[0]
 
         self.direction *= -1
-        self.update_image = True
+        self.image_position[0] *= -1
 
     def set_position(self, position):
         delta_pos = position - self.position
@@ -80,8 +79,6 @@ class GameObject:
             image = pygame.transform.flip(image, True, False)
 
         self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
-
-        self.update_image = False
 
         rect = self.image.get_rect()
         rect.center = camera.world_to_screen(self.position + self.image_position)
@@ -163,17 +160,8 @@ class PhysicsObject(GameObject):
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
 
         if abs(self.velocity[0]) < 0.05:
-            self.velocity[0] = 0
+            self.velocity[0] = 0.0
 
-    def draw(self, screen, camera, image_handler):
-        if self.image_path and self.angular_velocity:
-            image = image_handler.images[self.image_path]
-
-            scale = 1.05 * camera.zoom * self.size / 100
-
-            if self.direction == -1:
-                image = pygame.transform.flip(image, True, False)
-
-            self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
-
-        super().draw(screen, camera, image_handler)
+    def damage(self, amount, position, velocity):
+        super().damage(amount, position, velocity)
+        self.velocity += velocity
