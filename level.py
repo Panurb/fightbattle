@@ -1,11 +1,13 @@
 import numpy as np
 import pygame
 
-from gameobject import GameObject, PhysicsObject, Group
-from collider import Rectangle, Circle
+from gameobject import Pendulum
+from collider import Group
+from wall import Wall
 from player import Player
 from camera import Camera
 from weapon import Revolver
+from prop import Crate, Ball
 
 
 class Level:
@@ -36,6 +38,10 @@ class Level:
         self.add_ball([0, 2])
         self.add_gun([2, 2])
 
+        #pendulum = Pendulum([0, 0], 1.0, -0.5)
+        #self.objects.append(pendulum)
+        #self.colliders[pendulum.group].append(pendulum.collider)
+
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
             self.add_crate(input_handler.mouse_position + self.camera.position)
@@ -48,28 +54,28 @@ class Level:
     def add_crate(self, position):
         box = Crate(position)
         self.objects.append(box)
-        self.colliders[box.group].append(box.collider)
+        self.colliders[box.collider.group].append(box.collider)
 
     def add_ball(self, position):
         ball = Ball(position)
         self.objects.append(ball)
-        self.colliders[ball.group].append(ball.collider)
+        self.colliders[ball.collider.group].append(ball.collider)
 
     def add_wall(self, position, width, height):
         wall = Wall(position, width, height)
         self.walls.append(wall)
-        self.colliders[wall.group].append(wall.collider)
+        self.colliders[wall.collider.group].append(wall.collider)
 
     def add_gun(self, position):
         gun = Revolver(position)
         self.objects.append(gun)
-        self.colliders[gun.group].append(gun.collider)
+        self.colliders[gun.collider.group].append(gun.collider)
 
     def add_player(self, position):
         n = len(self.players) - 1
         player = Player(position, n)
         self.players.append(player)
-        self.colliders[player.group].append(player.collider)
+        self.colliders[player.collider.group].append(player.collider)
 
     def update(self, time_step):
         for player in self.players:
@@ -99,40 +105,3 @@ class Level:
 
         for player in self.players:
             player.draw(screen, self.camera, image_handler)
-
-
-class Wall(GameObject):
-    def __init__(self, position, width, height):
-        super().__init__(position, group=Group.WALLS)
-        collider = Rectangle([0, 0], width, height)
-        self.add_collider(collider)
-
-    def draw(self, screen, camera, image_handler):
-        points = []
-        for c in self.collider.corners():
-            points.append(camera.world_to_screen(c))
-
-        pygame.draw.polygon(screen, pygame.Color('gray'), points)
-        pygame.draw.polygon(screen, pygame.Color('black'), points, int(camera.zoom / 25))
-
-
-class Crate(PhysicsObject):
-    def __init__(self, position):
-        super().__init__(position, group=Group.PROPS)
-        self.add_collider(Rectangle([0, 0], 1, 1))
-        self.image_path = 'crate'
-        self.rotate(np.random.randint(0, 4) * np.pi / 2)
-
-
-class Ball(PhysicsObject):
-    def __init__(self, position):
-        super().__init__(position, group=Group.PROPS)
-        self.add_collider(Circle([0, 0], 0.5))
-        self.bounce = 0.8
-        self.image_path = 'ball'
-        self.size = 1.05
-
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
-
-        self.angular_velocity = - self.gravity_scale * self.velocity[0]

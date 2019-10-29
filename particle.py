@@ -23,8 +23,8 @@ class Cloud:
 
 class Particle:
     def __init__(self, position, velocity, size):
-        self.position = np.array(position, dtype=float)
         self.velocity = np.array(velocity, dtype=float)
+        self.position = np.array(position + velocity, dtype=float)
         self.acceleration = np.zeros(2)
         self.gravity_scale = 1.0
         self.size = size
@@ -36,14 +36,20 @@ class Particle:
         acc_old = self.acceleration.copy()
         self.acceleration = self.gravity_scale * gravity
 
-        if self.size > 1:
-            self.size -= 0.25
+        #if self.size > 1:
+        #    self.size -= 0.25
 
-        #for p in particles:
-        #    r = p.position - self.position
-        #    r_norm = norm(r)
-        #    if r_norm != 0:
-        #        self.acceleration += 0.001 * r / r_norm
+        sigma = 0.1
+        for p in particles:
+            if p is self:
+                continue
+
+            r = self.position - p.position
+            r_norm = norm(r)
+            if r_norm == 0:
+                continue
+            r_unit = r / r_norm
+            #self.acceleration += 0.000001 * (sigma**12 / r_norm**13 - 0.5 * sigma**6 / r_norm**7) * r_unit
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
 

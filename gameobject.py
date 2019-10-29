@@ -1,34 +1,16 @@
 import numpy as np
-import enum
+from numpy.linalg import norm
 
 import pygame
 
-
-class Group(enum.IntEnum):
-    NONE = 0
-    PLAYERS = 1
-    WALLS = 2
-    GUNS = 3
-    HANDS = 4
-    PROPS = 5
-    BULLETS = 6
-
-
-COLLIDES_WITH = {Group.NONE: [],
-                 Group.PLAYERS: [Group.WALLS],
-                 Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.PROPS, Group.BULLETS],
-                 Group.GUNS: [Group.WALLS],
-                 Group.HANDS: [Group.WALLS],
-                 Group.PROPS: [Group. WALLS, Group.PROPS, Group.BULLETS],
-                 Group.BULLETS: [Group.PLAYERS, Group.WALLS, Group.PROPS]}
+from collider import Circle, Group
 
 
 class GameObject:
-    def __init__(self, position, group=Group.NONE):
+    def __init__(self, position):
         super().__init__()
         self.position = np.array(position, dtype=float)
         self.collider = None
-        self.group = group
         self.collision = True
         self.direction = 1
         self.health = 100
@@ -90,8 +72,8 @@ class GameObject:
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0), group=Group.NONE):
-        super().__init__(position, group)
+    def __init__(self, position, velocity=(0, 0)):
+        super().__init__(position)
         self.velocity = np.array(velocity, dtype=float)
         self.acceleration = np.zeros(2)
 
@@ -110,8 +92,11 @@ class PhysicsObject(GameObject):
 
     def rotate(self, delta_angle):
         self.angle += delta_angle
-
         self.collider.rotate(delta_angle)
+
+    def rotate_90(self):
+        self.angle += np.pi / 2
+        self.collider.rotate_90()
 
     def update(self, gravity, time_step, colliders):
         if self.velocity[1] > 0:
@@ -165,3 +150,57 @@ class PhysicsObject(GameObject):
     def damage(self, amount, position, velocity):
         super().damage(amount, position, velocity)
         self.velocity += velocity
+
+
+class Pendulum(PhysicsObject):
+    def __init__(self, position, length, angle):
+        super().__init__(position, np.zeros(2))
+        self.support = position
+        self.length = length
+        self.angle = angle
+        angle = self.angle - np.pi / 2
+        self.position = self.support + self.length * np.array([np.cos(angle), np.sin(angle)])
+        self.image_path = 'hand'
+        self.add_collider(Circle([0, 0], 0.1, Group.PROPS))
+        self.friction = 0.5
+
+    def draw(self, screen, camera, image_handler):
+        self.angle -= np.pi / 2
+        super().draw(screen, camera, image_handler)
+        self.angle += np.pi / 2
+
+        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.support), 5)
+
+    def update(self, gravity, time_step, colliders):
+        if self.velocity[1] > 0:
+            self.on_ground = False
+
+        delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
+        self.angle += delta_angle
+        ang_acc_old = float(self.angular_acceleration)
+        self.angular_acceleration = -self.gravity_scale * norm(gravity) / self.length * np.sin(self.angle)
+
+        angle = self.angle - np.pi / 2
+        self.set_position(self.support + self.length * np.array([np.cos(angle), np.sin(angle)]))
+
+        if delta_angle:
+            self.collider.rotate(delta_angle)
+
+        self.collider.update_collisions(colliders)
+
+        for collision in self.collider.collisions:
+            if not collision.collider.parent.collision:
+                continue
+
+            if collision.overlap[1] > 0:
+                self.on_ground = True
+
+            self.position += collision.overlap
+
+            self.collider.position += collision.overlap
+
+            n = collision.overlap
+            self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
+            self.velocity *= self.bounce
+
+        self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step

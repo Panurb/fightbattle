@@ -1,14 +1,14 @@
 import numpy as np
 
-from gameobject import PhysicsObject, Group
-from collider import Rectangle, Circle
+from gameobject import PhysicsObject
+from collider import Rectangle, Circle, Group
 
 
 class Gun(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, group=Group.GUNS)
+        super().__init__(position)
         self.parent = None
-        self.add_collider(Rectangle(np.zeros(2), 1, 0.3))
+        self.add_collider(Rectangle(np.zeros(2), 1, 0.3, Group.GUNS))
         self.inertia = 0.0
 
         self.bullets = []
@@ -28,7 +28,7 @@ class Gun(PhysicsObject):
             b.draw(screen, camera, image_handler)
 
     def attack(self):
-        p = self.position + np.array([self.direction * 0.1, 0.35])
+        p = self.position + np.array([self.direction * 0.3, 0.35])
         v = self.direction * 1.5
 
         self.bullets.append(Bullet(p, (v, 0), self.parent))
@@ -43,9 +43,9 @@ class Revolver(Gun):
 
 class Bullet(PhysicsObject):
     def __init__(self, position, velocity, parent):
-        super().__init__(position, velocity, group=Group.BULLETS)
+        super().__init__(position, velocity)
         self.parent = parent
-        self.add_collider(Circle(np.zeros(2), 0.2))
+        self.add_collider(Circle(np.zeros(2), 0.2, Group.BULLETS))
         self.gravity_scale = 0
 
         self.lifetime = 15
@@ -64,7 +64,7 @@ class Bullet(PhysicsObject):
         for c in self.collider.collisions:
             try:
                 if self.parent is not c.collider.parent:
-                    c.collider.parent.damage(10, self.position, self.velocity)
+                    c.collider.parent.damage(100, self.position, self.velocity)
             except AttributeError:
                 pass
 

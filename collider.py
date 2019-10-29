@@ -3,8 +3,26 @@ from numpy.linalg import norm
 import enum
 import pygame
 
-from gameobject import COLLIDES_WITH
-from helpers import norm2
+from helpers import norm2, perp
+
+
+class Group(enum.IntEnum):
+    NONE = 0
+    PLAYERS = 1
+    WALLS = 2
+    GUNS = 3
+    HANDS = 4
+    PROPS = 5
+    BULLETS = 6
+
+
+COLLIDES_WITH = {Group.NONE: [],
+                 Group.PLAYERS: [Group.WALLS],
+                 Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.PROPS, Group.BULLETS],
+                 Group.GUNS: [Group.WALLS],
+                 Group.HANDS: [Group.WALLS],
+                 Group.PROPS: [Group.WALLS, Group.PROPS, Group.BULLETS],
+                 Group.BULLETS: [Group.PLAYERS, Group.WALLS, Group.PROPS]}
 
 
 class Type(enum.Enum):
@@ -19,18 +37,19 @@ class Collision:
 
 
 class Collider:
-    def __init__(self, position):
+    def __init__(self, position, group=Group.NONE):
         self.parent = None
         self.position = np.array(position, dtype=float)
         self.friction = 0.5
         self.type = None
         self.collisions = []
+        self.group = group
 
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
 
         if not groups:
-            groups = COLLIDES_WITH[self.parent.group]
+            groups = COLLIDES_WITH[self.group]
 
         for g in groups:
             for c in colliders[g]:
@@ -58,8 +77,8 @@ class Collider:
 
 
 class Rectangle(Collider):
-    def __init__(self, position, width, height):
-        super().__init__(position)
+    def __init__(self, position, width, height, group=Group.NONE):
+        super().__init__(position, group)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
         self.type = Type.RECTANGLE
@@ -165,6 +184,10 @@ class Rectangle(Collider):
         self.half_width = np.matmul(r, self.half_width)
         self.half_height = np.matmul(r, self.half_height)
 
+    def rotate_90(self):
+        self.half_width = perp(self.half_width)
+        self.half_height = perp(self.half_height)
+
     def draw(self, screen, camera, image_handler):
         points = []
         for c in self.corners():
@@ -174,8 +197,8 @@ class Rectangle(Collider):
 
 
 class Circle(Collider):
-    def __init__(self, position, radius):
-        super().__init__(position)
+    def __init__(self, position, radius, group=Group.NONE):
+        super().__init__(position, group)
         self.radius = radius
         self.type = Type.CIRCLE
 
@@ -204,5 +227,5 @@ class Circle(Collider):
 
 
 class Capsule(Collider):
-    def __init__(self, position):
-        super().__init__(position)
+    def __init__(self, position, group=Group.NONE):
+        super().__init__(position, group)

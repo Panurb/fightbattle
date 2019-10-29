@@ -2,19 +2,19 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from gameobject import GameObject, PhysicsObject, Group
-from collider import Rectangle, Circle
+from gameobject import GameObject, PhysicsObject, Pendulum
+from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized
 from particle import Cloud
 
 
 class Player(PhysicsObject):
     def __init__(self, position, number=0):
-        super().__init__(position, group=Group.PLAYERS)
+        super().__init__(position)
         self.bounce = 0.0
         self.inertia = 0.0
 
-        self.add_collider(Rectangle([0, 0], 1, 3))
+        self.add_collider(Rectangle([0, 0], 1, 3, Group.PLAYERS))
 
         self.legs = GameObject(self.position - basis(1))
         self.legs.add_collider(Circle([0, 0], 0.5))
@@ -34,7 +34,7 @@ class Player(PhysicsObject):
 
         self.max_speed = 0.25
 
-        self.shoulder = self.position + 0.25 * basis(1)
+        self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height
         self.hand_goal = basis(0)
         self.arm_length = 1.0
         self.hand = Hand(self.position)
@@ -76,30 +76,42 @@ class Player(PhysicsObject):
             b.update(gravity, time_step)
 
         if self.destroyed:
-            if self.angle > -np.pi / 2:
-                self.angular_velocity = -0.125
+            if np.pi / 2 > self.angle > -np.pi / 2:
+                self.angular_velocity = 0.125 * self.direction
             else:
-                self.rotate(-np.pi / 2 - self.angle)
+                self.rotate(self.direction * np.pi / 2 - self.angle)
                 self.angular_velocity = 0.0
 
-            self.hand.gravity_scale = 1.0
+            self.hand.support[:] = self.shoulder
             self.hand.update(gravity, time_step, colliders)
 
+            #self.back_foot.update(gravity, time_step, colliders)
+            #self.front_foot.update(gravity, time_step, colliders)
+
+        h = normalized(self.collider.half_height)
+
+        self.legs.set_position(self.position - h)
+
+        self.body.set_position(self.position - 0.5 * self.crouched * h)
+        self.body.collider.rotate(self.angle - self.body.angle)
+        self.body.angle = self.angle
+
+        self.head.set_position(self.position + (1 - self.crouched) * h)
+        self.head.angle = self.angle
+
+        self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * h
+
+        if self.destroyed:
             return
-
-        self.legs.set_position(self.position - basis(1))
-        self.body.set_position(self.position - 0.5 * self.crouched * basis(1))
-        self.body.collider.half_height = 0.5 * (1 - 0.5 * self.crouched) * basis(1)
-        self.head.set_position(self.position + (1 - self.crouched) * basis(1))
-
-        self.collider.position[1] = self.position[1] - 0.5 * self.crouched
-        self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
-        self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * basis(1)
 
         self.back_foot.set_position(self.position - np.array([0.3 + 0.05 * self.direction, 1.5]))
         self.front_foot.set_position(self.position - np.array([0.3 + 0.25 * self.direction, 1.5]))
         self.back_foot.update(time_step)
         self.front_foot.update(time_step)
+
+        self.body.collider.half_height = 0.5 * (1 - 0.5 * self.crouched) * basis(1)
+        self.collider.position[1] = self.position[1] - 0.5 * self.crouched
+        self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
 
         d = self.hand_goal[0]
         if abs(d) > 0.1 and np.sign(d) != self.direction:
@@ -108,7 +120,7 @@ class Player(PhysicsObject):
         if self.object:
             self.hand.set_position(self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal)
 
-            if self.object.group is Group.GUNS:
+            if self.object.collider.group is Group.GUNS:
                 if abs(d) > 0.1 and np.sign(d) != self.object.direction:
                     self.object.flip_horizontally()
                 self.hand.angle = 0.0
@@ -173,7 +185,7 @@ class Player(PhysicsObject):
             self.front_foot.play_animation('jump')
 
         if self.object:
-            if self.object.group is Group.GUNS:
+            if self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
                 self.hand.image_position = self.direction * 0.1 * basis(0)
             else:
@@ -217,7 +229,7 @@ class Player(PhysicsObject):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder + self.hand_goal), 2)
 
     def input(self, input_handler):
-        if self.destroyed:
+        if self.destroyed or self.number == -1:
             return
 
         controller = input_handler.controllers[self.number]
@@ -288,7 +300,16 @@ class Player(PhysicsObject):
 
         if self.health <= 0:
             if not self.destroyed:
-                #self.velocity[:] = -velocity
+                r = self.hand.position - self.shoulder
+                self.hand = Pendulum(self.shoulder, self.arm_length, np.arctan2(r[1], r[0]) + np.pi / 2)
+                #self.front_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
+                #self.back_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
+
+                self.velocity += velocity + 0.5 * basis(1)
+                self.head.collider.group = Group.NONE
+                self.body.collider.group = Group.NONE
+                self.legs.collider.group = Group.NONE
+                self.bounce = 0.5
                 self.destroyed = True
 
     def throw_object(self, velocity):
@@ -301,7 +322,7 @@ class Player(PhysicsObject):
 
     def grab_object(self):
         for c in self.hand.collider.collisions:
-            if c.collider.parent.group is Group.PROPS or c.collider.parent.group is Group.GUNS:
+            if c.collider.group is Group.PROPS or c.collider.group is Group.GUNS:
                 if norm2(self.velocity - c.collider.parent.velocity) < 0.25:
                     self.object = c.collider.parent
                     self.object.on_ground = False
@@ -320,8 +341,8 @@ class Player(PhysicsObject):
 
 class Hand(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, group=Group.HANDS)
-        self.add_collider(Circle([0, 0], 0.2))
+        super().__init__(position)
+        self.add_collider(Circle([0, 0], 0.2, Group.HANDS))
         self.gravity_scale = 0.0
         self.image_path = 'fist'
         self.size = 1.2
@@ -354,7 +375,7 @@ class Animation:
 
 class Foot(GameObject):
     def __init__(self, position):
-        super().__init__(position, group=Group.NONE)
+        super().__init__(position)
         self.image_path = 'foot'
         self.size = 0.8
         self.animations = dict()
