@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.linalg import norm
 import pygame
 
 
@@ -7,28 +6,34 @@ class Cloud:
     def __init__(self, position, direction):
         self.position = position
         self.particles = []
+        angle = np.arctan2(direction[1], direction[0]) + np.pi
         for _ in range(20):
-            v = np.random.normal(size=2)
-            v *= 0.25 / norm(v)
-            self.particles.append(Particle(self.position, v, 10))
+            r = np.abs(np.random.normal(0.25, 0.5))
+            theta = np.random.normal(angle, 0.25)
+            v = r * np.array([np.cos(theta), np.sin(theta)])
+            #v = 0.25 * np.random.normal(size=2)
+            self.particles.append(Particle(self.position, v, 0.75, 'blood'))
 
     def update(self, gravity, time_step):
         for p in self.particles:
             p.update(gravity, time_step, self.particles)
+            if p.size == 0:
+                self.particles.remove(p)
 
-    def draw(self, screen, camera):
+    def draw(self, screen, camera, image_handler):
         for p in self.particles:
-            p.draw(screen, camera)
+            p.draw(screen, camera, image_handler)
 
 
 class Particle:
-    def __init__(self, position, velocity, size):
+    def __init__(self, position, velocity, size, image_path):
         self.velocity = np.array(velocity, dtype=float)
-        self.position = np.array(position + velocity, dtype=float)
+        self.position = np.array(position, dtype=float)
         self.acceleration = np.zeros(2)
         self.gravity_scale = 1.0
         self.size = size
-        self.color = (255, 0, 0)
+        self.image_path = image_path
+        self.image = None
 
     def update(self, gravity, time_step, particles):
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
@@ -36,22 +41,19 @@ class Particle:
         acc_old = self.acceleration.copy()
         self.acceleration = self.gravity_scale * gravity
 
-        #if self.size > 1:
-        #    self.size -= 0.25
-
-        sigma = 0.1
-        for p in particles:
-            if p is self:
-                continue
-
-            r = self.position - p.position
-            r_norm = norm(r)
-            if r_norm == 0:
-                continue
-            r_unit = r / r_norm
-            #self.acceleration += 0.000001 * (sigma**12 / r_norm**13 - 0.5 * sigma**6 / r_norm**7) * r_unit
+        if self.size > 0:
+            self.size -= 0.025
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
 
-    def draw(self, screen, camera):
-        pygame.draw.circle(screen, self.color, camera.world_to_screen(self.position), int(self.size))
+    def draw(self, screen, camera, image_handler):
+        image = image_handler.images[self.image_path]
+
+        scale = camera.zoom * self.size / 100
+
+        self.image = pygame.transform.rotozoom(image, 0.0, scale)
+
+        rect = self.image.get_rect()
+        rect.center = camera.world_to_screen(self.position)
+
+        screen.blit(self.image, rect)

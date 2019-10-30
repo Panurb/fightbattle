@@ -74,6 +74,8 @@ class Player(PhysicsObject):
 
         for b in self.blood:
             b.update(gravity, time_step)
+            if not b.particles:
+                self.blood.remove(b)
 
         if self.destroyed:
             if np.pi / 2 > self.angle > -np.pi / 2:
@@ -214,9 +216,9 @@ class Player(PhysicsObject):
         self.hand.draw(screen, camera, image_handler)
 
         for b in self.blood:
-            b.draw(screen, camera)
+            b.draw(screen, camera, image_handler)
 
-        self.debug_draw(screen, camera, image_handler)
+        #self.debug_draw(screen, camera, image_handler)
 
     def debug_draw(self, screen, camera, image_handler):
         self.collider.draw(screen, camera, image_handler)
@@ -296,7 +298,7 @@ class Player(PhysicsObject):
     def damage(self, amount, position, velocity):
         if self.health > 0:
             self.health -= amount
-            self.blood.append(Cloud(position, -velocity))
+            self.blood.append(Cloud([self.position[0], position[1]], -velocity))
 
         if self.health <= 0:
             if not self.destroyed:

@@ -8,7 +8,7 @@ class Gun(PhysicsObject):
     def __init__(self, position):
         super().__init__(position)
         self.parent = None
-        self.add_collider(Rectangle(np.zeros(2), 1, 0.3, Group.GUNS))
+        self.add_collider(Rectangle([0.35, 0.15], 1.1, 0.6, Group.GUNS))
         self.inertia = 0.0
 
         self.bullets = []
@@ -64,7 +64,7 @@ class Bullet(PhysicsObject):
         for c in self.collider.collisions:
             try:
                 if self.parent is not c.collider.parent:
-                    c.collider.parent.damage(100, self.position, self.velocity)
+                    c.collider.parent.damage(10, self.position, self.velocity)
             except AttributeError:
                 pass
 
