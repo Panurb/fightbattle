@@ -16,7 +16,7 @@ class Cloud:
 
     def update(self, gravity, time_step):
         for p in self.particles:
-            p.update(gravity, time_step, self.particles)
+            p.update(gravity, time_step)
             if p.size == 0:
                 self.particles.remove(p)
 
@@ -35,7 +35,7 @@ class Particle:
         self.image_path = image_path
         self.image = None
 
-    def update(self, gravity, time_step, particles):
+    def update(self, gravity, time_step):
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
         acc_old = self.acceleration.copy()

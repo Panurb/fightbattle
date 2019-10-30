@@ -16,7 +16,7 @@ class GameLoop:
 
     def update(self, input_handler, time_step):
         if self.state is State.PLAY:
-            input_handler.update(self.level.camera)
+            input_handler.update(self.level)
 
             self.level.input(input_handler)
 

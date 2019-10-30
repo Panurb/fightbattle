@@ -78,10 +78,8 @@ class Player(PhysicsObject):
                 self.blood.remove(b)
 
         if self.destroyed:
-            if np.pi / 2 > self.angle > -np.pi / 2:
-                self.angular_velocity = 0.125 * self.direction
-            else:
-                self.rotate(self.direction * np.pi / 2 - self.angle)
+            if abs(self.angle) > np.pi / 2:
+                self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)
                 self.angular_velocity = 0.0
 
             self.hand.support[:] = self.shoulder
@@ -231,7 +229,7 @@ class Player(PhysicsObject):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder + self.hand_goal), 2)
 
     def input(self, input_handler):
-        if self.destroyed or self.number == -1:
+        if self.destroyed or self.number == -1 or self.number >= len(input_handler.controllers):
             return
 
         controller = input_handler.controllers[self.number]
@@ -307,11 +305,12 @@ class Player(PhysicsObject):
                 #self.front_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
                 #self.back_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
 
-                self.velocity += velocity + 0.5 * basis(1)
+                self.velocity += -0.25 * velocity + 0.5 * basis(1)
                 self.head.collider.group = Group.NONE
                 self.body.collider.group = Group.NONE
                 self.legs.collider.group = Group.NONE
                 self.bounce = 0.5
+                self.angular_velocity = 0.125 * np.sign(velocity[0])
                 self.destroyed = True
 
     def throw_object(self, velocity):

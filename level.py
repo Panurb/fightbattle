@@ -72,7 +72,7 @@ class Level:
         self.colliders[gun.collider.group].append(gun.collider)
 
     def add_player(self, position):
-        n = len(self.players) - 1
+        n = len(self.players)
         player = Player(position, n)
         self.players.append(player)
         self.colliders[player.collider.group].append(player.collider)

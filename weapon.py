@@ -51,7 +51,7 @@ class Bullet(PhysicsObject):
         self.lifetime = 15
         self.time = 0
         self.destroyed = False
-        self.bounce = 0.0
+        self.collision = False
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)

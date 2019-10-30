@@ -156,7 +156,7 @@ class Keyboard(Controller):
 class InputHandler:
     def __init__(self):
         self.controllers = []
-        #self.controllers.append(Keyboard(self))
+        self.controllers.append(Keyboard(self))
         for i in range(pygame.joystick.get_count()):
             if 'Xbox 360' in pygame.joystick.Joystick(i).get_name():
                 self.controllers.append(Controller(i))
@@ -180,7 +180,7 @@ class InputHandler:
 
         self.quit = False
 
-    def update(self, camera):
+    def update(self, level):
         for c in self.controllers:
             c.update()
 
@@ -200,7 +200,7 @@ class InputHandler:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_released[event.button] = True
 
-                self.mouse_position[:] = camera.screen_to_world(pygame.mouse.get_pos()) - camera.position
+                self.mouse_position[:] = level.camera.screen_to_world(pygame.mouse.get_pos()) - level.players[0].shoulder
 
         for key in self.keys_down:
             if self.keys_down[key] and not pygame.key.get_pressed()[key]:
