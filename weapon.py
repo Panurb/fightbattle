@@ -1,4 +1,5 @@
 import numpy as np
+import pygame
 
 from gameobject import PhysicsObject
 from collider import Rectangle, Circle, Group
@@ -47,6 +48,9 @@ class Bullet(PhysicsObject):
         self.parent = parent
         self.add_collider(Circle(np.zeros(2), 0.2, Group.BULLETS))
         self.gravity_scale = 0
+        self.image_path = 'bullet'
+        self.size = 0.8
+        self.last_position = position.copy()
 
         self.lifetime = 15
         self.time = 0
@@ -54,6 +58,7 @@ class Bullet(PhysicsObject):
         self.collision = False
 
     def update(self, gravity, time_step, colliders):
+        self.last_position[:] = self.position
         super().update(gravity, time_step, colliders)
 
         if self.time < self.lifetime:

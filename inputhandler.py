@@ -132,7 +132,7 @@ class Keyboard(Controller):
 
         n = norm(self.input_handler.mouse_position)
         if n != 0:
-            self.right_stick[:] = self.input_handler.mouse_position / n
+            self.right_stick[:] = self.input_handler.relative_mouse / n
 
         if self.input_handler.mouse_down[2]:
             self.left_trigger = 1
@@ -174,6 +174,7 @@ class InputHandler:
             self.keys_pressed[i] = False
             self.keys_released[i] = False
         self.mouse_position = np.zeros(2)
+        self.relative_mouse = np.zeros(2)
         self.mouse_down = [False] * 6
         self.mouse_pressed = [False] * 6
         self.mouse_released = [False] * 6
@@ -200,7 +201,8 @@ class InputHandler:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_released[event.button] = True
 
-                self.mouse_position[:] = level.camera.screen_to_world(pygame.mouse.get_pos()) - level.players[0].shoulder
+                self.mouse_position[:] = level.camera.screen_to_world(pygame.mouse.get_pos())
+                self.relative_mouse[:] = self.mouse_position - level.players[0].shoulder
 
         for key in self.keys_down:
             if self.keys_down[key] and not pygame.key.get_pressed()[key]:

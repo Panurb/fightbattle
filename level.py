@@ -44,9 +44,9 @@ class Level:
 
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
-            self.add_crate(input_handler.mouse_position + self.camera.position)
+            self.add_crate(input_handler.mouse_position)
         if input_handler.keys_pressed[pygame.K_b]:
-            self.add_ball(input_handler.mouse_position + self.camera.position)
+            self.add_ball(input_handler.mouse_position)
 
         for i, player in enumerate(self.players):
             player.input(input_handler)
@@ -94,7 +94,8 @@ class Level:
             for player in self.players:
                 dist = max(dist, np.sum((player.position - self.camera.position)**2))
 
-            self.camera.zoom = min(500 / np.sqrt(dist), self.camera.max_zoom)
+            if dist != 0:
+                self.camera.zoom = min(500 / np.sqrt(dist), self.camera.max_zoom)
 
     def draw(self, screen, image_handler):
         for wall in self.walls:
