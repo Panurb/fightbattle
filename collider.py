@@ -14,15 +14,17 @@ class Group(enum.IntEnum):
     HANDS = 4
     PROPS = 5
     BULLETS = 6
+    SHIELDS = 7
 
 
 COLLIDES_WITH = {Group.NONE: [],
                  Group.PLAYERS: [Group.WALLS],
-                 Group.WALLS: [Group.PLAYERS, Group.WALLS, Group.GUNS, Group.PROPS, Group.BULLETS],
+                 Group.WALLS: [],
                  Group.GUNS: [Group.WALLS],
                  Group.HANDS: [Group.WALLS],
-                 Group.PROPS: [Group.WALLS, Group.PROPS, Group.BULLETS],
-                 Group.BULLETS: [Group.PLAYERS, Group.WALLS, Group.PROPS]}
+                 Group.PROPS: [Group.WALLS, Group.PROPS, Group.BULLETS, Group.SHIELDS],
+                 Group.BULLETS: [Group.WALLS, Group.PLAYERS, Group.PROPS, Group.SHIELDS],
+                 Group.SHIELDS: [Group.WALLS, Group.PROPS]}
 
 
 class Type(enum.Enum):

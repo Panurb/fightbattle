@@ -11,6 +11,7 @@ class Gun(PhysicsObject):
         self.parent = None
         self.add_collider(Rectangle([0.35, 0.15], 1.1, 0.6, Group.GUNS))
         self.inertia = 0.0
+        self.ammo = 0
 
         self.bullets = []
 
@@ -29,6 +30,11 @@ class Gun(PhysicsObject):
             b.draw(screen, camera, image_handler)
 
     def attack(self):
+        if self.ammo == 0:
+            return
+
+        self.ammo -= 1
+
         p = self.position + np.array([self.direction * 0.3, 0.35])
         v = self.direction * 1.5
 
@@ -38,6 +44,7 @@ class Gun(PhysicsObject):
 class Revolver(Gun):
     def __init__(self, position):
         super().__init__(position)
+        self.ammo = 6
         self.image_path = 'revolver'
         self.image_position = np.array([0.35, 0.15])
 
@@ -50,15 +57,13 @@ class Bullet(PhysicsObject):
         self.gravity_scale = 0
         self.image_path = 'bullet'
         self.size = 0.8
-        self.last_position = position.copy()
 
-        self.lifetime = 15
+        self.lifetime = 100
         self.time = 0
         self.destroyed = False
         self.collision = False
 
     def update(self, gravity, time_step, colliders):
-        self.last_position[:] = self.position
         super().update(gravity, time_step, colliders)
 
         if self.time < self.lifetime:
@@ -75,3 +80,10 @@ class Bullet(PhysicsObject):
 
             self.destroyed = True
             return
+
+
+class Shield(PhysicsObject):
+    def __init__(self, position):
+        super().__init__(position, image_path='shield', size=0.85)
+        self.add_collider(Rectangle([0.0, 0.0], 0.25, 2.0, Group.SHIELDS))
+        self.rotate_90()

@@ -3,16 +3,22 @@ import pygame
 
 
 class Cloud:
-    def __init__(self, position, direction):
+    def __init__(self, position, direction, number, image_path):
         self.position = position
         self.particles = []
-        angle = np.arctan2(direction[1], direction[0]) + np.pi
-        for _ in range(20):
-            r = np.abs(np.random.normal(0.25, 0.5))
-            theta = np.random.normal(angle, 0.25)
-            v = r * np.array([np.cos(theta), np.sin(theta)])
-            #v = 0.25 * np.random.normal(size=2)
-            self.particles.append(Particle(self.position, v, 0.75, 'blood'))
+        if np.any(direction):
+            angle = np.arctan2(direction[1], direction[0]) + np.pi
+        else:
+            angle = None
+
+        for _ in range(number):
+            if angle is None:
+                v = 0.25 * np.random.normal(size=2)
+            else:
+                theta = np.random.normal(angle, 0.25)
+                r = np.abs(np.random.normal(0.25, 0.5))
+                v = r * np.array([np.cos(theta), np.sin(theta)])
+            self.particles.append(Particle(self.position, v, 0.75, image_path))
 
     def update(self, gravity, time_step):
         for p in self.particles:

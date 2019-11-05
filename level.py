@@ -6,7 +6,7 @@ from collider import Group
 from wall import Wall
 from player import Player
 from camera import Camera
-from weapon import Revolver
+from weapon import Revolver, Shield
 from prop import Crate, Ball
 
 
@@ -35,8 +35,9 @@ class Level:
         self.add_wall([-8, 3], 0.2, 0.2)
         self.add_wall([8, 3], 0.2, 0.2)
 
-        self.add_ball([0, 2])
-        self.add_gun([2, 2])
+        self.add_object(Ball([0, 2]))
+        self.add_object(Revolver([2, 2]))
+        self.add_object(Shield([4, 2]))
 
         #pendulum = Pendulum([0, 0], 1.0, -0.5)
         #self.objects.append(pendulum)
@@ -44,32 +45,21 @@ class Level:
 
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
-            self.add_crate(input_handler.mouse_position)
+            self.add_object(Crate(input_handler.mouse_position))
         if input_handler.keys_pressed[pygame.K_b]:
-            self.add_ball(input_handler.mouse_position)
+            self.add_object(Ball(input_handler.mouse_position))
 
         for i, player in enumerate(self.players):
             player.input(input_handler)
-
-    def add_crate(self, position):
-        box = Crate(position)
-        self.objects.append(box)
-        self.colliders[box.collider.group].append(box.collider)
-
-    def add_ball(self, position):
-        ball = Ball(position)
-        self.objects.append(ball)
-        self.colliders[ball.collider.group].append(ball.collider)
 
     def add_wall(self, position, width, height):
         wall = Wall(position, width, height)
         self.walls.append(wall)
         self.colliders[wall.collider.group].append(wall.collider)
 
-    def add_gun(self, position):
-        gun = Revolver(position)
-        self.objects.append(gun)
-        self.colliders[gun.collider.group].append(gun.collider)
+    def add_object(self, obj):
+        self.objects.append(obj)
+        self.colliders[obj.collider.group].append(obj.collider)
 
     def add_player(self, position):
         n = len(self.players)

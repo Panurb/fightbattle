@@ -7,7 +7,7 @@ from collider import Circle, Group
 
 
 class GameObject:
-    def __init__(self, position):
+    def __init__(self, position, image_path='', size=1.0):
         super().__init__()
         self.position = np.array(position, dtype=float)
         self.collider = None
@@ -18,8 +18,8 @@ class GameObject:
         self.angle = 0.0
 
         self.image = None
-        self.image_path = ''
-        self.size = 1.0
+        self.image_path = image_path
+        self.size = size
         self.image_position = np.zeros(2)
 
     def damage(self, amount, position, velocity):
@@ -72,8 +72,8 @@ class GameObject:
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0)):
-        super().__init__(position)
+    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0):
+        super().__init__(position, image_path, size)
         self.velocity = np.array(velocity, dtype=float)
         self.acceleration = np.zeros(2)
 
@@ -118,6 +118,9 @@ class PhysicsObject(GameObject):
             self.collider.rotate(delta_angle)
 
         self.collider.update_collisions(colliders)
+
+        if not self.collision:
+            return
 
         for collision in self.collider.collisions:
             if not collision.collider.parent.collision:
