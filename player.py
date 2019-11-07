@@ -2,13 +2,13 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from gameobject import GameObject, PhysicsObject, Pendulum
+from gameobject import GameObject, PhysicsObject, Destroyable, Pendulum
 from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized
 from particle import Cloud
 
 
-class Player(PhysicsObject):
+class Player(Destroyable):
     def __init__(self, position, number=0):
         super().__init__(position)
         self.bounce = 0.0
@@ -32,9 +32,11 @@ class Player(PhysicsObject):
         self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height
         self.hand_goal = basis(0)
         self.arm_length = 1.0
-        self.hand = Hand(self.position)
-
         self.elbow = np.zeros(2)
+
+        self.hand = PhysicsObject(self.position, image_path='fist', size=1.2)
+        self.hand.add_collider(Circle([0, 0], 0.2, Group.HANDS))
+        self.hand.gravity_scale = 0.0
 
         self.object = None
 
@@ -213,6 +215,8 @@ class Player(PhysicsObject):
         for b in self.blood:
             b.draw(screen, camera, image_handler)
 
+        self.debug_draw(screen, camera, image_handler)
+
     def debug_draw(self, screen, camera, image_handler):
         self.collider.draw(screen, camera, image_handler)
 
@@ -294,17 +298,17 @@ class Player(PhysicsObject):
                 self.health -= amount
                 self.blood.append(Cloud([self.position[0], position[1]], velocity, 20, 'blood'))
 
-        if self.health <= 0:
-            if not self.destroyed:
-                r = self.hand.position - self.shoulder
-                self.hand = Pendulum(self.shoulder, self.arm_length, np.arctan2(r[1], r[0]) + np.pi / 2)
-                #self.front_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
-                #self.back_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
+        if self.health <= 0 and not self.destroyed:
+            r = self.hand.position - self.shoulder
+            self.hand = Pendulum(self.shoulder, self.arm_length, np.arctan2(r[1], r[0]) + np.pi / 2, image_path='hand')
+            #self.front_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0,
+            #                           image_path='foot')
+            #self.back_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
 
-                self.velocity += 0.25 * velocity + 0.5 * basis(1)
-                self.bounce = 0.5
-                self.angular_velocity = -0.125 * np.sign(velocity[0])
-                self.destroyed = True
+            self.velocity += 0.25 * velocity + 0.5 * basis(1)
+            self.bounce = 0.5
+            self.angular_velocity = -0.125 * np.sign(velocity[0])
+            self.destroyed = True
 
     def throw_object(self, velocity):
         if velocity:
@@ -373,9 +377,7 @@ class Animation:
 
 class Foot(GameObject):
     def __init__(self, position):
-        super().__init__(position)
-        self.image_path = 'foot'
-        self.size = 0.8
+        super().__init__(position, image_path='foot', size=0.8)
         self.animations = dict()
 
         xs = 0.3 * np.ones(1)

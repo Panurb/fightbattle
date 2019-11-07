@@ -15,6 +15,7 @@ class Group(enum.IntEnum):
     PROPS = 5
     BULLETS = 6
     SHIELDS = 7
+    DEBRIS = 8
 
 
 COLLIDES_WITH = {Group.NONE: [],
@@ -24,7 +25,8 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.HANDS: [Group.WALLS],
                  Group.PROPS: [Group.WALLS, Group.PROPS, Group.BULLETS, Group.SHIELDS],
                  Group.BULLETS: [Group.WALLS, Group.PLAYERS, Group.PROPS, Group.SHIELDS],
-                 Group.SHIELDS: [Group.WALLS, Group.PROPS]}
+                 Group.SHIELDS: [Group.WALLS, Group.PROPS],
+                 Group.DEBRIS: [Group.WALLS]}
 
 
 class Type(enum.Enum):

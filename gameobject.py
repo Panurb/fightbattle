@@ -4,6 +4,10 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group
+from helpers import random_unit
+
+
+MAX_SPEED = 5.0
 
 
 class GameObject:
@@ -13,21 +17,12 @@ class GameObject:
         self.collider = None
         self.collision = True
         self.direction = 1
-        self.health = 100
-        self.destroyed = False
         self.angle = 0.0
 
         self.image = None
         self.image_path = image_path
         self.size = size
         self.image_position = np.zeros(2)
-
-    def damage(self, amount, position, velocity):
-        if self.health > 0:
-            self.health -= amount
-        else:
-            self.health = 0
-            self.destroyed = True
 
     def flip_horizontally(self):
         if self.collider:
@@ -98,6 +93,9 @@ class PhysicsObject(GameObject):
         self.angle += np.pi / 2
         self.collider.rotate_90()
 
+    def get_acceleration(self, gravity):
+        return self.gravity_scale * gravity
+
     def update(self, gravity, time_step, colliders):
         if self.velocity[1] > 0:
             self.on_ground = False
@@ -105,7 +103,7 @@ class PhysicsObject(GameObject):
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
         acc_old = self.acceleration.copy()
-        self.acceleration = self.gravity_scale * gravity
+        self.acceleration = self.get_acceleration(gravity)
 
         delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
         self.angle += delta_angle
@@ -150,20 +148,57 @@ class PhysicsObject(GameObject):
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0.0
 
+        speed = norm(self.velocity)
+        self.velocity *= min(speed, MAX_SPEED) / speed
+
     def damage(self, amount, position, velocity):
-        super().damage(amount, position, velocity)
         self.velocity += velocity
 
 
+class Destroyable(PhysicsObject):
+    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, health=100):
+        super().__init__(position, velocity, image_path, size)
+        self.health = health
+        self.destroyed = False
+        self.debris = []
+
+    def damage(self, amount, position, velocity):
+        if self.health > 0:
+            self.health -= amount
+            self.velocity += velocity
+
+        if self.health <= 0 and not self.destroyed:
+            self.destroy()
+
+    def destroy(self):
+        self.destroyed = True
+        for _ in range(4):
+            v = random_unit()
+            d = PhysicsObject(self.position, v, image_path='crate', size=0.5)
+            d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
+            self.debris.append(d)
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+        for d in self.debris:
+            d.update(gravity, time_step, colliders)
+
+    def draw(self, screen, camera, image_handler):
+        if self.destroyed:
+            for d in self.debris:
+                d.draw(screen, camera, image_handler)
+        else:
+            super().draw(screen, camera, image_handler)
+
+
 class Pendulum(PhysicsObject):
-    def __init__(self, position, length, angle):
-        super().__init__(position, np.zeros(2))
+    def __init__(self, position, length, angle, image_path):
+        super().__init__(position, np.zeros(2), image_path)
         self.support = position
         self.length = length
         self.angle = angle
         angle = self.angle - np.pi / 2
         self.position = self.support + self.length * np.array([np.cos(angle), np.sin(angle)])
-        self.image_path = 'hand'
         self.add_collider(Circle([0, 0], 0.1, Group.PROPS))
         self.friction = 0.5
 

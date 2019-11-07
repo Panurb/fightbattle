@@ -76,7 +76,7 @@ class Bullet(PhysicsObject):
                 if self.parent is not c.collider.parent:
                     c.collider.parent.damage(10, self.position, self.velocity)
             except AttributeError:
-                pass
+                print('asd')
 
             self.destroyed = True
             return

@@ -1,14 +1,13 @@
 import numpy as np
 
-from gameobject import PhysicsObject
+from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
 
 
-class Crate(PhysicsObject):
+class Crate(Destroyable):
     def __init__(self, position):
-        super().__init__(position)
+        super().__init__(position, image_path='crate', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        self.image_path = 'crate'
         for _ in range(np.random.randint(4)):
             self.rotate_90()
 

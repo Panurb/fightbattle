@@ -22,3 +22,8 @@ def projection(v, a, b):
 
 def normalized(v):
     return v / norm(v)
+
+
+def random_unit():
+    theta = np.random.uniform(0, 2 * np.pi)
+    return np.array([np.cos(theta), np.sin(theta)])
