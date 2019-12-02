@@ -3,7 +3,7 @@ from numpy.linalg import norm
 
 import pygame
 
-from collider import Circle, Group
+from collider import Circle, Group, Type
 from helpers import random_unit
 
 
@@ -149,7 +149,11 @@ class PhysicsObject(GameObject):
             self.velocity[0] = 0.0
 
         speed = norm(self.velocity)
-        self.velocity *= min(speed, MAX_SPEED) / speed
+        if speed != 0:
+            self.velocity *= min(speed, MAX_SPEED) / speed
+
+        if self.collider.type is Type.CIRCLE:
+            self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
     def damage(self, amount, position, velocity):
         self.velocity += velocity

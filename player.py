@@ -4,7 +4,7 @@ import pygame
 
 from gameobject import GameObject, PhysicsObject, Destroyable, Pendulum
 from collider import Rectangle, Circle, Group
-from helpers import norm2, basis, perp, normalized
+from helpers import norm2, basis, perp, normalized, random_unit
 from particle import Cloud
 
 
@@ -79,7 +79,7 @@ class Player(Destroyable):
                 self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)
                 self.angular_velocity = 0.0
 
-            self.hand.support[:] = self.shoulder
+            #self.hand.support[:] = self.shoulder
             self.hand.update(gravity, time_step, colliders)
 
             #self.back_foot.update(gravity, time_step, colliders)
@@ -198,7 +198,11 @@ class Player(Destroyable):
         self.draw_limb(self.position + np.array([-0.1 * self.direction, -0.5 * (1 + self.crouched)]),
                        self.front_foot.position, 1.0, screen, camera, -1)
 
-        self.head.draw(screen, camera, image_handler)
+        if self.debris:
+            for d in self.debris:
+                d.draw(screen, camera, image_handler)
+        else:
+            self.head.draw(screen, camera, image_handler)
 
         if self.object:
             if self.object.collider.group is Group.SHIELDS:
@@ -215,7 +219,7 @@ class Player(Destroyable):
         for b in self.blood:
             b.draw(screen, camera, image_handler)
 
-        self.debug_draw(screen, camera, image_handler)
+        #self.debug_draw(screen, camera, image_handler)
 
     def debug_draw(self, screen, camera, image_handler):
         self.collider.draw(screen, camera, image_handler)
@@ -294,13 +298,20 @@ class Player(Destroyable):
             if position[1] > self.position[1] + 0.5 * (1 - self.crouched):
                 self.health -= 10 * amount
                 self.blood.append(Cloud(self.head.position, [0, -1], 50, 'blood'))
+                for _ in range(4):
+                    theta = np.random.normal(0.5 * np.pi, 0.5)
+                    v = 0.75 * np.array([np.cos(theta), np.sin(theta)])
+                    d = PhysicsObject(self.head.position, v, image_path='gib', size=0.5)
+                    d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
+                    d.angle = np.random.uniform(0, 2 * np.pi)
+                    self.debris.append(d)
             else:
                 self.health -= amount
                 self.blood.append(Cloud([self.position[0], position[1]], velocity, 20, 'blood'))
 
         if self.health <= 0 and not self.destroyed:
             r = self.hand.position - self.shoulder
-            self.hand = Pendulum(self.shoulder, self.arm_length, np.arctan2(r[1], r[0]) + np.pi / 2, image_path='hand')
+            #self.hand = Pendulum(self.shoulder, self.arm_length, np.arctan2(r[1], r[0]) + np.pi / 2, image_path='hand')
             #self.front_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0,
             #                           image_path='foot')
             #self.back_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)

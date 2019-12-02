@@ -19,8 +19,3 @@ class Ball(PhysicsObject):
         self.bounce = 0.8
         self.image_path = 'ball'
         self.size = 1.05
-
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
-
-        self.angular_velocity = - self.gravity_scale * self.velocity[0]
