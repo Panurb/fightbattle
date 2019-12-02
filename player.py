@@ -67,7 +67,7 @@ class Player(Destroyable):
         self.front_foot.flip_horizontally()
 
     def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
+        PhysicsObject.update(self, gravity, time_step, colliders)
 
         for b in self.blood:
             b.update(gravity, time_step)
@@ -79,8 +79,15 @@ class Player(Destroyable):
                 self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)
                 self.angular_velocity = 0.0
 
+            if self.collider.group is Group.PLAYERS:
+                colliders[Group.PLAYERS].remove(self.collider)
+                self.collider.group = Group.DEBRIS
+                colliders[Group.DEBRIS].append(self.collider)
+
+            for d in self.debris:
+                d.update(gravity, time_step, colliders)
+
             #self.hand.support[:] = self.shoulder
-            self.hand.update(gravity, time_step, colliders)
 
             #self.back_foot.update(gravity, time_step, colliders)
             #self.front_foot.update(gravity, time_step, colliders)
@@ -96,6 +103,13 @@ class Player(Destroyable):
         self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * h
 
         if self.destroyed:
+            self.hand.update(gravity, time_step, colliders)
+            r = self.hand.position - self.shoulder
+            r_norm = norm(r)
+            if r_norm > self.arm_length:
+                r *= self.arm_length / r_norm
+            self.hand.set_position(self.shoulder + r)
+
             return
 
         self.back_foot.set_position(self.position - np.array([0.3 + 0.05 * self.direction, 1.5]))
@@ -120,7 +134,6 @@ class Player(Destroyable):
 
             self.object.set_position(self.object.position + 0.25 * self.velocity)
             self.object.velocity = 0.5 * (self.hand.position - self.object.position) - 0.125 * gravity * basis(1)
-            #self.object.angular_velocity = -0.25 * self.angle
             self.object.update(gravity, time_step, colliders)
 
             if norm(self.shoulder - self.object.position) > 1.5 * self.arm_length:
@@ -227,6 +240,7 @@ class Player(Destroyable):
         self.hand.debug_draw(screen, camera, image_handler)
 
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder + self.hand_goal), 2)
+        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder), 2)
 
     def input(self, input_handler):
         if self.destroyed or self.number == -1 or self.number >= len(input_handler.controllers):
@@ -301,7 +315,7 @@ class Player(Destroyable):
                 for _ in range(4):
                     theta = np.random.normal(0.5 * np.pi, 0.5)
                     v = 0.75 * np.array([np.cos(theta), np.sin(theta)])
-                    d = PhysicsObject(self.head.position, v, image_path='gib', size=0.5)
+                    d = PhysicsObject(self.head.position, v, image_path='bullet', size=0.5)
                     d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
                     d.angle = np.random.uniform(0, 2 * np.pi)
                     self.debris.append(d)
@@ -310,11 +324,7 @@ class Player(Destroyable):
                 self.blood.append(Cloud([self.position[0], position[1]], velocity, 20, 'blood'))
 
         if self.health <= 0 and not self.destroyed:
-            r = self.hand.position - self.shoulder
-            #self.hand = Pendulum(self.shoulder, self.arm_length, np.arctan2(r[1], r[0]) + np.pi / 2, image_path='hand')
-            #self.front_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0,
-            #                           image_path='foot')
-            #self.back_foot = Pendulum(self.position - self.collider.half_height * 2 / 3, self.arm_length, 0.0)
+            self.hand.gravity_scale = 1.0
 
             self.velocity += 0.25 * velocity + 0.5 * basis(1)
             self.bounce = 0.5

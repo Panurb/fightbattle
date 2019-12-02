@@ -70,6 +70,7 @@ class PhysicsObject(GameObject):
     def __init__(self, position, velocity=(0, 0), image_path='', size=1.0):
         super().__init__(position, image_path, size)
         self.velocity = np.array(velocity, dtype=float)
+        self.speed = norm(self.velocity)
         self.acceleration = np.zeros(2)
 
         self.angular_velocity = 0.0
@@ -80,6 +81,8 @@ class PhysicsObject(GameObject):
         self.mass = 1.0
         self.inertia = 0.0
         self.gravity_scale = 1.0
+
+        self.active = True
 
     def set_position(self, position):
         super().set_position(position)
@@ -97,6 +100,9 @@ class PhysicsObject(GameObject):
         return self.gravity_scale * gravity
 
     def update(self, gravity, time_step, colliders):
+        if not self.active:
+            return
+
         if self.velocity[1] > 0:
             self.on_ground = False
 
@@ -148,9 +154,9 @@ class PhysicsObject(GameObject):
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0.0
 
-        speed = norm(self.velocity)
-        if speed != 0:
-            self.velocity *= min(speed, MAX_SPEED) / speed
+        self.speed = norm(self.velocity)
+        if self.speed != 0:
+            self.velocity *= min(self.speed, MAX_SPEED) / self.speed
 
         if self.collider.type is Type.CIRCLE:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
@@ -175,6 +181,9 @@ class Destroyable(PhysicsObject):
             self.destroy()
 
     def destroy(self):
+        if self.destroyed:
+            return
+
         self.destroyed = True
         for _ in range(4):
             v = random_unit()
@@ -184,8 +193,20 @@ class Destroyable(PhysicsObject):
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
-        for d in self.debris:
-            d.update(gravity, time_step, colliders)
+
+        if self.destroyed:
+            if self.collider.group is not Group.NONE:
+                colliders[self.collider.group].remove(self.collider)
+                self.collider.group = Group.NONE
+
+            debris_active = False
+            for d in self.debris:
+                d.update(gravity, time_step, colliders)
+                if d.speed > norm(gravity) * time_step:
+                    debris_active = True
+
+            if not debris_active:
+                self.active = False
 
     def draw(self, screen, camera, image_handler):
         if self.destroyed:

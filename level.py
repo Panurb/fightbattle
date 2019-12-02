@@ -38,6 +38,7 @@ class Level:
         self.add_object(Ball([0, 2]))
         self.add_object(Revolver([2, 2]))
         self.add_object(Shield([4, 2]))
+        self.add_object(Crate([-1, 2]))
 
         #pendulum = Pendulum([0, 0], 1.0, -0.5)
         #self.objects.append(pendulum)
