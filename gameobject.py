@@ -4,7 +4,7 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Type
-from helpers import random_unit
+from helpers import random_unit, norm2, rotate
 
 
 MAX_SPEED = 5.0
@@ -25,9 +25,6 @@ class GameObject:
         self.image_position = np.zeros(2)
 
     def flip_horizontally(self):
-        if self.collider:
-            self.collider.position[0] -= 2 * (self.collider.position - self.position)[0]
-
         self.direction *= -1
         self.image_position[0] *= -1
 
@@ -63,6 +60,7 @@ class GameObject:
         screen.blit(self.image, rect)
 
     def debug_draw(self, screen, camera, image_handler):
+        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
         self.collider.draw(screen, camera, image_handler)
 
 
@@ -91,6 +89,9 @@ class PhysicsObject(GameObject):
     def rotate(self, delta_angle):
         self.angle += delta_angle
         self.collider.rotate(delta_angle)
+        r = self.collider.position - self.position
+        self.collider.position = self.position + rotate(r, delta_angle)
+        self.image_position = rotate(r, delta_angle)
 
     def rotate_90(self):
         self.angle += np.pi / 2
@@ -140,16 +141,9 @@ class PhysicsObject(GameObject):
 
             self.collider.position += collision.overlap
 
-            if self.bounce:
-                n = collision.overlap
-                self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
-                self.velocity *= self.bounce
-            else:
-                if not collision.overlap[0]:
-                    self.velocity[1] = 0.0
-                    self.acceleration[0] -= np.sign(self.velocity[0]) * collision.collider.friction
-                elif not collision.overlap[1]:
-                    self.velocity[0] = 0.0
+            n = collision.overlap
+            self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
+            self.velocity *= self.bounce
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
@@ -269,13 +263,13 @@ class AnimatedObject(PhysicsObject):
         self.loop = False
 
     def animate(self, time_step):
-        self.image_position = np.array([self.direction * 0.15, 0])
-
         anim = self.animations[self.animation]
         pos, angle = anim.update(self.animation_direction * time_step)
+
+        pos[0] *= self.direction
 
         self.set_position(self.position + pos)
         self.angle = self.direction * angle
 
-        if anim.time >= anim.times[-1]:
+        if not self.loop and anim.time >= anim.times[-1]:
             self.loop_animation('idle')

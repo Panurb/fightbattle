@@ -2,6 +2,7 @@ import numpy as np
 
 from gameobject import PhysicsObject
 from collider import Rectangle, Circle, Group
+from helpers import basis
 
 
 class Gun(PhysicsObject):
@@ -84,9 +85,29 @@ class Bullet(PhysicsObject):
 class Sword(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, image_path='sword', size=1.0)
-        self.add_collider(Rectangle([0.0, 1.0], 0.25, 2.0, Group.SWORDS))
-        self.image_position = np.array([0.0, 1.0])
-        self.rotate_90()
+        self.add_collider(Rectangle([0.0, 0.8], 0.25, 2.25, Group.SWORDS))
+        self.image_position = np.array([0.0, 0.8])
+        self.rotate(np.pi / 2)
+        self.timer = 0
+        self.parent = None
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        self.collider.update_collisions(colliders, [Group.PLAYERS, Group.PROPS])
+
+        if self.timer:
+            for c in self.collider.collisions:
+                obj = c.collider.parent
+                if obj is not self.parent:
+                    obj.damage(10, self.position, self.direction * basis(0))
+                    self.timer = 0
+                    break
+            else:
+                self.timer -= 1
+
+    def attack(self):
+        self.timer = 20
 
 
 class Shield(PhysicsObject):

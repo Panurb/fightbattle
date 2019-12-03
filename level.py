@@ -24,9 +24,6 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_player([-5, 0])
-        self.add_player([2, 0])
-
         self.add_wall(np.array([0, -3]), 19, 1)
         self.add_wall([-10, 1.5], 1, 10)
         self.add_wall([10, 1.5], 1, 10)
@@ -34,8 +31,21 @@ class Level:
         self.add_wall([-8, 3], 0.2, 0.2)
         self.add_wall([8, 3], 0.2, 0.2)
 
+        self.reset()
+
+    def reset(self):
+        self.players.clear()
+        self.objects.clear()
+
+        for g in Group:
+            if g is not Group.WALLS:
+                self.colliders[g] = []
+
+        self.add_player([-5, 0])
+        self.add_player([2, 0])
+
         self.add_object(Ball([0, 2]))
-        self.add_object(Sword([0, 0]))
+        self.add_object(Sword([-2, 0]))
         self.add_object(Shield([4, 2]))
         self.add_object(Crate([-1, 2]))
 
@@ -44,6 +54,8 @@ class Level:
             self.add_object(Crate(input_handler.mouse_position))
         if input_handler.keys_pressed[pygame.K_b]:
             self.add_object(Ball(input_handler.mouse_position))
+        if input_handler.keys_pressed[pygame.K_ESCAPE]:
+            self.reset()
 
         for i, player in enumerate(self.players):
             player.input(input_handler)

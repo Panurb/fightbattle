@@ -27,3 +27,9 @@ def normalized(v):
 def random_unit():
     theta = np.random.uniform(0, 2 * np.pi)
     return np.array([np.cos(theta), np.sin(theta)])
+
+
+def rotate(v, angle):
+    r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    return np.matmul(r, v)
+
