@@ -67,7 +67,7 @@ class GameObject:
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0):
+    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0):
         super().__init__(position, image_path, size)
         self.velocity = np.array(velocity, dtype=float)
         self.speed = norm(self.velocity)
@@ -80,7 +80,7 @@ class PhysicsObject(GameObject):
         self.on_ground = False
         self.mass = 1.0
         self.inertia = 0.0
-        self.gravity_scale = 1.0
+        self.gravity_scale = gravity_scale
 
         self.active = True
 
@@ -115,6 +115,9 @@ class PhysicsObject(GameObject):
         self.angle += delta_angle
         ang_acc_old = float(self.angular_acceleration)
         self.angular_acceleration = 0.0
+
+        if self.collider is None:
+            return
 
         self.collider.position += delta_pos
 
@@ -166,11 +169,14 @@ class PhysicsObject(GameObject):
 
 
 class Destroyable(PhysicsObject):
-    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, health=100):
+    def __init__(self, position, velocity=(0, 0), image_path='', debris_path='', size=1.0, debris_size=1.0,
+                 health=100):
         super().__init__(position, velocity, image_path, size)
         self.health = health
+        self.debris_path = debris_path
         self.destroyed = False
         self.debris = []
+        self.debris_size = debris_size
 
     def damage(self, amount, position, velocity):
         if self.health > 0:
@@ -186,8 +192,8 @@ class Destroyable(PhysicsObject):
 
         self.destroyed = True
         for _ in range(4):
-            v = random_unit()
-            d = PhysicsObject(self.position, v, image_path='crate', size=0.5)
+            v = 0.8 * random_unit()
+            d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size)
             d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
             self.debris.append(d)
 
@@ -195,7 +201,7 @@ class Destroyable(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if self.destroyed:
-            if self.collider.group is not Group.NONE:
+            if self.collider and self.collider.group is not Group.NONE:
                 colliders[self.collider.group].remove(self.collider)
                 self.collider.group = Group.NONE
 
@@ -216,54 +222,60 @@ class Destroyable(PhysicsObject):
             super().draw(screen, camera, image_handler)
 
 
-class Pendulum(PhysicsObject):
-    def __init__(self, position, length, angle, image_path):
-        super().__init__(position, np.zeros(2), image_path)
-        self.support = position
-        self.length = length
-        self.angle = angle
-        angle = self.angle - np.pi / 2
-        self.position = self.support + self.length * np.array([np.cos(angle), np.sin(angle)])
-        self.add_collider(Circle([0, 0], 0.1, Group.PROPS))
-        self.friction = 0.5
+class Animation:
+    def __init__(self, xs, ys, angles):
+        self.xs = xs
+        self.ys = ys
+        self.angles = angles
+        self.times = np.arange(len(xs))
+        self.time = 0.0
+        self.direction = 1
 
-    def draw(self, screen, camera, image_handler):
-        self.angle -= np.pi / 2
-        super().draw(screen, camera, image_handler)
-        self.angle += np.pi / 2
+    def update(self, time_step):
+        self.time += time_step
+        if self.time < 0:
+            self.time += self.times[-1]
+        if self.time > self.times[-1]:
+            self.time -= self.times[-1]
 
-        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.support), 5)
+        x = np.interp(self.time, self.times, self.xs)
+        y = np.interp(self.time, self.times, self.ys)
 
-    def update(self, gravity, time_step, colliders):
-        if self.velocity[1] > 0:
-            self.on_ground = False
+        position = np.array([x, y])
+        angle = np.interp(self.time, self.times, self.angles)
 
-        delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
-        self.angle += delta_angle
-        ang_acc_old = float(self.angular_acceleration)
-        self.angular_acceleration = -self.gravity_scale * norm(gravity) / self.length * np.sin(self.angle)
+        return position, angle
 
-        angle = self.angle - np.pi / 2
-        self.set_position(self.support + self.length * np.array([np.cos(angle), np.sin(angle)]))
 
-        if delta_angle:
-            self.collider.rotate(delta_angle)
+class AnimatedObject(PhysicsObject):
+    def __init__(self, position, image_path, size):
+        super().__init__(position, image_path=image_path, size=size)
+        self.animations = dict()
+        self.animation = 'idle'
+        self.animation_direction = 1
+        self.loop = False
 
-        self.collider.update_collisions(colliders)
+    def add_animation(self, xs, ys, angles, name):
+        self.animations[name] = Animation(xs, ys, angles)
 
-        for collision in self.collider.collisions:
-            if not collision.collider.parent.collision:
-                continue
+    def loop_animation(self, name, time=0):
+        self.animation = name
+        self.animations[self.animation].time = time
+        self.loop = True
 
-            if collision.overlap[1] > 0:
-                self.on_ground = True
+    def play_animation(self, name):
+        self.animation = name
+        self.animations[self.animation].time = 0
+        self.loop = False
 
-            self.position += collision.overlap
+    def animate(self, time_step):
+        self.image_position = np.array([self.direction * 0.15, 0])
 
-            self.collider.position += collision.overlap
+        anim = self.animations[self.animation]
+        pos, angle = anim.update(self.animation_direction * time_step)
 
-            n = collision.overlap
-            self.velocity -= 2 * self.velocity.dot(n) * n / n.dot(n)
-            self.velocity *= self.bounce
+        self.set_position(self.position + pos)
+        self.angle = self.direction * angle
 
-        self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
+        if anim.time >= anim.times[-1]:
+            self.loop_animation('idle')

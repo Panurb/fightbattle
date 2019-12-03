@@ -160,11 +160,11 @@ class InputHandler:
         for i in range(pygame.joystick.get_count()):
             if 'Xbox 360' in pygame.joystick.Joystick(i).get_name():
                 self.controllers.append(Controller(i))
-            else:
-                try:
-                    self.controllers.append(DualShock4(i))
-                except:
-                    pass
+            #else:
+            #    try:
+            #        self.controllers.append(DualShock4(i))
+            #    except:
+            #        pass
 
         self.keys_down = {}
         self.keys_pressed = {}

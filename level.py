@@ -1,12 +1,11 @@
 import numpy as np
 import pygame
 
-from gameobject import Pendulum
 from collider import Group
 from wall import Wall
 from player import Player
 from camera import Camera
-from weapon import Revolver, Shield
+from weapon import Shield, Sword
 from prop import Crate, Ball
 
 
@@ -26,7 +25,7 @@ class Level:
         self.gravity = np.array([0, -0.1])
 
         self.add_player([-5, 0])
-        self.add_player([5, 0])
+        self.add_player([2, 0])
 
         self.add_wall(np.array([0, -3]), 19, 1)
         self.add_wall([-10, 1.5], 1, 10)
@@ -36,13 +35,9 @@ class Level:
         self.add_wall([8, 3], 0.2, 0.2)
 
         self.add_object(Ball([0, 2]))
-        self.add_object(Revolver([2, 2]))
+        self.add_object(Sword([0, 0]))
         self.add_object(Shield([4, 2]))
         self.add_object(Crate([-1, 2]))
-
-        #pendulum = Pendulum([0, 0], 1.0, -0.5)
-        #self.objects.append(pendulum)
-        #self.colliders[pendulum.group].append(pendulum.collider)
 
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:

@@ -1,5 +1,4 @@
 import numpy as np
-import pygame
 
 from gameobject import PhysicsObject
 from collider import Rectangle, Circle, Group
@@ -76,10 +75,18 @@ class Bullet(PhysicsObject):
                 if self.parent is not c.collider.parent:
                     c.collider.parent.damage(10, self.position, self.velocity)
             except AttributeError:
-                print('asd')
+                print(c.collider.parent)
 
             self.destroyed = True
             return
+
+
+class Sword(PhysicsObject):
+    def __init__(self, position):
+        super().__init__(position, image_path='sword', size=1.0)
+        self.add_collider(Rectangle([0.0, 1.0], 0.25, 2.0, Group.SWORDS))
+        self.image_position = np.array([0.0, 1.0])
+        self.rotate_90()
 
 
 class Shield(PhysicsObject):

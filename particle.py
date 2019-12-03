@@ -18,7 +18,7 @@ class Cloud:
                 theta = np.random.normal(angle, 0.25)
                 r = np.abs(np.random.normal(0.25, 0.5))
                 v = r * np.array([np.cos(theta), np.sin(theta)])
-            self.particles.append(Particle(self.position, v, 0.75, image_path))
+            self.particles.append(Particle(self.position, v, 0.8, image_path))
 
     def update(self, gravity, time_step):
         for p in self.particles:

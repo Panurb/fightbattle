@@ -2,9 +2,9 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from gameobject import GameObject, PhysicsObject, Destroyable, Pendulum
+from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
-from helpers import norm2, basis, perp, normalized, random_unit
+from helpers import norm2, basis, perp, normalized
 from particle import Cloud
 
 
@@ -14,27 +14,29 @@ class Player(Destroyable):
         self.bounce = 0.0
         self.inertia = 0.0
 
-        self.add_collider(Rectangle([0, 0], 1, 3, Group.PLAYERS))
+        self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
         self.body = GameObject(self.position)
         self.body.image_path = 'body'
         self.body.size = 0.75
 
-        self.head = GameObject(self.position + basis(1))
-        self.head.image_path = 'head'
-        self.head.size = 0.85
+        self.head = Destroyable(self.position + basis(1), image_path='head', debris_path='gib',
+                                size=0.85, debris_size=0.5)
 
+        self.back_hip = np.zeros(2)
+        self.front_hip = np.zeros(2)
         self.back_foot = Foot(np.zeros(2))
         self.front_foot = Foot(np.zeros(2))
+        self.leg_length = 1.0
 
-        self.max_speed = 0.25
+        self.max_speed = 0.5
 
         self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height
         self.hand_goal = basis(0)
         self.arm_length = 1.0
         self.elbow = np.zeros(2)
 
-        self.hand = PhysicsObject(self.position, image_path='fist', size=1.2)
+        self.hand = Hand(self.position)
         self.hand.add_collider(Circle([0, 0], 0.2, Group.HANDS))
         self.hand.gravity_scale = 0.0
 
@@ -67,14 +69,13 @@ class Player(Destroyable):
         self.front_foot.flip_horizontally()
 
     def update(self, gravity, time_step, colliders):
-        PhysicsObject.update(self, gravity, time_step, colliders)
-
         for b in self.blood:
             b.update(gravity, time_step)
             if not b.particles:
                 self.blood.remove(b)
 
         if self.destroyed:
+            PhysicsObject.update(self, gravity, time_step, colliders)
             if abs(self.angle) > np.pi / 2:
                 self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)
                 self.angular_velocity = 0.0
@@ -84,14 +85,44 @@ class Player(Destroyable):
                 self.collider.group = Group.DEBRIS
                 colliders[Group.DEBRIS].append(self.collider)
 
-            for d in self.debris:
-                d.update(gravity, time_step, colliders)
+            self.head.update(gravity, time_step, colliders)
+        else:
+            if self.velocity[1] > 0:
+                self.on_ground = False
 
-            #self.hand.support[:] = self.shoulder
+            delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
+            self.position += delta_pos
 
-            #self.back_foot.update(gravity, time_step, colliders)
-            #self.front_foot.update(gravity, time_step, colliders)
+            self.collider.position += delta_pos
 
+            self.collider.update_collisions(colliders)
+
+            if not self.collision:
+                return
+
+            for collision in self.collider.collisions:
+                if not collision.collider.parent.collision:
+                    continue
+
+                if collision.overlap[1] > 0:
+                    self.on_ground = True
+
+                self.position += collision.overlap
+
+                self.collider.position += collision.overlap
+
+                if not collision.overlap[0]:
+                    self.velocity[1] = 0.0
+                elif not collision.overlap[1]:
+                    self.velocity[0] = 0.0
+
+            self.velocity += gravity * time_step
+
+            self.speed = norm(self.velocity)
+            if self.speed != 0:
+                self.velocity *= min(self.speed, MAX_SPEED) / self.speed
+
+        w = normalized(self.collider.half_width)
         h = normalized(self.collider.half_height)
 
         self.body.set_position(self.position - 0.5 * self.crouched * h)
@@ -102,20 +133,26 @@ class Player(Destroyable):
 
         self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * h
 
+        self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
+        self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
+
         if self.destroyed:
-            self.hand.update(gravity, time_step, colliders)
-            r = self.hand.position - self.shoulder
-            r_norm = norm(r)
-            if r_norm > self.arm_length:
-                r *= self.arm_length / r_norm
-            self.hand.set_position(self.shoulder + r)
+            for limb, joint, length in [(self.hand, self.shoulder, self.arm_length),
+                                        (self.back_foot, self.back_hip, self.leg_length),
+                                        (self.front_foot, self.front_hip, self.leg_length)]:
+                limb.update(gravity, time_step, colliders)
+                r = limb.position - joint
+                r_norm = norm(r)
+                if r_norm > length:
+                    r *= length / r_norm
+                GameObject.set_position(limb, joint + r)
 
             return
 
         self.back_foot.set_position(self.position - np.array([0.3 + 0.05 * self.direction, 1.5]))
         self.front_foot.set_position(self.position - np.array([0.3 + 0.25 * self.direction, 1.5]))
-        self.back_foot.update(time_step)
-        self.front_foot.update(time_step)
+        self.back_foot.animate(time_step)
+        self.front_foot.animate(time_step)
 
         self.collider.position[1] = self.position[1] - 0.5 * self.crouched
         self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
@@ -127,7 +164,7 @@ class Player(Destroyable):
         if self.object:
             self.hand.set_position(self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal)
 
-            if self.object.collider.group in [Group.GUNS, Group.SHIELDS]:
+            if self.object.collider.group in [Group.GUNS, Group.SHIELDS, Group.SWORDS]:
                 if abs(d) > 0.1 and np.sign(d) != self.object.direction:
                     self.object.flip_horizontally()
                 self.hand.angle = 0.0
@@ -141,11 +178,15 @@ class Player(Destroyable):
             else:
                 self.hand.set_position(self.object.position)
                 self.hand.update(gravity, time_step, colliders)
+
+            if self.object.collider.group is Group.SWORDS:
+                self.hand.animate(time_step)
+                self.object.rotate(self.hand.angle - self.object.angle)
         else:
             self.hand.set_position(self.hand.position + 0.25 * self.velocity)
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)
             self.hand.update(gravity, time_step, colliders)
-            self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS, Group.SHIELDS])
+            self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS])
 
         r = self.hand.position - self.shoulder
 
@@ -162,7 +203,8 @@ class Player(Destroyable):
 
         r = end - start
         r_norm = norm(r)
-        joint = start + 0.5 * (r - direction * self.direction * np.sqrt(max(length - r_norm**2, 0)) * perp(r) / r_norm)
+        joint = start + 0.5 * (
+                    r - direction * self.direction * np.sqrt(max(length - r_norm ** 2, 0)) * perp(r) / r_norm)
 
         a = camera.world_to_screen(start)
         b = camera.world_to_screen(joint)
@@ -181,19 +223,21 @@ class Player(Destroyable):
         if self.on_ground:
             v = abs(self.velocity[0])
             if self.back_foot.animation != 'walk' and v > 0.1:
-                self.back_foot.play_animation('walk', 3)
-                self.front_foot.play_animation('walk')
+                self.back_foot.loop_animation('walk', 3)
+                self.front_foot.loop_animation('walk')
             elif self.back_foot.animation != 'idle' and v < 0.1:
-                self.back_foot.play_animation('idle')
-                self.front_foot.play_animation('idle')
+                self.back_foot.loop_animation('idle')
+                self.front_foot.loop_animation('idle')
         else:
-            self.back_foot.play_animation('jump')
-            self.front_foot.play_animation('jump')
+            self.back_foot.loop_animation('jump')
+            self.front_foot.loop_animation('jump')
 
         if self.object:
             if self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
                 self.hand.image_position = self.direction * 0.1 * basis(0)
+            elif self.object.collider.group is Group.SWORDS:
+                self.hand.image_path = 'fist'
             else:
                 self.hand.image_path = 'hand'
         else:
@@ -202,20 +246,14 @@ class Player(Destroyable):
 
     def draw(self, screen, camera, image_handler):
         self.back_foot.draw(screen, camera, image_handler)
-        self.draw_limb(self.position + np.array([0.1 * self.direction, -0.5 * (1 + self.crouched)]),
-                       self.back_foot.position, 1.0, screen, camera, -1)
+        self.draw_limb(self.back_hip, self.back_foot.position, 1.0, screen, camera, -1)
 
         self.body.draw(screen, camera, image_handler)
 
         self.front_foot.draw(screen, camera, image_handler)
-        self.draw_limb(self.position + np.array([-0.1 * self.direction, -0.5 * (1 + self.crouched)]),
-                       self.front_foot.position, 1.0, screen, camera, -1)
+        self.draw_limb(self.front_hip, self.front_foot.position, 1.0, screen, camera, -1)
 
-        if self.debris:
-            for d in self.debris:
-                d.draw(screen, camera, image_handler)
-        else:
-            self.head.draw(screen, camera, image_handler)
+        self.head.draw(screen, camera, image_handler)
 
         if self.object:
             if self.object.collider.group is Group.SHIELDS:
@@ -239,6 +277,9 @@ class Player(Destroyable):
 
         self.hand.debug_draw(screen, camera, image_handler)
 
+        self.back_foot.debug_draw(screen, camera, image_handler)
+        self.front_foot.debug_draw(screen, camera, image_handler)
+
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder + self.hand_goal), 2)
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder), 2)
 
@@ -250,7 +291,7 @@ class Player(Destroyable):
 
         if controller.button_pressed['A']:
             if self.on_ground:
-                self.velocity[1] = 0.7
+                self.velocity[1] = 0.5
         elif controller.button_pressed['B']:
             if self.throw_charge:
                 self.throw_charge = 0.0
@@ -259,18 +300,7 @@ class Player(Destroyable):
             self.set_position([-2, 0])
             self.velocity = np.zeros(2)
 
-        acceleration = controller.left_stick[0]
-        if acceleration > 0:
-            if self.velocity[0] < self.max_speed:
-                self.acceleration[0] = (5 - 2 * self.crouched) * acceleration
-        elif acceleration < 0:
-            if self.velocity[0] > -self.max_speed:
-                self.acceleration[0] = (5 - 2 * self.crouched) * acceleration
-        else:
-            self.acceleration[0] = 0.0
-
-        if abs(self.velocity[0]) > self.max_speed:
-            self.velocity[0] *= self.max_speed / abs(self.velocity[0])
+        self.velocity[0] = (5 - 2 * self.crouched) / 5 * self.max_speed * controller.left_stick[0]
 
         if self.on_ground and controller.left_stick[1] < -0.5:
             self.crouched = min(1.0, self.crouched + self.crouch_speed)
@@ -312,19 +342,15 @@ class Player(Destroyable):
             if position[1] > self.position[1] + 0.5 * (1 - self.crouched):
                 self.health -= 10 * amount
                 self.blood.append(Cloud(self.head.position, [0, -1], 50, 'blood'))
-                for _ in range(4):
-                    theta = np.random.normal(0.5 * np.pi, 0.5)
-                    v = 0.75 * np.array([np.cos(theta), np.sin(theta)])
-                    d = PhysicsObject(self.head.position, v, image_path='bullet', size=0.5)
-                    d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
-                    d.angle = np.random.uniform(0, 2 * np.pi)
-                    self.debris.append(d)
+                self.head.destroy()
             else:
                 self.health -= amount
                 self.blood.append(Cloud([self.position[0], position[1]], velocity, 20, 'blood'))
 
         if self.health <= 0 and not self.destroyed:
             self.hand.gravity_scale = 1.0
+            self.back_foot.gravity_scale = 1.0
+            self.front_foot.gravity_scale = 1.0
 
             self.velocity += 0.25 * velocity + 0.5 * basis(1)
             self.bounce = 0.5
@@ -337,6 +363,8 @@ class Player(Destroyable):
 
         if self.object.collider.group is Group.SHIELDS:
             self.object.rotate_90()
+        elif self.object.collider.group is Group.SWORDS:
+            self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
 
         self.object.gravity_scale = 1.0
         self.object.parent = None
@@ -344,7 +372,7 @@ class Player(Destroyable):
 
     def grab_object(self):
         for c in self.hand.collider.collisions:
-            if c.collider.group in [Group.PROPS, Group.GUNS, Group.SHIELDS]:
+            if c.collider.group in [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS]:
                 if norm2(self.velocity - c.collider.parent.velocity) < 0.25:
                     self.object = c.collider.parent
                     self.object.on_ground = False
@@ -355,78 +383,37 @@ class Player(Destroyable):
 
     def attack(self):
         try:
+            if self.object.collider.group is Group.SWORDS:
+                self.hand.play_animation('attack')
             self.object.attack()
-            #self.hand.angular_velocity = self.direction * 2
-            #self.object.angular_velocity = self.direction * 2
         except AttributeError:
-            pass
+            print('asd')
 
 
-class Hand(PhysicsObject):
+class Hand(AnimatedObject):
     def __init__(self, position):
-        super().__init__(position)
+        super().__init__(position, image_path='fist', size=1.2)
         self.add_collider(Circle([0, 0], 0.2, Group.HANDS))
-        self.gravity_scale = 0.0
-        self.image_path = 'fist'
-        self.size = 1.2
+
+        self.add_animation(np.zeros(1), np.zeros(1), 0.25 * np.pi * np.ones(1), 'idle')
+
+        xs = np.zeros(8)
+        ys = np.zeros(8)
+        angles = -0.5 * np.pi * np.array([-0.5, 0.5, 1.0, 0.75, 0.5, 0.25, 0.0, -0.25])
+        self.add_animation(xs, ys, angles, 'attack')
 
 
-class Animation:
-    def __init__(self, xs, ys, angles):
-        self.xs = xs
-        self.ys = ys
-        self.angles = angles
-        self.times = np.arange(len(xs))
-        self.time = 0.0
-        self.direction = 1
-
-    def update(self, time_step):
-        self.time += time_step
-        if self.time < 0:
-            self.time += self.times[-1]
-        if self.time > self.times[-1]:
-            self.time -= self.times[-1]
-
-        x = np.interp(self.time, self.times, self.xs)
-        y = np.interp(self.time, self.times, self.ys)
-
-        position = np.array([x, y])
-        angle = np.interp(self.time, self.times, self.angles)
-
-        return position, angle
-
-
-class Foot(GameObject):
+class Foot(AnimatedObject):
     def __init__(self, position):
         super().__init__(position, image_path='foot', size=0.8)
-        self.animations = dict()
 
-        xs = 0.3 * np.ones(1)
-        ys = np.zeros(1)
-        angles = np.zeros(1)
-        self.animations['idle'] = Animation(xs, ys, angles)
+        self.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
+        self.gravity_scale = 0.0
 
-        xs = 0.3 * np.ones(1)
-        ys = 0.3 * np.ones(1)
-        angles = -0.25 * np.ones(1)
-        self.animations['jump'] = Animation(xs, ys, angles)
+        self.add_animation(0.3 * np.ones(1), np.zeros(1), np.zeros(1), 'idle')
+        self.add_animation(0.3 * np.ones(1), 0.3 * np.ones(1), -0.25 * np.ones(1), 'jump')
 
         xs = 0.25 * np.array([3, 2, 1, 0, 0.5, 1, 2, 2.5])
         ys = 0.25 * np.array([0, 0, 0, 0, 0.5, 1, 1, 0.5])
         angles = 0.25 * np.array([0, 0, -1, -1, -1, -1, 0, 0])
-        self.animations['walk'] = Animation(xs, ys, angles)
-
-        self.animation = 'idle'
-        self.animation_direction = 1
-
-    def play_animation(self, name, time=0):
-        self.animation = name
-        self.animations[self.animation].time = time
-
-    def update(self, time_step):
-        self.image_position = np.array([self.direction * 0.15, 0])
-
-        pos, angle = self.animations[self.animation].update(self.animation_direction * time_step)
-
-        self.position += pos
-        self.angle = self.direction * angle
+        self.add_animation(xs, ys, angles, 'walk')

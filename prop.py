@@ -9,7 +9,7 @@ from helpers import random_unit
 
 class Crate(Destroyable):
     def __init__(self, position):
-        super().__init__(position, image_path='crate', health=10)
+        super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
         for _ in range(np.random.randint(4)):
             self.rotate_90()
