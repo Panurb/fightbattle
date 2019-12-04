@@ -97,11 +97,11 @@ class Player(Destroyable):
 
             self.collider.update_collisions(colliders)
 
-            if not self.collision:
+            if not self.collision_enabled:
                 return
 
             for collision in self.collider.collisions:
-                if not collision.collider.parent.collision:
+                if not collision.collider.parent.collision_enabled:
                     continue
 
                 if collision.overlap[1] > 0:
@@ -171,10 +171,14 @@ class Player(Destroyable):
                 if abs(d) > 0.1 and np.sign(d) != self.object.direction:
                     self.object.flip_horizontally()
                 self.hand.set_position(hand_pos)
-                self.hand.animate(time_step)
 
-            if self.object.collider.group is Group.SWORDS:
+            if self.object.collider.group is Group.GUNS:
+                self.hand.angle = 0.0
+            elif self.object.collider.group is Group.SWORDS:
                 if self.hand.animation is 'attack':
+                    if self.object.hit:
+                        self.hand.play_animation('idle')
+                    self.hand.animate(time_step)
                     self.object.set_position(self.hand.position)
                 self.object.rotate(self.hand.angle - self.object.angle)
 
@@ -182,7 +186,8 @@ class Player(Destroyable):
                 self.throw_object(0.0)
             else:
                 self.hand.set_position(self.object.position)
-                self.hand.update(gravity, time_step, colliders)
+                if self.object.collider.group is not Group.GUNS:
+                    self.hand.update(gravity, time_step, colliders)
         else:
             self.hand.set_position(self.hand.position + 0.25 * self.velocity)
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)
@@ -233,12 +238,17 @@ class Player(Destroyable):
             self.back_foot.loop_animation('jump')
             self.front_foot.loop_animation('jump')
 
+        self.hand.image_position = np.zeros(2)
+
         if self.object:
             if self.object.collider.group is Group.GUNS:
-                self.hand.loop_animation('gun')
+                self.hand.image_path = 'hand_trigger'
+                self.hand.image_position = 0.08 * basis(0) * self.direction
             elif self.object.collider.group is Group.SWORDS:
-                if self.hand.animation != 'attack':
-                    self.hand.loop_animation('sword')
+                if self.hand.animation == 'attack':
+                    r = self.hand.position - self.shoulder
+                    angle = np.arctan(r[1] / r[0])
+                    self.hand.animation_angle = angle
             else:
                 self.hand.image_path = 'hand'
         else:
@@ -269,8 +279,6 @@ class Player(Destroyable):
 
         for b in self.blood:
             b.draw(screen, camera, image_handler)
-
-        #self.debug_draw(screen, camera, image_handler)
 
     def debug_draw(self, screen, camera, image_handler):
         self.collider.draw(screen, camera, image_handler)
@@ -391,14 +399,12 @@ class Player(Destroyable):
             print('Cannot attack with object', self.object)
 
 
-class Hand(AnimatedObject):
+class Hand(PhysicsObject, AnimatedObject):
     def __init__(self, position):
         super().__init__(position, image_path='fist', size=1.2)
         self.add_collider(Circle([0, 0], 0.2, Group.HANDS))
 
         self.add_animation(np.zeros(1), np.zeros(1), np.zeros(1), 'idle')
-        self.add_animation(0.5 * np.ones(1), np.zeros(1), np.zeros(1), 'gun', 'hand_trigger')
-        self.add_animation(-0.25 * np.ones(1), np.zeros(1), 0.25 * np.pi * np.ones(1), 'sword')
 
         xs = np.array([-0.275, -0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
         ys = np.array([-0.05, -0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
@@ -406,7 +412,7 @@ class Hand(AnimatedObject):
         self.add_animation(xs, ys, angles, 'attack')
 
 
-class Foot(AnimatedObject):
+class Foot(PhysicsObject, AnimatedObject):
     def __init__(self, position):
         super().__init__(position, image_path='foot', size=0.8)
         self.image_position = 0.15 * basis(0)

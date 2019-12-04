@@ -88,11 +88,17 @@ class Sword(PhysicsObject):
         self.add_collider(Rectangle([0.0, 0.8], 0.25, 2.25, Group.SWORDS))
         self.image_position = np.array([0.0, 0.8])
         self.rotate(np.pi / 2)
+        self.hit = False
         self.timer = 0
         self.parent = None
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
+
+        if self.collider.collisions:
+            self.hit = True
+            self.timer = 0
+            return
 
         self.collider.update_collisions(colliders, [Group.PLAYERS, Group.PROPS])
 
@@ -101,12 +107,14 @@ class Sword(PhysicsObject):
                 obj = c.collider.parent
                 if obj is not self.parent:
                     obj.damage(10, self.position, self.direction * basis(0))
+                    self.hit = True
                     self.timer = 0
                     break
             else:
                 self.timer -= 1
 
     def attack(self):
+        self.hit = False
         self.timer = 20
 
 

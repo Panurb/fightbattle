@@ -39,6 +39,13 @@ class Crate(Destroyable):
             for loot in self.loot:
                 loot.draw(screen, camera, image_handler)
 
+    def debug_draw(self, screen, camera, image_handler):
+        super().debug_draw(screen, camera, image_handler)
+
+        if self.destroyed:
+            for loot in self.loot:
+                loot.debug_draw(screen, camera, image_handler)
+
     def destroy(self):
         super().destroy()
 

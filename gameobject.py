@@ -15,7 +15,7 @@ class GameObject:
         super().__init__()
         self.position = np.array(position, dtype=float)
         self.collider = None
-        self.collision = True
+        self.collision_enabled = True
         self.direction = 1
         self.angle = 0.0
 
@@ -65,7 +65,8 @@ class GameObject:
 
     def debug_draw(self, screen, camera, image_handler):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
-        self.collider.draw(screen, camera, image_handler)
+        if self.collider:
+            self.collider.draw(screen, camera, image_handler)
 
 
 class PhysicsObject(GameObject):
@@ -131,11 +132,11 @@ class PhysicsObject(GameObject):
 
         self.collider.update_collisions(colliders)
 
-        if not self.collision:
+        if not self.collision_enabled:
             return
 
         for collision in self.collider.collisions:
-            if not collision.collider.parent.collision:
+            if not collision.collider.parent.collision_enabled:
                 continue
 
             if collision.overlap[1] > 0:
@@ -201,7 +202,7 @@ class Destroyable(PhysicsObject):
         if self.destroyed:
             if self.collider and self.collider.group is not Group.NONE:
                 colliders[self.collider.group].remove(self.collider)
-                self.collider.group = Group.NONE
+                self.collider = None
 
             debris_active = False
             for d in self.debris:
@@ -229,6 +230,7 @@ class Animation:
         self.time = 0.0
         self.direction = 1
         self.image_path = image_path
+        self.angle = 0.0
 
     def update(self, time_step):
         self.time += time_step
@@ -245,14 +247,24 @@ class Animation:
 
         return position, angle
 
+    def rotate(self, angle):
+        for i in range(len(self.xs)):
+            v = np.array([self.xs[i], self.ys[i]])
+            v = rotate(v, angle)
+            self.xs[i] = v[0]
+            self.ys[i] = v[1]
+            self.angles[i] += angle
+        self.angle += angle
 
-class AnimatedObject(PhysicsObject):
+
+class AnimatedObject(GameObject):
     def __init__(self, position, image_path, size):
         super().__init__(position, image_path=image_path, size=size)
         self.animations = dict()
         self.animation = 'idle'
         self.animation_direction = 1
         self.loop = False
+        self.animation_angle = 0.0
 
     def add_animation(self, xs, ys, angles, name, image=''):
         if not image:
@@ -278,8 +290,10 @@ class AnimatedObject(PhysicsObject):
 
         pos[0] *= self.direction
 
+        pos = rotate(pos, self.animation_angle)
+
         self.set_position(self.position + pos)
-        self.angle = self.direction * angle
+        self.angle = self.direction * angle + self.animation_angle
 
         if not self.loop and anim.time >= anim.times[-1]:
             self.loop_animation('idle')
