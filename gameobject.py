@@ -25,6 +25,10 @@ class GameObject:
         self.image_position = np.zeros(2)
 
     def flip_horizontally(self):
+        # tasty purk
+        if self.collider and self.angle == 0:
+            self.collider.position[0] -= 2 * (self.collider.position[0] - self.position[0])
+
         self.direction *= -1
         self.image_position[0] *= -1
 
@@ -217,13 +221,14 @@ class Destroyable(PhysicsObject):
 
 
 class Animation:
-    def __init__(self, xs, ys, angles):
+    def __init__(self, xs, ys, angles, image_path):
         self.xs = xs
         self.ys = ys
         self.angles = angles
         self.times = np.arange(len(xs))
         self.time = 0.0
         self.direction = 1
+        self.image_path = image_path
 
     def update(self, time_step):
         self.time += time_step
@@ -249,8 +254,10 @@ class AnimatedObject(PhysicsObject):
         self.animation_direction = 1
         self.loop = False
 
-    def add_animation(self, xs, ys, angles, name):
-        self.animations[name] = Animation(xs, ys, angles)
+    def add_animation(self, xs, ys, angles, name, image=''):
+        if not image:
+            image = self.image_path
+        self.animations[name] = Animation(xs, ys, angles, image)
 
     def loop_animation(self, name, time=0):
         self.animation = name
@@ -264,6 +271,9 @@ class AnimatedObject(PhysicsObject):
 
     def animate(self, time_step):
         anim = self.animations[self.animation]
+
+        self.image_path = anim.image_path
+
         pos, angle = anim.update(self.animation_direction * time_step)
 
         pos[0] *= self.direction

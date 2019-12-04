@@ -104,3 +104,16 @@ class Level:
 
         for player in self.players:
             player.draw(screen, self.camera, image_handler)
+
+        #self.debug_draw(screen, image_handler)
+
+    def debug_draw(self, screen, image_handler):
+        for wall in self.walls:
+            wall.debug_draw(screen, self.camera, image_handler)
+
+        for obj in self.objects:
+            obj.debug_draw(screen, self.camera, image_handler)
+
+        for player in self.players:
+            player.debug_draw(screen, self.camera, image_handler)
+
