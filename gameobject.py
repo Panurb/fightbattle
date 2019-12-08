@@ -4,8 +4,7 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Type
-from helpers import random_unit, norm2, rotate
-
+from helpers import random_unit, norm2, rotate, projection, normalized, polar_angle
 
 MAX_SPEED = 5.0
 
@@ -25,9 +24,10 @@ class GameObject:
         self.image_position = np.zeros(2)
 
     def flip_horizontally(self):
-        # tasty purk
-        if self.collider and self.angle == 0:
-            self.collider.position[0] -= 2 * (self.collider.position[0] - self.position[0])
+        if self.collider.type is Type.RECTANGLE:
+            w = normalized(self.collider.half_width)
+            r = self.collider.position - self.position
+            self.collider.position -= 2 * np.dot(r, w) * w
 
         self.direction *= -1
         self.image_position[0] *= -1
@@ -85,6 +85,8 @@ class PhysicsObject(GameObject):
         self.inertia = 0.0
         self.gravity_scale = gravity_scale
 
+        self.particle_clouds = []
+
         self.active = True
 
     def set_position(self, position):
@@ -106,6 +108,9 @@ class PhysicsObject(GameObject):
         return self.gravity_scale * gravity
 
     def update(self, gravity, time_step, colliders):
+        for p in self.particle_clouds:
+            p.update(gravity, time_step)
+
         if not self.active:
             return
 
@@ -136,7 +141,8 @@ class PhysicsObject(GameObject):
             return
 
         for collision in self.collider.collisions:
-            if not collision.collider.parent.collision_enabled:
+            obj = collision.collider.parent
+            if not obj.collision_enabled:
                 continue
 
             if collision.overlap[1] > 0:
@@ -149,6 +155,9 @@ class PhysicsObject(GameObject):
             n = collision.overlap
             self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
             self.velocity *= self.bounce
+
+            if type(obj) is PhysicsObject:
+                obj.velocity[:] = -self.velocity
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
@@ -163,19 +172,25 @@ class PhysicsObject(GameObject):
         if self.collider.type is Type.CIRCLE:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
+    def draw(self, screen, camera, image_handler):
+        for p in self.particle_clouds:
+            p.draw(screen, camera, image_handler)
+        super().draw(screen, camera, image_handler)
+
     def damage(self, amount, position, velocity):
         self.velocity += velocity
 
 
 class Destroyable(PhysicsObject):
     def __init__(self, position, velocity=(0, 0), image_path='', debris_path='', size=1.0, debris_size=1.0,
-                 health=100):
+                 health=100, parent=None):
         super().__init__(position, velocity, image_path, size)
         self.health = health
         self.debris_path = debris_path
         self.destroyed = False
         self.debris = []
         self.debris_size = debris_size
+        self.parent = parent
 
     def damage(self, amount, position, velocity):
         if self.health > 0:
@@ -183,15 +198,19 @@ class Destroyable(PhysicsObject):
             self.velocity += velocity
 
         if self.health <= 0 and not self.destroyed:
-            self.destroy()
+            self.destroy(velocity)
 
-    def destroy(self):
+    def destroy(self, velocity):
         if self.destroyed:
             return
-
         self.destroyed = True
+
+        angle = polar_angle(velocity) + np.pi
+
         for _ in range(4):
-            v = 0.8 * random_unit()
+            theta = np.random.normal(angle, 0.25)
+            r = np.abs(np.random.normal(0.5, 0.2))
+            v = r * np.array([np.cos(theta), np.sin(theta)])
             d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size)
             d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
             self.debris.append(d)
@@ -204,19 +223,35 @@ class Destroyable(PhysicsObject):
                 colliders[self.collider.group].remove(self.collider)
                 self.collider = None
 
-            debris_active = False
             for d in self.debris:
                 d.update(gravity, time_step, colliders)
-                if d.speed > norm(gravity) * time_step:
-                    debris_active = True
 
-            if not debris_active:
-                self.active = False
+        self.update_active(gravity, time_step)
+
+    def update_active(self, gravity, time_step):
+        if self.destroyed:
+            self.active = False
+
+            #if np.any(self.velocity):
+            #    self.active = True
+            #    return
+
+            for d in self.debris:
+                if d.speed > norm(gravity) * time_step:
+                    self.active = True
+                    return
+
+            for p in self.particle_clouds:
+                if p.particles:
+                    self.active = True
+                    return
 
     def draw(self, screen, camera, image_handler):
         if self.destroyed:
             for d in self.debris:
                 d.draw(screen, camera, image_handler)
+            for p in self.particle_clouds:
+                p.draw(screen, camera, image_handler)
         else:
             super().draw(screen, camera, image_handler)
 
@@ -233,7 +268,6 @@ class Animation:
         self.angle = 0.0
 
     def update(self, time_step):
-        self.time += time_step
         if self.time < 0:
             self.time += self.times[-1]
         if self.time > self.times[-1]:
@@ -244,6 +278,8 @@ class Animation:
 
         position = np.array([x, y])
         angle = np.interp(self.time, self.times, self.angles)
+
+        self.time += time_step
 
         return position, angle
 

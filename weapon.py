@@ -2,7 +2,8 @@ import numpy as np
 
 from gameobject import PhysicsObject
 from collider import Rectangle, Circle, Group
-from helpers import basis
+from helpers import basis, rotate
+from particle import Cloud
 
 
 class Gun(PhysicsObject):
@@ -12,6 +13,7 @@ class Gun(PhysicsObject):
         self.add_collider(Rectangle([0.35, 0.15], 1.1, 0.6, Group.GUNS))
         self.inertia = 0.0
         self.ammo = 0
+        self.hit = False
 
         self.bullets = []
 
@@ -35,16 +37,23 @@ class Gun(PhysicsObject):
 
         self.ammo -= 1
 
-        p = self.position + np.array([self.direction * 0.3, 0.35])
-        v = self.direction * 1.5
+        p = self.position + self.direction * 1.5 * self.collider.half_width + 1.5 * self.collider.half_height
+        v = self.direction * 1.5 * np.array([np.cos(self.angle), np.sin(self.angle)])
 
-        self.bullets.append(Bullet(p, (v, 0), self.parent))
+        self.bullets.append(Bullet(p, v, self.parent))
+        s = (255, 255, 200)
+        e = (255, 215, 0)
+        self.particle_clouds.append(Cloud(p, 0.05 * v, 10, 10, 0.2, gravity_scale=0.0, start_color=s, end_color=e))
+        self.particle_clouds.append(Cloud(p, 0.025 * rotate(v, 0.5 * np.pi), 10, 10, 0.2, gravity_scale=0.0,
+                                          start_color=s, end_color=e))
+        self.particle_clouds.append(Cloud(p, 0.025 * rotate(v, -0.5 * np.pi), 10, 10, 0.2, gravity_scale=0.0,
+                                          start_color=s, end_color=e))
 
 
 class Revolver(Gun):
     def __init__(self, position):
         super().__init__(position)
-        self.ammo = 6
+        self.ammo = 100
         self.image_path = 'revolver'
         self.image_position = np.array([0.35, 0.15])
 
@@ -57,8 +66,9 @@ class Bullet(PhysicsObject):
         self.gravity_scale = 0
         self.image_path = 'bullet'
         self.size = 0.8
+        self.bounce = 1.0
 
-        self.lifetime = 100
+        self.lifetime = 20
         self.time = 0
         self.destroyed = False
         self.collision = False
@@ -66,19 +76,25 @@ class Bullet(PhysicsObject):
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
+        if self.collider.collisions:
+            self.destroyed = True
+
         if self.time < self.lifetime:
             self.time += time_step
         else:
             self.destroyed = True
 
-        for c in self.collider.collisions:
-            try:
-                if self.parent is not c.collider.parent:
-                    c.collider.parent.damage(10, self.position, self.velocity)
-            except AttributeError:
-                print(c.collider.parent)
+        self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
 
-            self.destroyed = True
+        for c in self.collider.collisions:
+            obj = c.collider.parent
+            if obj not in [self.parent.body, self.parent.head]:
+                try:
+                    obj.damage(10, self.position, self.velocity)
+                except AttributeError:
+                    print('Cannot damage', obj)
+                self.destroyed = True
+
             return
 
 
@@ -89,7 +105,7 @@ class Sword(PhysicsObject):
         self.image_position = np.array([0.0, 0.8])
         self.rotate(np.pi / 2)
         self.hit = False
-        self.timer = 0
+        self.timer = 0.0
         self.parent = None
 
     def update(self, gravity, time_step, colliders):
@@ -97,25 +113,25 @@ class Sword(PhysicsObject):
 
         if self.collider.collisions:
             self.hit = True
-            self.timer = 0
+            self.timer = 0.0
             return
 
-        self.collider.update_collisions(colliders, [Group.PLAYERS, Group.PROPS])
+        self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
 
-        if self.timer:
+        if self.timer > 0:
             for c in self.collider.collisions:
                 obj = c.collider.parent
-                if obj is not self.parent:
+                if obj not in [self.parent.body, self.parent.head]:
                     obj.damage(10, self.position, self.direction * basis(0))
                     self.hit = True
-                    self.timer = 0
+                    self.timer = 0.0
                     break
             else:
-                self.timer -= 1
+                self.timer = max(0.0, self.timer - time_step)
 
     def attack(self):
         self.hit = False
-        self.timer = 20
+        self.timer = 5.0
 
 
 class Shield(PhysicsObject):

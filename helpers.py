@@ -33,3 +33,7 @@ def rotate(v, angle):
     r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     return np.matmul(r, v)
 
+
+def polar_angle(v):
+    return np.arctan2(*v[::-1])
+

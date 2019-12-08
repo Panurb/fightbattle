@@ -2,6 +2,7 @@ import numpy as np
 import pygame
 
 from collider import Group
+from enemy import Enemy
 from wall import Wall
 from player import Player
 from camera import Camera
@@ -12,8 +13,11 @@ from prop import Crate, Ball
 class Level:
     def __init__(self, option_handler):
         self.camera = Camera([0, 0], option_handler.resolution)
+        self.time_scale = 1.0
+        self.timer = 0.0
 
         self.players = []
+        self.enemies = []
         self.walls = []
         self.objects = []
 
@@ -24,17 +28,18 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_wall(np.array([0, -3]), 19, 1)
+        self.add_wall(np.array([0, -3]), 100, 1)
         self.add_wall([-10, 1.5], 1, 10)
-        self.add_wall([10, 1.5], 1, 10)
+        #self.add_wall([10, 1.5], 1, 10)
 
         self.add_wall([-8, 3], 0.2, 0.2)
-        self.add_wall([8, 3], 0.2, 0.2)
+        #self.add_wall([8, 3], 0.2, 0.2)
 
         self.reset()
 
     def reset(self):
         self.players.clear()
+        self.enemies.clear()
         self.objects.clear()
 
         for g in Group:
@@ -42,7 +47,7 @@ class Level:
                 self.colliders[g] = []
 
         self.add_player([-5, 0])
-        self.add_player([2, 0])
+        #self.add_player([2, 0])
 
         self.add_object(Ball([0, 2]))
         self.add_object(Sword([-2, 0]))
@@ -74,13 +79,41 @@ class Level:
         player = Player(position, n)
         self.players.append(player)
         self.colliders[player.collider.group].append(player.collider)
+        self.colliders[player.head.collider.group].append(player.head.collider)
+        self.colliders[player.body.collider.group].append(player.body.collider)
+
+    def add_enemy(self, position):
+        e = Enemy(position)
+        self.enemies.append(e)
+        self.colliders[e.collider.group].append(e.collider)
+        self.colliders[e.head.collider.group].append(e.head.collider)
+        self.colliders[e.body.collider.group].append(e.body.collider)
 
     def update(self, time_step):
+        if self.timer <= 0:
+            self.add_enemy([20, 0])
+            self.timer = 50
+        else:
+            self.timer -= time_step
+
+        for p in self.players:
+            if p.destroyed and p.active:
+                self.time_scale = 0.5
+                break
+        else:
+            self.time_scale = 1.0
+
         for player in self.players:
-            player.update(self.gravity, time_step, self.colliders)
+            player.update(self.gravity, self.time_scale * time_step, self.colliders)
+
+        for e in self.enemies:
+            if e.destroyed and not e.active:
+                self.enemies.remove(e)
+            e.seek_players(self.players)
+            e.update(self.gravity, self.time_scale * time_step, self.colliders)
 
         for obj in self.objects:
-            obj.update(self.gravity, time_step, self.colliders)
+            obj.update(self.gravity, self.time_scale * time_step, self.colliders)
 
         self.camera.position[:] = np.zeros(2)
         for player in self.players:
@@ -104,6 +137,9 @@ class Level:
 
         for player in self.players:
             player.draw(screen, self.camera, image_handler)
+
+        for e in self.enemies:
+            e.draw(screen, self.camera, image_handler)
 
         #self.debug_draw(screen, image_handler)
 

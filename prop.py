@@ -30,7 +30,7 @@ class Crate(Destroyable):
         if not self.destroyed:
             if self.collider.collisions:
                 if norm(self.velocity) / self.bounce > 0.9:
-                    self.destroy()
+                    self.destroy(-self.velocity)
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
@@ -46,8 +46,8 @@ class Crate(Destroyable):
             for loot in self.loot:
                 loot.debug_draw(screen, camera, image_handler)
 
-    def destroy(self):
-        super().destroy()
+    def destroy(self, velocity):
+        super().destroy(velocity)
 
         self.gravity_scale = 0.0
         for loot in self.loot:
