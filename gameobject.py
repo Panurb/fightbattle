@@ -98,7 +98,7 @@ class PhysicsObject(GameObject):
         self.collider.rotate(delta_angle)
         r = self.collider.position - self.position
         self.collider.position = self.position + rotate(r, delta_angle)
-        self.image_position = rotate(r, delta_angle)
+        self.image_position = rotate(r, delta_angle)  # ?
 
     def rotate_90(self):
         self.angle += np.pi / 2
@@ -207,7 +207,7 @@ class Destroyable(PhysicsObject):
 
         angle = polar_angle(velocity) + np.pi
 
-        for _ in range(4):
+        for _ in range(3):
             theta = np.random.normal(angle, 0.25)
             r = np.abs(np.random.normal(0.5, 0.2))
             v = r * np.array([np.cos(theta), np.sin(theta)])

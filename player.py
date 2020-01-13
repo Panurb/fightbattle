@@ -4,8 +4,9 @@ import pygame
 
 from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
-from helpers import norm2, basis, perp, normalized
-from particle import Splatter
+from helpers import norm2, basis, perp, normalized, rotate
+from particle import BloodSplatter
+from weapon import Shotgun
 
 
 class Player(Destroyable):
@@ -34,6 +35,8 @@ class Player(Destroyable):
         self.hand = Hand(self.position)
         self.hand.add_collider(Circle([0, 0], 0.2, Group.HANDS))
         self.hand.gravity_scale = 0.0
+
+        self.back_hand = AnimatedObject(self.position, '', 1.0)
 
         self.object = None
 
@@ -182,6 +185,10 @@ class Player(Destroyable):
                     self.object.set_position(self.hand.position)
                 self.object.rotate(self.hand.angle - self.object.angle)
 
+                if type(self.object) is Shotgun:
+                    self.back_hand.set_position(self.object.position
+                                                + rotate(self.object.grip_position, self.object.angle))
+
             if norm(self.shoulder - self.object.position) > 1.5 * self.arm_length:
                 self.throw_object(0.0)
             else:
@@ -254,13 +261,21 @@ class Player(Destroyable):
             if self.hand.animation in ['attack', 'shoot']:
                 angle = np.arctan(self.hand_goal[1] / self.hand_goal[0])
                 self.hand.animation_angle = angle
+
+            if type(self.object) is Shotgun:
+                self.back_hand.image_path = 'hand_grip'
         else:
             self.hand.image_path = 'fist'
             self.hand.loop_animation('idle')
+            self.back_hand.image_path = ''
 
     def draw(self, screen, camera, image_handler):
         self.back_foot.draw(screen, camera, image_handler)
         self.draw_limb(self.back_hip, self.back_foot.position, 1.0, screen, camera, -1)
+
+        if not self.destroyed and self.back_hand.image_path:
+            self.draw_limb(self.shoulder + 0.25 * self.direction * basis(0), self.back_hand.position, 1.0,
+                           screen, camera)
 
         self.body.draw(screen, camera, image_handler)
 
@@ -273,6 +288,15 @@ class Player(Destroyable):
             if self.object.collider.group is Group.SHIELDS:
                 self.draw_limb(self.shoulder, self.hand.position, 1.0, screen, camera)
                 self.object.draw(screen, camera, image_handler)
+            elif type(self.object) is Shotgun:
+                pos = rotate(self.object.hand_position, self.object.angle)
+                self.draw_limb(self.shoulder, self.object.position + pos, 1.0, screen, camera)
+                self.object.draw(screen, camera, image_handler)
+                self.hand.image_position = pos
+                self.hand.draw(screen, camera, image_handler)
+
+                self.back_hand.angle = self.object.angle
+                self.back_hand.draw(screen, camera, image_handler)
             else:
                 self.object.draw(screen, camera, image_handler)
                 self.draw_limb(self.shoulder, self.hand.position, 1.0, screen, camera)
@@ -323,17 +347,14 @@ class Player(Destroyable):
         if stick_norm != 0 and self.hand.animation not in ['attack', 'shoot']:
             self.hand_goal = self.arm_length * controller.right_stick / stick_norm
 
-        if controller.button_pressed['RB']:
-            if self.object:
-                self.throw_object(0)
-            else:
-                self.grab_object()
-
         if controller.right_trigger > 0.5:
             if self.object:
                 if not self.rt_pressed:
                     self.attack()
                     self.rt_pressed = True
+            else:
+                self.grab_object()
+                self.rt_pressed = True
         else:
             self.rt_pressed = False
 
@@ -344,13 +365,16 @@ class Player(Destroyable):
             else:
                 self.lt_pressed = False
                 if self.throw_charge:
-                    self.throw_object(self.throw_charge)
+                    if self.throw_charge > 0.5:
+                        self.throw_object(self.throw_charge)
+                    else:
+                        self.throw_object(0.0)
                     self.throw_charge = 0.0
         else:
             self.throw_charge = 0.0
 
     def damage(self, amount, position, velocity):
-        self.particle_clouds.append(Splatter([self.position[0], position[1]], -0.25 * velocity))
+        self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.25 * velocity))
 
         if self.health > 0:
             self.health -= amount
@@ -378,11 +402,11 @@ class Player(Destroyable):
         if velocity:
             self.object.velocity[:] = normalized(self.hand_goal) * velocity * self.throw_speed
 
-        if self.object.collider.group is Group.SHIELDS:
-            self.object.rotate_90()
-        elif self.object.collider.group is Group.SWORDS:
+        if self.object.collider.group is Group.SWORDS:
             self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
             self.object.timer = 0.0
+        else:
+            self.object.rotate(-self.object.angle)
 
         self.object.gravity_scale = 1.0
         self.object.parent = None
@@ -413,7 +437,7 @@ class Player(Destroyable):
 
 class Head(Destroyable):
     def __init__(self, position, parent):
-        super().__init__(position, image_path='head', debris_path='gib', size=0.85, debris_size=0.5, health=1,
+        super().__init__(position, image_path='head', debris_path='gib', size=0.85, debris_size=0.4, health=1,
                          parent=parent)
         self.gravity_scale = 0.0
         self.add_collider(Circle([0, 0], 0.5, Group.HITBOXES))
@@ -421,9 +445,9 @@ class Head(Destroyable):
     def destroy(self, velocity):
         self.parent.destroy(velocity)
         super().destroy([0, -1])
-        self.particle_clouds.append(Splatter(self.position, [0, 0.5]))
-        self.particle_clouds.append(Splatter(self.position, [-0.2, 0]))
-        self.particle_clouds.append(Splatter(self.position, [0.2, 0]))
+        self.particle_clouds.append(BloodSplatter(self.position, [0, 0.5]))
+        self.particle_clouds.append(BloodSplatter(self.position, [-0.2, 0]))
+        self.particle_clouds.append(BloodSplatter(self.position, [0.2, 0]))
 
 
 class Body(Destroyable):
@@ -438,7 +462,7 @@ class Body(Destroyable):
     def destroy(self, velocity):
         self.parent.destroy(velocity)
         super().destroy(velocity)
-        self.parent.particle_clouds.append(Splatter(self.position, [0, -1]))
+        self.parent.particle_clouds.append(BloodSplatter(self.position, [0, -1]))
 
 
 class Hand(PhysicsObject, AnimatedObject):

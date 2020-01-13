@@ -3,10 +3,11 @@ import pygame
 
 from collider import Group
 from enemy import Enemy
+from helpers import basis
 from wall import Wall
 from player import Player
 from camera import Camera
-from weapon import Shield, Sword
+from weapon import Shield, Sword, Shotgun
 from prop import Crate, Ball
 
 
@@ -14,7 +15,6 @@ class Level:
     def __init__(self, option_handler):
         self.camera = Camera([0, 0], option_handler.resolution)
         self.time_scale = 1.0
-        self.timer = 0.0
 
         self.players = []
         self.enemies = []
@@ -28,12 +28,7 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_wall(np.array([0, -3]), 100, 1)
-        self.add_wall([-10, 1.5], 1, 10)
-        #self.add_wall([10, 1.5], 1, 10)
-
-        self.add_wall([-8, 3], 0.2, 0.2)
-        #self.add_wall([8, 3], 0.2, 0.2)
+        self.add_room([0, 5], 50, 10)
 
         self.reset()
 
@@ -46,12 +41,13 @@ class Level:
             if g is not Group.WALLS:
                 self.colliders[g] = []
 
+        self.add_object(Shotgun([0, 4]))
         self.add_player([-5, 0])
         #self.add_player([2, 0])
 
-        self.add_object(Ball([0, 2]))
-        self.add_object(Sword([-2, 0]))
-        self.add_object(Shield([4, 2]))
+        #self.add_object(Ball([0, 2]))
+        #self.add_object(Sword([-2, 0]))
+        #self.add_object(Shield([4, 2]))
         self.add_object(Crate([-1, 2]))
 
     def input(self, input_handler):
@@ -61,6 +57,8 @@ class Level:
             self.add_object(Ball(input_handler.mouse_position))
         if input_handler.keys_pressed[pygame.K_ESCAPE]:
             self.reset()
+        if input_handler.keys_pressed[pygame.K_v]:
+            self.add_enemy(input_handler.mouse_position)
 
         for i, player in enumerate(self.players):
             player.input(input_handler)
@@ -73,6 +71,12 @@ class Level:
     def add_object(self, obj):
         self.objects.append(obj)
         self.colliders[obj.collider.group].append(obj.collider)
+
+    def add_room(self, position, width, height):
+        self.add_wall(position + 0.5 * width * basis(0), 1, height)
+        self.add_wall(position - 0.5 * width * basis(0), 1, height)
+        self.add_wall(position + 0.5 * height * basis(1), width, 1)
+        self.add_wall(position - 0.5 * height * basis(1), width, 1)
 
     def add_player(self, position):
         n = len(self.players)
@@ -90,12 +94,6 @@ class Level:
         self.colliders[e.body.collider.group].append(e.body.collider)
 
     def update(self, time_step):
-        if self.timer <= 0:
-            self.add_enemy([20, 0])
-            self.timer = 50
-        else:
-            self.timer -= time_step
-
         for p in self.players:
             if p.destroyed and p.active:
                 self.time_scale = 0.5
