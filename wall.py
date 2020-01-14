@@ -18,4 +18,4 @@ class Wall(GameObject):
             points.append(camera.world_to_screen(c))
 
         pygame.draw.polygon(screen, pygame.Color('gray'), points)
-        pygame.draw.polygon(screen, pygame.Color('black'), points, int(camera.zoom / 25))
+        pygame.draw.polygon(screen, pygame.Color('black'), points, int(max(1, camera.zoom / 25)))

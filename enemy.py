@@ -31,8 +31,8 @@ class Enemy(Player):
             return
 
         if dist > 2.0:
-            self.velocity[0] = 0.25 * normalized(goal - self.position)[0]
+            self.goal_velocity[0] = 0.25 * normalized(goal - self.position)[0]
         else:
-            self.velocity[0] = 0.0
+            self.goal_velocity[0] = 0.0
             self.attack()
         self.hand_goal[0] = np.sign(goal - self.position)[0]

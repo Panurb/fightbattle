@@ -49,9 +49,10 @@ class Gun(PhysicsObject):
             b.draw(screen, camera, image_handler)
 
     def attack(self):
-        v = self.direction * self.bullet_speed * polar_to_carteesian(1, self.angle)
-        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), 0.05 * v, self.parent.velocity))
-        self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent))
+        v = 0.1 * self.direction * polar_to_carteesian(1, self.angle)
+        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
+        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, 0.5 * np.pi), self.parent.velocity))
+        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
 
 
 class Revolver(Gun):
@@ -60,6 +61,11 @@ class Revolver(Gun):
         self.image_path = 'revolver'
         self.image_position = np.array([0.35, 0.15])
         self.add_collider(Rectangle([0.35, 0.15], 1.1, 0.6, Group.GUNS))
+
+    def attack(self):
+        super().attack()
+        v = self.direction * self.bullet_speed * polar_to_carteesian(1, self.angle)
+        self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent))
 
 
 class Shotgun(Gun):
@@ -77,16 +83,17 @@ class Shotgun(Gun):
         super().flip_horizontally()
 
     def attack(self):
+        super().attack()
         v = self.direction * 0.075 * polar_to_carteesian(1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
         for _ in range(8):
             theta = np.random.normal(self.angle, 0.1)
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_carteesian(1, theta)
-            self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5))
+            self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5, dmg=5))
 
 
 class Bullet(PhysicsObject):
-    def __init__(self, position, velocity, parent, lifetime=20, size=1.0, dmg=10):
+    def __init__(self, position, velocity, parent, lifetime=20, size=1.0, dmg=20):
         super().__init__(position, velocity)
         self.parent = parent
         self.add_collider(Circle(np.zeros(2), 0.2, Group.BULLETS))

@@ -44,8 +44,8 @@ class Level:
                 self.colliders[g] = []
 
         self.add_object(Shotgun([0, 4]))
-        self.add_player([-5, 0])
-        #self.add_player([2, 0])
+        self.add_player([-22, 10])
+        self.add_player([22, 10])
 
         #self.add_object(Ball([0, 2]))
         #self.add_object(Sword([-2, 0]))
@@ -152,4 +152,3 @@ class Level:
 
         for player in self.players:
             player.debug_draw(screen, self.camera, image_handler)
-

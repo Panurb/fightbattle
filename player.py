@@ -69,7 +69,7 @@ class Player(Destroyable):
     def update(self, gravity, time_step, colliders):
         for b in self.particle_clouds:
             b.update(gravity, time_step)
-            if not b.particles:
+            if not b.active:
                 self.particle_clouds.remove(b)
 
         if self.destroyed:
@@ -121,7 +121,10 @@ class Player(Destroyable):
                 if not collision.overlap[1]:
                     self.velocity[0] = 0.0
 
-            self.acceleration[:] = gravity
+            if not self.on_ground or np.any(self.goal_velocity):
+                self.acceleration[:] = gravity
+            else:
+                self.acceleration[:] = 0.0
 
             if np.any(self.goal_velocity):
                 self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.walk_acceleration
@@ -447,7 +450,7 @@ class Player(Destroyable):
 
 class Head(Destroyable):
     def __init__(self, position, parent):
-        super().__init__(position, image_path='head', debris_path='gib', size=0.85, debris_size=0.4, health=1,
+        super().__init__(position, image_path='head', debris_path='gib', size=0.85, debris_size=0.4, health=20,
                          parent=parent)
         self.gravity_scale = 0.0
         self.add_collider(Circle([0, 0], 0.5, Group.HITBOXES))
