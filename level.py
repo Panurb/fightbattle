@@ -28,7 +28,9 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_room([0, 5], 50, 10)
+        self.add_room([0, 10], 50, 20)
+        self.add_wall([15.1, 3.1], 20, 1, 0.1 * np.pi)
+        self.add_wall([-15.1, 3.1], 20, 1, -0.1 * np.pi)
 
         self.reset()
 
@@ -63,8 +65,8 @@ class Level:
         for i, player in enumerate(self.players):
             player.input(input_handler)
 
-    def add_wall(self, position, width, height):
-        wall = Wall(position, width, height)
+    def add_wall(self, position, width, height, angle=0.0):
+        wall = Wall(position, width, height, angle)
         self.walls.append(wall)
         self.colliders[wall.collider.group].append(wall.collider)
 

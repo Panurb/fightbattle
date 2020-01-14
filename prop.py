@@ -13,11 +13,13 @@ class Crate(Destroyable):
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
         for _ in range(np.random.randint(4)):
             self.rotate_90()
-        self.loot = np.random.choice([Revolver, Shotgun])(self.position)
-        self.loot.active = False
+        self.loot = np.random.choice([Revolver, Shotgun, None])
+        if self.loot:
+            self.loot = self.loot(self.position)
+            self.loot.active = False
 
     def update(self, gravity, time_step, colliders):
-        if self.destroyed:
+        if self.destroyed and self.loot:
             if not self.loot.active:
                 colliders[self.loot.collider.group].append(self.loot.collider)
                 self.loot.active = True
@@ -33,21 +35,22 @@ class Crate(Destroyable):
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
 
-        if self.destroyed:
+        if self.destroyed and self.loot:
             self.loot.draw(screen, camera, image_handler)
 
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)
 
-        if self.destroyed:
+        if self.destroyed and self.loot:
             self.loot.debug_draw(screen, camera, image_handler)
 
     def destroy(self, velocity):
         super().destroy(velocity)
 
         self.gravity_scale = 0.0
-        self.loot.set_position(self.position)
-        self.loot.velocity[:] = 0.25 * random_unit()
+        if self.loot:
+            self.loot.set_position(self.position)
+            self.loot.velocity[:] = 0.25 * random_unit()
 
 
 class Ball(PhysicsObject):

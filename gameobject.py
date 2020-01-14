@@ -18,7 +18,6 @@ class GameObject:
         self.direction = 1
         self.angle = 0.0
 
-        self.image = None
         self.image_path = image_path
         self.size = size
         self.image_position = np.zeros(2)
@@ -56,12 +55,12 @@ class GameObject:
         if self.direction == -1:
             image = pygame.transform.flip(image, True, False)
 
-        self.image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
+        image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
 
-        rect = self.image.get_rect()
+        rect = image.get_rect()
         rect.center = camera.world_to_screen(self.position + self.image_position)
 
-        screen.blit(self.image, rect)
+        screen.blit(image, rect)
 
     def debug_draw(self, screen, camera, image_handler):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)

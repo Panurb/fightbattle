@@ -5,10 +5,12 @@ from collider import Rectangle, Group
 
 
 class Wall(GameObject):
-    def __init__(self, position, width, height):
+    def __init__(self, position, width, height, angle):
         super().__init__(position)
         collider = Rectangle([0, 0], width, height, Group.WALLS)
         self.add_collider(collider)
+        self.collider.rotate(angle)
+        self.angle = angle
 
     def draw(self, screen, camera, image_handler):
         points = []

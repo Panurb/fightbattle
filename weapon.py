@@ -12,14 +12,27 @@ class Gun(PhysicsObject):
         self.parent = None
         self.inertia = 0.0
         self.hit = False
-        self.barrel = np.array([1.5, 1.5])
+        self.barrel_position = np.array([1.0, 0.3])
+        self.hand_position = np.zeros(2)
+        self.grip_position = None
         self.bullet_speed = 1.5
 
         self.bullets = []
 
-    def barrel_position(self):
-        return self.position + self.direction * self.barrel[0] * self.collider.half_width \
-               + self.barrel[1] * self.collider.half_height
+    def get_hand_position(self):
+        v = self.hand_position.copy()
+        v[0] *= self.direction
+        return self.position + rotate(v, self.angle)
+
+    def get_grip_position(self):
+        v = self.grip_position.copy()
+        v[0] *= self.direction
+        return self.position + rotate(v, self.angle)
+
+    def get_barrel_position(self):
+        v = self.barrel_position.copy()
+        v[0] *= self.direction
+        return self.position + rotate(v, self.angle)
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -37,8 +50,8 @@ class Gun(PhysicsObject):
 
     def attack(self):
         v = self.direction * self.bullet_speed * polar_to_carteesian(1, self.angle)
-        self.particle_clouds.append(MuzzleFlash(self.barrel_position(), 0.05 * v, self.parent.velocity))
-        self.bullets.append(Bullet(self.barrel_position(), v, self.parent))
+        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), 0.05 * v, self.parent.velocity))
+        self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent))
 
 
 class Revolver(Gun):
@@ -62,16 +75,14 @@ class Shotgun(Gun):
 
     def flip_horizontally(self):
         super().flip_horizontally()
-        self.hand_position[0] *= -1
-        self.grip_position[0] *= -1
 
     def attack(self):
         v = self.direction * 0.075 * polar_to_carteesian(1, self.angle)
-        self.particle_clouds.append(MuzzleFlash(self.barrel_position(), v, self.parent.velocity))
+        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
         for _ in range(8):
             theta = np.random.normal(self.angle, 0.1)
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_carteesian(1, theta)
-            self.bullets.append(Bullet(self.barrel_position(), v, self.parent, 10, 0.5))
+            self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5))
 
 
 class Bullet(PhysicsObject):

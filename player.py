@@ -12,6 +12,8 @@ from weapon import Shotgun
 class Player(Destroyable):
     def __init__(self, position, number=0):
         super().__init__(position)
+        self.goal_velocity = np.zeros(2)
+        self.walk_acceleration = 0.5
         self.bounce = 0.0
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
@@ -94,7 +96,7 @@ class Player(Destroyable):
             if self.velocity[1] > 0:
                 self.on_ground = False
 
-            delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
+            delta_pos = self.velocity * time_step # + 0.5 * self.acceleration * time_step**2
             self.position += delta_pos
 
             self.collider.position += delta_pos
@@ -110,17 +112,23 @@ class Player(Destroyable):
 
                 if collision.overlap[1] > 0:
                     self.on_ground = True
+                    self.velocity[1] = 0.0
 
                 self.position += collision.overlap
 
                 self.collider.position += collision.overlap
 
-                if not collision.overlap[0]:
-                    self.velocity[1] = 0.0
-                elif not collision.overlap[1]:
+                if not collision.overlap[1]:
                     self.velocity[0] = 0.0
 
-            self.velocity += gravity * time_step
+            self.acceleration[:] = gravity
+
+            if np.any(self.goal_velocity):
+                self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.walk_acceleration
+            else:
+                self.velocity[0] *= 0.5
+
+            self.velocity += self.acceleration * time_step
 
             self.speed = norm(self.velocity)
             if self.speed != 0:
@@ -186,8 +194,7 @@ class Player(Destroyable):
                 self.object.rotate(self.hand.angle - self.object.angle)
 
                 if type(self.object) is Shotgun:
-                    self.back_hand.set_position(self.object.position
-                                                + rotate(self.object.grip_position, self.object.angle))
+                    self.back_hand.set_position(self.object.get_grip_position())
 
             if norm(self.shoulder - self.object.position) > 1.5 * self.arm_length:
                 self.throw_object(0.0)
@@ -235,11 +242,11 @@ class Player(Destroyable):
         self.front_foot.animation_direction = self.direction * np.sign(self.velocity[0])
 
         if self.on_ground:
-            v = abs(self.velocity[0])
-            if self.back_foot.animation != 'walk' and v > 0.1:
+            v = abs(self.goal_velocity[0])
+            if self.back_foot.animation != 'walk' and v > 0:
                 self.back_foot.loop_animation('walk', 3)
                 self.front_foot.loop_animation('walk')
-            elif self.back_foot.animation != 'idle' and v < 0.1:
+            elif self.back_foot.animation != 'idle' and v == 0:
                 self.back_foot.loop_animation('idle')
                 self.front_foot.loop_animation('idle')
         else:
@@ -258,7 +265,7 @@ class Player(Destroyable):
             else:
                 self.hand.image_path = 'hand'
 
-            if self.hand.animation in ['attack', 'shoot']:
+            if self.hand.animation in ['attack', 'shoot', 'shotgun']:
                 angle = np.arctan(self.hand_goal[1] / self.hand_goal[0])
                 self.hand.animation_angle = angle
 
@@ -289,10 +296,10 @@ class Player(Destroyable):
                 self.draw_limb(self.shoulder, self.hand.position, 1.0, screen, camera)
                 self.object.draw(screen, camera, image_handler)
             elif type(self.object) is Shotgun:
-                pos = rotate(self.object.hand_position, self.object.angle)
-                self.draw_limb(self.shoulder, self.object.position + pos, 1.0, screen, camera)
+                pos = self.object.get_hand_position()
+                self.draw_limb(self.shoulder, pos, 1.0, screen, camera)
                 self.object.draw(screen, camera, image_handler)
-                self.hand.image_position = pos
+                self.hand.image_position = pos - self.object.position
                 self.hand.draw(screen, camera, image_handler)
 
                 self.back_hand.angle = self.object.angle
@@ -336,7 +343,7 @@ class Player(Destroyable):
                 self.throw_charge = 0.0
                 self.lt_pressed = True
 
-        self.velocity[0] = (5 - 2 * self.crouched) / 5 * self.max_speed * controller.left_stick[0]
+        self.goal_velocity[0] = (5 - 2 * self.crouched) / 5 * self.max_speed * controller.left_stick[0]
 
         if self.on_ground and controller.left_stick[1] < -0.5:
             self.crouched = min(1.0, self.crouched + self.crouch_speed)
@@ -344,7 +351,7 @@ class Player(Destroyable):
             self.crouched = max(0.0, self.crouched - self.crouch_speed)
 
         stick_norm = norm(controller.right_stick)
-        if stick_norm != 0 and self.hand.animation not in ['attack', 'shoot']:
+        if stick_norm != 0 and self.hand.animation not in ['attack', 'shoot', 'shotgun']:
             self.hand_goal = self.arm_length * controller.right_stick / stick_norm
 
         if controller.right_trigger > 0.5:
@@ -429,7 +436,10 @@ class Player(Destroyable):
                 if self.object.collider.group is Group.SWORDS:
                     self.hand.play_animation('attack')
                 elif self.object.collider.group is Group.GUNS:
-                    self.hand.play_animation('shoot')
+                    if type(self.object) is Shotgun:
+                        self.hand.play_animation('shotgun')
+                    else:
+                        self.hand.play_animation('shoot')
                 self.object.attack()
         except AttributeError:
             print('Cannot attack with object', self.object)
@@ -476,6 +486,11 @@ class Hand(PhysicsObject, AnimatedObject):
         ys = np.array([-0.05, -0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
         angles = np.pi * np.array([0.3, -0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
         self.add_animation(xs, ys, angles, 'attack')
+
+        xs = 2 * np.array([-0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
+        ys = 3 * np.array([0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
+        angles = 0.5 * np.pi * np.array([0.3, 0.5, 0.55, 0.575, 0.6, 0.5, 0.45, 0.35, 0.2])
+        self.add_animation(xs, ys, angles, 'shotgun')
 
         xs = np.array([-0.15, -0.25, -0.2, -0.1, -0.05])
         ys = np.array([0.1, 0.2, 0.15, 0.1, 0.05])
