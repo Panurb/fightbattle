@@ -2,12 +2,12 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from helpers import polar_angle, polar_to_carteesian, rotate
+from helpers import polar_angle, polar_to_carteesian, rotate, norm2
 
 
 class Cloud:
     def __init__(self, position, velocity, number, lifetime, size, gravity_scale=1.0, image_path='',
-                 start_color=(255, 255, 255), end_color=(255, 255, 255), base_velocity=(0, 0)):
+                 start_color=(255, 255, 255), end_color=(255, 255, 255), base_velocity=(0, 0), shading=0.0, shine=0.0):
         self.position = np.repeat(np.array(position, dtype=float)[np.newaxis], number, axis=0)
         self.velocity = 0.5 * np.repeat(np.array(base_velocity, dtype=float)[np.newaxis], number, axis=0)
         self.acceleration = np.zeros_like(self.position)
@@ -17,6 +17,8 @@ class Cloud:
         self.image_path = image_path
         self.start_color = np.array(start_color, dtype=int)
         self.end_color = np.array(end_color, dtype=int)
+        self.shading = shading
+        self.shine = shine
 
         self.time = 0.0
 
@@ -55,9 +57,12 @@ class Cloud:
         if not self.active:
             return
 
-        size = (1 - self.time / self.lifetime) * self.size
+        size = int(camera.zoom * (1 - self.time / self.lifetime) * self.size)
+        if size == 0:
+            return
+
         if self.image_path:
-            scale = camera.zoom * size / 100
+            scale = size / 100
 
             img = image_handler.images[self.image_path]
             image = pygame.transform.rotozoom(img, 0.0, scale)
@@ -68,22 +73,33 @@ class Cloud:
 
                 screen.blit(image, rect)
         else:
-            c = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
-            s = int(camera.zoom * size)
-            for p in self.position:
-                pygame.draw.circle(screen, c, camera.world_to_screen(p), s)
+            color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
+            size = [(1 + 0.5 * norm2(self.velocity)) * size, size]
+            for i, p in enumerate(self.position):
+                surface = pygame.Surface(size)
+                surface.set_colorkey(pygame.Color('black'))
+
+                if self.shading:
+                    pygame.draw.ellipse(surface, (1 - self.shading) * color, [0, 0] + size)
+                    pygame.draw.ellipse(surface, color, [size[0] // 4, 0, 0.8 * size[0], 0.8 * size[1]])
+                else:
+                    pygame.draw.ellipse(surface, color, [0, 0] + size)
+
+                if self.shine:
+                    pygame.draw.circle(surface, color + (255 - color) * self.shine, [int(0.8 * size[0]), size[1] // 2],
+                                       size[1] // 5)
+
+                surface = pygame.transform.rotate(surface, np.rad2deg(polar_angle(self.velocity[i, :])))
+                screen.blit(surface, camera.world_to_screen(p))
 
 
 class BloodSplatter(Cloud):
-    def __init__(self, position, direction):
-        if np.any(direction):
-            number = 10
-        else:
-            number = 25
-        super().__init__(position, direction, number, 8.0, 0.8, image_path='blood')
+    def __init__(self, position, direction, number=10):
+        super().__init__(position, direction, number, 8.0, 0.5, start_color=(255, 0, 0), end_color=(255, 0, 0),
+                         shading=0.17, shine=1.0)
 
 
 class MuzzleFlash(Cloud):
     def __init__(self, position, velocity, base_velocity=(0, 0)):
-        super().__init__(position, velocity, 3, 10.0, 0.3, base_velocity=base_velocity, gravity_scale=0.0,
+        super().__init__(position, velocity, 3, 10.0, 0.8, base_velocity=base_velocity, gravity_scale=0.0,
                          start_color=(255, 255, 200), end_color=(255, 215, 0))

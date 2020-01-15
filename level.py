@@ -44,8 +44,8 @@ class Level:
                 self.colliders[g] = []
 
         self.add_object(Shotgun([0, 4]))
-        self.add_player([-22, 10])
-        self.add_player([22, 10])
+        self.add_player([0, 0])
+        #self.add_player([22, 10])
 
         #self.add_object(Ball([0, 2]))
         #self.add_object(Sword([-2, 0]))
@@ -57,7 +57,7 @@ class Level:
             self.add_object(Crate(input_handler.mouse_position))
         if input_handler.keys_pressed[pygame.K_b]:
             self.add_object(Ball(input_handler.mouse_position))
-        if input_handler.keys_pressed[pygame.K_ESCAPE]:
+        if input_handler.keys_pressed[pygame.K_r]:
             self.reset()
         if input_handler.keys_pressed[pygame.K_v]:
             self.add_enemy(input_handler.mouse_position)

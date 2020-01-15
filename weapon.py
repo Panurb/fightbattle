@@ -84,12 +84,10 @@ class Shotgun(Gun):
 
     def attack(self):
         super().attack()
-        v = self.direction * 0.075 * polar_to_carteesian(1, self.angle)
-        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
-        for _ in range(8):
+        for _ in range(5):
             theta = np.random.normal(self.angle, 0.1)
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_carteesian(1, theta)
-            self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5, dmg=5))
+            self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5, dmg=8))
 
 
 class Bullet(PhysicsObject):

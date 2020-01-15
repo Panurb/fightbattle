@@ -191,7 +191,7 @@ class InputHandler:
         self.mouse_released = [False] * 6
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or self.keys_down[pygame.K_ESCAPE]:
                 self.quit = True
             else:
                 if event.type == pygame.KEYDOWN:

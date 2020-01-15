@@ -384,7 +384,7 @@ class Player(Destroyable):
             self.throw_charge = 0.0
 
     def damage(self, amount, position, velocity):
-        self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.25 * velocity))
+        self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.25 * velocity, amount // 2))
 
         if self.health > 0:
             self.health -= amount
@@ -458,9 +458,9 @@ class Head(Destroyable):
     def destroy(self, velocity):
         self.parent.destroy(velocity)
         super().destroy([0, -1])
-        self.particle_clouds.append(BloodSplatter(self.position, [0, 0.5]))
-        self.particle_clouds.append(BloodSplatter(self.position, [-0.2, 0]))
-        self.particle_clouds.append(BloodSplatter(self.position, [0.2, 0]))
+        self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4]))
+        self.particle_clouds.append(BloodSplatter(self.position, [-0.2, 0.1], 5))
+        self.particle_clouds.append(BloodSplatter(self.position, [0.2, 0.1], 5))
 
 
 class Body(Destroyable):
