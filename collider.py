@@ -33,11 +33,6 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.HITBOXES: []}
 
 
-class Type(enum.Enum):
-    RECTANGLE = 1
-    CIRCLE = 2
-
-
 class Collision:
     def __init__(self, collider, overlap):
         self.collider = collider
@@ -89,7 +84,6 @@ class Rectangle(Collider):
         super().__init__(position, group)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
-        self.type = Type.RECTANGLE
 
         self.radius = norm(self.half_width + self.half_height)
 
@@ -124,9 +118,9 @@ class Rectangle(Collider):
         if dist > (self.radius + other.radius)**2:
             return overlap
 
-        if other.type is Type.RECTANGLE:
+        if type(other) is Rectangle:
             axes = [self.half_width, self.half_height]
-            if self.parent.angle != other.parent.angle:
+            if abs(self.parent.angle - other.parent.angle) > 1e-3:
                 axes += [other.half_width, other.half_height]
 
             min_axis = None
@@ -144,7 +138,7 @@ class Rectangle(Collider):
 
             overlap = min_overlap * min_axis
 
-        elif other.type is Type.CIRCLE:
+        elif type(other) is Circle:
             min_axis = None
             min_overlap = other.radius + self.radius
             overlaps = []
@@ -208,7 +202,6 @@ class Circle(Collider):
     def __init__(self, position, radius, group=Group.NONE):
         super().__init__(position, group)
         self.radius = radius
-        self.type = Type.CIRCLE
 
     def axis_half_width(self, axis):
         return self.radius
@@ -220,11 +213,11 @@ class Circle(Collider):
         if dist > (self.radius + other.radius)**2:
             return overlap
 
-        if other.type is Type.CIRCLE:
+        if type(other) is Circle:
             dist = np.sqrt(dist)
             unit = (self.position - other.position) / dist
             overlap = (self.radius + other.radius - dist) * unit
-        elif other.type is Type.RECTANGLE:
+        elif type(other) is Rectangle:
             overlap = -other.overlap(self)
 
         return overlap

@@ -3,7 +3,7 @@ from numpy.linalg import norm
 
 import pygame
 
-from collider import Circle, Group, Type
+from collider import Circle, Group, Rectangle
 from helpers import random_unit, norm2, rotate, projection, normalized, polar_angle
 
 MAX_SPEED = 5.0
@@ -23,7 +23,7 @@ class GameObject:
         self.image_position = np.zeros(2)
 
     def flip_horizontally(self):
-        if self.collider.type is Type.RECTANGLE:
+        if type(self.collider) is Rectangle:
             w = normalized(self.collider.half_width)
             r = self.collider.position - self.position
             self.collider.position -= 2 * np.dot(r, w) * w
@@ -168,7 +168,7 @@ class PhysicsObject(GameObject):
         if self.speed != 0:
             self.velocity *= min(self.speed, MAX_SPEED) / self.speed
 
-        if self.collider.type is Type.CIRCLE:
+        if type(self.collider) is Circle:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
     def draw(self, screen, camera, image_handler):
