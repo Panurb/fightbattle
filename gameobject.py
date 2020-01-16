@@ -224,28 +224,28 @@ class Destroyable(PhysicsObject):
 
             for d in self.debris:
                 d.update(gravity, time_step, colliders)
-                if d.speed < norm(gravity) * time_step:
+                if d.on_ground and d.speed < norm(gravity) * time_step:
                     self.debris.remove(d)
 
-        self.update_active(gravity, time_step)
+            for p in self.particle_clouds:
+                if not p.active:
+                    self.particle_clouds.remove(p)
 
-    def update_active(self, gravity, time_step):
+        self.update_active()
+
+    def update_active(self):
         if self.destroyed:
             self.active = False
 
-            #if np.any(self.velocity):
-            #    self.active = True
-            #    return
-
-            for d in self.debris:
-                if d.speed > norm(gravity) * time_step:
-                    self.active = True
-                    return
+            if self.debris:
+                self.active = True
+                return
 
             if self.particle_clouds:
                 self.active = True
 
     def draw(self, screen, camera, image_handler):
+        # TODO: check if onscreen
         if self.destroyed:
             for d in self.debris:
                 d.draw(screen, camera, image_handler)

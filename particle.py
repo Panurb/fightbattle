@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from helpers import polar_angle, polar_to_carteesian, rotate, norm2
+from helpers import polar_angle, polar_to_carteesian, norm2
 
 
 class Cloud:
@@ -95,7 +95,7 @@ class Cloud:
 
 class BloodSplatter(Cloud):
     def __init__(self, position, direction, number=10):
-        super().__init__(position, direction, number, 8.0, 0.5, start_color=(255, 0, 0), end_color=(255, 0, 0),
+        super().__init__(position, direction, number, 10.0, 0.5, start_color=(255, 0, 0), end_color=(255, 0, 0),
                          shading=0.17, shine=1.0)
 
 

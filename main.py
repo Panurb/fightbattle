@@ -1,4 +1,6 @@
-import numpy as np
+import cProfile, pstats, io
+from pstats import SortKey
+
 import pygame
 
 import gameloop
@@ -41,8 +43,8 @@ class Main:
         while self.loop.state != gameloop.State.QUIT:
             fps = self.clock.get_fps()
 
-            #if fps != 0:
-            #    self.time_step = 15.0 / fps
+            if fps != 0:
+                self.time_step = 15.0 / fps
 
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen, self.image_handler)
@@ -54,6 +56,18 @@ class Main:
             self.clock.tick(self.option_handler.fps)
 
 
-if __name__ == '__main__':
+def main():
     main_window = Main()
     main_window.main_loop()
+
+
+if __name__ == "__main__":
+    pr = cProfile.Profile()
+    pr.enable()
+    main()
+    pr.disable()
+    s = io.StringIO()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print(s.getvalue())

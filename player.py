@@ -74,9 +74,9 @@ class Player(Destroyable):
 
         if self.destroyed:
             PhysicsObject.update(self, gravity, time_step, colliders)
-            self.head.update_active(gravity, time_step)
-            if not self.head.active:
-                self.update_active(gravity, time_step)
+            self.head.update_active()
+            if not self.head.active or not self.head.destroyed:
+                self.update_active()
 
             if abs(self.angle) > np.pi / 2:
                 self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)

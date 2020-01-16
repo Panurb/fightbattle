@@ -3,7 +3,7 @@ import pygame
 
 from collider import Group
 from enemy import Enemy
-from helpers import basis
+from helpers import basis, norm2
 from wall import Wall
 from player import Player
 from camera import Camera
@@ -107,10 +107,9 @@ class Level:
             player.update(self.gravity, self.time_scale * time_step, self.colliders)
 
         for e in self.enemies:
-            if e.destroyed and not e.active:
-                self.enemies.remove(e)
-            e.seek_players(self.players)
-            e.update(self.gravity, self.time_scale * time_step, self.colliders)
+            if e.active:
+                e.seek_players(self.players)
+                e.update(self.gravity, self.time_scale * time_step, self.colliders)
 
         for obj in self.objects:
             obj.update(self.gravity, self.time_scale * time_step, self.colliders)
@@ -123,7 +122,7 @@ class Level:
         if len(self.players) > 1:
             dist = 0
             for player in self.players:
-                dist = max(dist, np.sum((player.position - self.camera.position)**2))
+                dist = max(dist, norm2(player.position - self.camera.position))
 
             if dist != 0:
                 self.camera.zoom = min(500 / np.sqrt(dist), self.camera.max_zoom)

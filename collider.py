@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import enum
 import pygame
+from numba import njit
 
 from helpers import norm2, perp
 
@@ -31,6 +32,98 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.DEBRIS: [Group.WALLS],
                  Group.SWORDS: [Group.WALLS],
                  Group.HITBOXES: []}
+
+
+@njit
+def axis_half_width(w1, h1, u):
+    return abs(np.dot(w1, u)) + abs(np.dot(h1, u))
+
+
+@njit
+def axis_overlap(r1, p1, r2, p2, u):
+    overlap = 0
+    r = np.dot(p1 - p2, u)
+    o = r1 + r2 - abs(r)
+    if o > 0:
+        if r == 0:
+            overlap = o
+        else:
+            overlap = np.sign(r) * o
+
+    return overlap
+
+
+@njit
+def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
+    min_axis = np.zeros(2)
+    min_overlap = np.inf
+
+    for i in range(4):
+        if i == 0:
+            u = w1 / norm(w1)
+        elif i == 1:
+            u = h1 / norm(h1)
+        elif i == 2:
+            u = w2 / norm(w2)
+        else:
+            u = h2 / norm(h2)
+
+        overlap = axis_overlap(axis_half_width(w1, h1, u), p1, axis_half_width(w2, h2, u), p2, u)
+
+        if abs(overlap) <= 0:
+            return np.zeros(2)
+        elif abs(overlap) < abs(min_overlap):
+            min_overlap = overlap
+            min_axis = u
+
+    return min_overlap * min_axis
+
+
+@njit
+def overlap_rectangle_circle(w1, h1, p1, r2, p2):
+    min_axis = np.zeros(2)
+    min_overlap = np.inf
+    overlaps = np.zeros(2)
+    near_corner = True
+
+    for i in range(2):
+        if i == 0:
+            u = w1 / norm(w1)
+        else:
+            u = h1 / norm(h1)
+
+        overlap = axis_overlap(axis_half_width(w1, h1, u), p1, r2, p2, u)
+
+        o = abs(overlap)
+
+        if o >= r2:
+            near_corner = False
+        else:
+            overlaps[i] = overlap
+
+        if o <= 0:
+            return np.zeros(2)
+        elif o < abs(min_overlap):
+            min_overlap = overlap
+            min_axis = u
+
+    if not near_corner:
+        return min_overlap * min_axis
+
+    corner = p1 - np.sign(overlaps[0]) * w1 - np.sign(overlaps[1]) * h1
+
+    axis = corner - p2
+    u = axis / norm(axis)
+
+    overlap = axis_overlap(axis_half_width(w1, h1, u), p1, r2, p2, u)
+
+    if 0 < abs(overlap) < abs(min_overlap):
+        min_overlap = overlap
+        min_axis = axis
+    else:
+        return np.zeros(2)
+
+    return min_overlap * min_axis
 
 
 class Collision:
@@ -93,93 +186,19 @@ class Rectangle(Collider):
                 self.position - self.half_width - self.half_height,
                 self.position + self.half_width - self.half_height]
 
-    def axis_half_width(self, axis):
-        return abs(np.dot(self.half_width, axis)) + abs(np.dot(self.half_height, axis))
-
-    def axis_overlap(self, other, axis):
-        overlap = 0
-
-        r = np.dot(self.position - other.position, axis)
-
-        o = self.axis_half_width(axis) + other.axis_half_width(axis) - abs(r)
-
-        if o > 0:
-            if r == 0:
-                overlap = o
-            else:
-                overlap = np.sign(r) * o
-
-        return overlap
-
     def overlap(self, other):
-        overlap = np.zeros(2)
-
         dist = norm2(self.position - other.position)
         if dist > (self.radius + other.radius)**2:
-            return overlap
+            return np.zeros(2)
 
         if type(other) is Rectangle:
-            axes = [self.half_width, self.half_height]
-            if abs(self.parent.angle - other.parent.angle) > 1e-3:
-                axes += [other.half_width, other.half_height]
-
-            min_axis = None
-            min_overlap = other.radius + self.radius
-
-            for axis in axes:
-                u = axis / norm(axis)
-                overlap = self.axis_overlap(other, u)
-
-                if abs(overlap) <= 0:
-                    return np.zeros(2)
-                elif abs(overlap) < abs(min_overlap):
-                    min_overlap = overlap
-                    min_axis = u
-
-            overlap = min_overlap * min_axis
-
+            return overlap_rectangle_rectangle(self.half_width, self.half_height, self.position,
+                                               other.half_width, other.half_height, other.position)
         elif type(other) is Circle:
-            min_axis = None
-            min_overlap = other.radius + self.radius
-            overlaps = []
-            near_corner = True
+            return overlap_rectangle_circle(self.half_width, self.half_height, self.position,
+                                            other.radius, other.position)
 
-            for axis in [self.half_width, self.half_height]:
-                u = axis / norm(axis)
-                overlap = self.axis_overlap(other, u)
-                o = abs(overlap)
-
-                if o >= other.radius:
-                    near_corner = False
-                else:
-                    overlaps.append(overlap)
-
-                if o <= 0:
-                    return np.zeros(2)
-                elif o < abs(min_overlap):
-                    min_overlap = overlap
-                    min_axis = u
-
-            if not near_corner:
-                return min_overlap * min_axis
-
-            corner = self.position - np.sign(overlaps[0]) * self.half_width - np.sign(overlaps[1]) * self.half_height
-
-            axis = corner - other.position
-            axis /= norm(axis)
-
-            overlap = self.axis_overlap(other, axis)
-
-            if 0 < abs(overlap) < abs(min_overlap):
-                min_overlap = overlap
-                min_axis = axis
-                overlaps.append(overlap)
-            else:
-                return np.zeros(2)
-
-            overlap = min_overlap * min_axis
-
-        return overlap
+        return np.zeros(2)
 
     def rotate(self, angle):
         r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
@@ -202,9 +221,6 @@ class Circle(Collider):
     def __init__(self, position, radius, group=Group.NONE):
         super().__init__(position, group)
         self.radius = radius
-
-    def axis_half_width(self, axis):
-        return self.radius
 
     def overlap(self, other):
         overlap = np.zeros(2)
