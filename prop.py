@@ -56,7 +56,8 @@ class Crate(Destroyable):
 class Ball(PhysicsObject):
     def __init__(self, position):
         super().__init__(position)
-        self.add_collider(Circle([0, 0], 0.5, Group.PROPS))
+        radius = 0.5
+        self.add_collider(Circle([0, 0], radius, Group.PROPS))
         self.bounce = 0.8
         self.image_path = 'ball'
-        self.size = 1.05
+        self.size = 2.1 * radius

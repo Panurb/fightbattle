@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from helpers import polar_angle, polar_to_carteesian, norm2
+from helpers import polar_angle, polar_to_cartesian, norm2
 
 
 class Cloud:
@@ -37,7 +37,7 @@ class Cloud:
             else:
                 theta = np.random.normal(angle, 0.25)
                 r = np.abs(np.random.normal(v_norm, v_norm))
-                v = polar_to_carteesian(r, theta)
+                v = polar_to_cartesian(r, theta)
             self.velocity[i, :] += v
 
     def update(self, gravity, time_step):

@@ -38,5 +38,5 @@ def polar_angle(v):
     return np.arctan2(*v[::-1])
 
 
-def polar_to_carteesian(r, theta):
+def polar_to_cartesian(r, theta):
     return r * np.array([np.cos(theta), np.sin(theta)])

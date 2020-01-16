@@ -2,7 +2,7 @@ import numpy as np
 
 from gameobject import PhysicsObject
 from collider import Rectangle, Circle, Group
-from helpers import basis, polar_to_carteesian, polar_angle, rotate
+from helpers import basis, polar_to_cartesian, polar_angle, rotate
 from particle import MuzzleFlash
 
 
@@ -49,7 +49,7 @@ class Gun(PhysicsObject):
             b.draw(screen, camera, image_handler)
 
     def attack(self):
-        v = 0.1 * self.direction * polar_to_carteesian(1, self.angle)
+        v = 0.1 * self.direction * polar_to_cartesian(1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, 0.5 * np.pi), self.parent.velocity))
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
@@ -64,7 +64,7 @@ class Revolver(Gun):
 
     def attack(self):
         super().attack()
-        v = self.direction * self.bullet_speed * polar_to_carteesian(1, self.angle)
+        v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
         self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent))
 
 
@@ -86,7 +86,7 @@ class Shotgun(Gun):
         super().attack()
         for _ in range(5):
             theta = np.random.normal(self.angle, 0.1)
-            v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_carteesian(1, theta)
+            v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
             self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5, dmg=8))
 
 
