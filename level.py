@@ -29,10 +29,12 @@ class Level:
         self.gravity = np.array([0, -0.1])
 
         self.add_room([0, 10], 50, 20)
-        self.add_wall([15.1, 3.1], 20, 1, 0.1 * np.pi)
-        self.add_wall([-15.1, 3.1], 20, 1, -0.1 * np.pi)
+        self.add_wall([16, 4], 20, 1, 0.15 * np.pi)
+        self.add_wall([-16, 4], 20, 1, -0.15 * np.pi)
+        self.add_wall([0, 8.2], 30, 1, 0.0)
 
         self.reset()
+        self.timer = 10.0
 
     def reset(self):
         self.players.clear()
@@ -43,14 +45,13 @@ class Level:
             if g is not Group.WALLS:
                 self.colliders[g] = []
 
-        self.add_object(Shotgun([0, 4]))
-        self.add_player([0, 0])
-        #self.add_player([22, 10])
+        self.add_player([-22, 10])
+        self.add_player([22, 10])
 
-        #self.add_object(Ball([0, 2]))
-        #self.add_object(Sword([-2, 0]))
-        #self.add_object(Shield([4, 2]))
-        self.add_object(Crate([-1, 2]))
+        self.add_object(Crate([0, 2]))
+        self.add_object(Crate([0, 10]))
+        self.add_object(Crate([-22, 10]))
+        self.add_object(Crate([22, 10]))
 
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
@@ -96,10 +97,21 @@ class Level:
         self.colliders[e.body.collider.group].append(e.body.collider)
 
     def update(self, time_step):
+        if self.timer >= 50.0:
+            if len(self.enemies) < 10:
+                #self.add_enemy([0, 10])
+                pass
+            self.timer = 0.0
+        else:
+            self.timer += time_step
+
         for p in self.players:
-            if p.destroyed and p.active:
-                self.time_scale = 0.5
-                break
+            if p.destroyed:
+                if p.active:
+                    self.time_scale = 0.5
+                    break
+                else:
+                    self.reset()
         else:
             self.time_scale = 1.0
 

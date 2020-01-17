@@ -94,10 +94,11 @@ class PhysicsObject(GameObject):
 
     def rotate(self, delta_angle):
         self.angle += delta_angle
-        self.collider.rotate(delta_angle)
-        r = self.collider.position - self.position
-        self.collider.position = self.position + rotate(r, delta_angle)
-        self.image_position = rotate(r, delta_angle)  # ?
+        if self.collider:
+            self.collider.rotate(delta_angle)
+            r = self.collider.position - self.position
+            self.collider.position = self.position + rotate(r, delta_angle)
+            self.image_position = rotate(r, delta_angle)  # ?
 
     def rotate_90(self):
         self.angle += np.pi / 2

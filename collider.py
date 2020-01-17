@@ -24,13 +24,13 @@ class Group(enum.IntEnum):
 COLLIDES_WITH = {Group.NONE: [],
                  Group.PLAYERS: [Group.WALLS],
                  Group.WALLS: [],
-                 Group.GUNS: [Group.WALLS],
+                 Group.GUNS: [Group.WALLS, Group.SHIELDS, Group.PROPS],
                  Group.HANDS: [Group.WALLS],
                  Group.PROPS: [Group.WALLS, Group.PROPS, Group.SHIELDS],
                  Group.BULLETS: [Group.WALLS, Group.SHIELDS],
-                 Group.SHIELDS: [Group.WALLS, Group.PROPS],
+                 Group.SHIELDS: [Group.WALLS, Group.PROPS, Group.SHIELDS],
                  Group.DEBRIS: [Group.WALLS],
-                 Group.SWORDS: [Group.WALLS],
+                 Group.SWORDS: [Group.WALLS, Group.SHIELDS, Group.SWORDS],
                  Group.HITBOXES: []}
 
 

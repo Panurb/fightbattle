@@ -155,7 +155,7 @@ class Sword(PhysicsObject):
         if self.timer > 0:
             for c in self.collider.collisions:
                 obj = c.collider.parent
-                if obj not in [self.parent.body, self.parent.head]:
+                if self.parent and obj not in [self.parent.body, self.parent.head]:
                     obj.damage(10, self.position, self.direction * basis(0))
                     self.hit = True
                     self.timer = 0.0

@@ -6,7 +6,7 @@ from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, Animat
 from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized, rotate
 from particle import BloodSplatter
-from weapon import Shotgun
+from weapon import Shotgun, Shield
 
 
 class Player(Destroyable):
@@ -177,18 +177,32 @@ class Player(Destroyable):
         if abs(d) > 0.1 and np.sign(d) != self.direction:
             self.flip_horizontally()
 
+        r = self.hand.position - self.shoulder
+
+        if abs(r[0]) > 0.1:
+            self.hand.angular_velocity = 0.5 * (np.arctan(r[1] / r[0]) - self.hand.angle)
+        else:
+            self.hand.angular_velocity = 0.0
+
+        self.animate()
+
         if self.object:
+            self.grab_object()
+
             self.object.set_position(self.object.position + time_step * self.velocity)
             hand_pos = self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal
             self.object.velocity = 0.5 * (hand_pos - self.object.position) - 0.125 * gravity * basis(1)
             self.object.update(gravity, time_step, colliders)
+
+            if not self.object.collider:
+                self.throw_object()
+                return
 
             if self.object.collider.group in [Group.GUNS, Group.SHIELDS, Group.SWORDS]:
                 if abs(d) > 0.1 and np.sign(d) != self.object.direction:
                     self.object.flip_horizontally()
                 self.hand.set_position(hand_pos)
 
-            if self.object.collider.group in [Group.SWORDS, Group.GUNS, Group.SHIELDS]:
                 if self.hand.animation is not 'idle':
                     if self.object.hit:
                         self.hand.play_animation('idle')
@@ -199,7 +213,7 @@ class Player(Destroyable):
                 if type(self.object) is Shotgun:
                     self.back_hand.set_position(self.object.get_grip_position())
 
-            if norm(self.shoulder - self.object.position) > 1.5 * self.arm_length:
+            if norm(self.shoulder - self.object.position) > 1.6 * self.arm_length:
                 self.throw_object(0.0)
             else:
                 self.hand.set_position(self.object.position)
@@ -209,15 +223,6 @@ class Player(Destroyable):
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS])
-
-        r = self.hand.position - self.shoulder
-
-        if abs(r[0]) > 0.1:
-            self.hand.angular_velocity = 0.5 * (np.arctan(r[1] / r[0]) - self.hand.angle)
-        else:
-            self.hand.angular_velocity = 0.0
-
-        self.animate()
 
     def draw_limb(self, start, end, length, screen, camera, direction=1):
         color = pygame.Color('black')
@@ -340,7 +345,7 @@ class Player(Destroyable):
 
         if controller.button_pressed['A']:
             if self.on_ground:
-                self.velocity[1] = 0.5
+                self.velocity[1] = 0.7
         elif controller.button_pressed['B']:
             if self.throw_charge:
                 self.throw_charge = 0.0
@@ -408,13 +413,14 @@ class Player(Destroyable):
             self.throw_object(0)
         self.hand.image_path = 'hand'
 
-    def throw_object(self, velocity):
-        if velocity:
-            self.object.velocity[:] = normalized(self.hand_goal) * velocity * self.throw_speed
+    def throw_object(self, velocity=0.0):
+        self.object.velocity[:] = normalized(self.hand_goal) * velocity * self.throw_speed
 
         if self.object.collider.group is Group.SWORDS:
             self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
             self.object.timer = 0.0
+        elif type(self.object) is Shield:
+            self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
         else:
             self.object.rotate(-self.object.angle)
 
