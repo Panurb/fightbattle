@@ -200,9 +200,10 @@ class Destroyable(PhysicsObject):
         if self.health <= 0 and not self.destroyed:
             self.destroy(velocity)
 
-    def destroy(self, velocity):
+    def destroy(self, velocity=(0, 0)):
         if self.destroyed:
             return
+
         self.destroyed = True
 
         angle = polar_angle(velocity) + np.pi
@@ -237,7 +238,7 @@ class Destroyable(PhysicsObject):
     def update_active(self):
         if self.destroyed:
             self.active = False
-
+            
             if self.debris:
                 self.active = True
                 return

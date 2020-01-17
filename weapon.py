@@ -1,17 +1,27 @@
-import numpy as np
+import pygame
 
-from gameobject import PhysicsObject
+import numpy as np
+from numpy.linalg import norm
+
+from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
 from helpers import basis, polar_to_cartesian, polar_angle, rotate
-from particle import MuzzleFlash
+from particle import MuzzleFlash, Explosion
 
 
-class Gun(PhysicsObject):
+class Weapon(PhysicsObject):
     def __init__(self, position):
         super().__init__(position)
         self.parent = None
-        self.inertia = 0.0
         self.hit = False
+
+    def attack(self):
+        pass
+
+
+class Gun(Weapon):
+    def __init__(self, position):
+        super().__init__(position)
         self.barrel_position = np.array([1.0, 0.3])
         self.hand_position = np.zeros(2)
         self.grip_position = None
@@ -173,3 +183,42 @@ class Shield(PhysicsObject):
         super().__init__(position, image_path='shield', size=0.85)
         self.add_collider(Rectangle([0.0, 0.0], 0.25, 2.0, Group.SHIELDS))
         self.rotate_90()
+
+
+class Grenade(Destroyable):
+    def __init__(self, position):
+        super().__init__(position, size=0.25)
+        self.add_collider(Circle([0, 0], 0.25, Group.PROPS))
+        self.explosion_collider = Circle([0, 0], 5.0)
+        self.timer = 50.0
+        self.primed = False
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        if self.primed:
+            self.timer -= time_step
+
+            if self.timer <= 0.0:
+                if not self.destroyed:
+                    self.explosion_collider.position = self.position
+                    self.explosion_collider.update_collisions(colliders, [Group.PLAYERS, Group.PROPS])
+                    for c in self.explosion_collider.collisions:
+                        obj = c.collider.parent
+                        r = -self.position + obj.position
+                        r_norm = norm(r)
+                        obj.damage(int(abs(30 * (5 - r_norm))), obj.position, 0.1 * r / (r_norm + 0.1))
+
+                self.destroy()
+
+    def destroy(self, velocity=(0, 0)):
+        if not self.destroyed:
+            self.particle_clouds.append(Explosion(self.position))
+
+        super().destroy(velocity)
+
+    def attack(self):
+        self.primed = True
+
+    def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)

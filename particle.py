@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from helpers import polar_angle, polar_to_cartesian, norm2
+from helpers import polar_angle, polar_to_cartesian, norm2, random_unit
 
 
 class Cloud:
@@ -33,7 +33,7 @@ class Cloud:
         v_norm = norm(velocity)
         for i in range(number):
             if angle is None:
-                v = v_norm * np.random.normal(size=2)
+                v = 0.1 * random_unit()
             else:
                 theta = np.random.normal(angle, 0.25)
                 r = np.abs(np.random.normal(v_norm, v_norm))
@@ -102,4 +102,10 @@ class BloodSplatter(Cloud):
 class MuzzleFlash(Cloud):
     def __init__(self, position, velocity, base_velocity=(0, 0)):
         super().__init__(position, velocity, 3, 10.0, 0.8, base_velocity=base_velocity, gravity_scale=0.0,
+                         start_color=(255, 255, 200), end_color=(255, 215, 0))
+
+
+class Explosion(Cloud):
+    def __init__(self, position, base_velocity=(0, 0)):
+        super().__init__(position, np.zeros(2), 20, 10.0, 2.0, base_velocity=base_velocity, gravity_scale=0.0,
                          start_color=(255, 255, 200), end_color=(255, 215, 0))

@@ -7,7 +7,7 @@ from helpers import basis, norm2
 from wall import Wall
 from player import Player
 from camera import Camera
-from weapon import Shield, Sword, Shotgun
+from weapon import Shield, Sword, Shotgun, Grenade
 from prop import Crate, Ball
 
 
@@ -53,6 +53,8 @@ class Level:
         self.add_object(Crate([-22, 10]))
         self.add_object(Crate([22, 10]))
 
+        self.add_object(Grenade([0, 5]))
+
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
             self.add_object(Crate(input_handler.mouse_position))
@@ -62,6 +64,8 @@ class Level:
             self.reset()
         if input_handler.keys_pressed[pygame.K_v]:
             self.add_enemy(input_handler.mouse_position)
+        if input_handler.keys_pressed[pygame.K_g]:
+            self.add_object(Grenade(input_handler.mouse_position))
 
         for i, player in enumerate(self.players):
             player.input(input_handler)
@@ -98,7 +102,7 @@ class Level:
 
     def update(self, time_step):
         if self.timer >= 50.0:
-            if len(self.enemies) < 10:
+            if len(self.enemies) < 5:
                 #self.add_enemy([0, 10])
                 pass
             self.timer = 0.0

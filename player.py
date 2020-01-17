@@ -77,6 +77,8 @@ class Player(Destroyable):
             self.head.update_active()
             if not self.head.active or not self.head.destroyed:
                 self.update_active()
+                if self.on_ground and self.speed < 0.1:
+                    self.active = False
 
             if abs(self.angle) > np.pi / 2:
                 self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)
