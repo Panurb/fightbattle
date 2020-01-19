@@ -21,8 +21,12 @@ class Crate(Destroyable):
     def update(self, gravity, time_step, colliders):
         if self.destroyed and self.loot:
             if not self.loot.active:
-                colliders[self.loot.collider.group].append(self.loot.collider)
-                self.loot.active = True
+                if isinstance(self.loot, Destroyable) and self.loot.destroyed:
+                    self.loot = None
+                    return
+                else:
+                    colliders[self.loot.collider.group].append(self.loot.collider)
+                    self.loot.active = True
             self.loot.update(gravity, time_step, colliders)
 
         super().update(gravity, time_step, colliders)

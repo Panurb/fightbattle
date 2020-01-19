@@ -194,7 +194,7 @@ class Player(Destroyable):
             self.object.set_position(self.object.position + time_step * self.velocity)
             hand_pos = self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal
             self.object.velocity = 0.5 * (hand_pos - self.object.position) - 0.125 * gravity * basis(1)
-            self.object.update(gravity, time_step, colliders)
+            PhysicsObject.update(self.object, gravity, time_step, colliders)
 
             if not self.object.collider:
                 self.throw_object()
@@ -266,6 +266,10 @@ class Player(Destroyable):
         self.hand.image_position = np.zeros(2)
 
         if self.object:
+            if isinstance(self.object, Destroyable):
+                if self.object.destroyed:
+                    return
+
             if self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
                 w = normalized(self.object.collider.half_width)
@@ -437,6 +441,8 @@ class Player(Destroyable):
                     self.object = c.collider.parent
                     self.object.on_ground = False
                     self.object.gravity_scale = 0.0
+                    if self.object.parent and self.object.parent is not self:
+                        self.object.parent.throw_object()
                     self.object.parent = self
                     self.object.rotate(-self.object.angle)
                     break

@@ -46,7 +46,7 @@ class Level:
                 self.colliders[g] = []
 
         self.add_player([-22, 10])
-        self.add_player([22, 10])
+        #self.add_player([22, 10])
 
         self.add_object(Crate([0, 2]))
         self.add_object(Crate([0, 10]))

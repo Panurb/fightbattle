@@ -4,7 +4,7 @@ import enum
 import pygame
 from numba import njit, prange
 
-from helpers import norm2, perp
+from helpers import norm2, perp, basis
 
 
 class Group(enum.IntEnum):
@@ -214,9 +214,12 @@ class Circle(Collider):
             return overlap
 
         if type(other) is Circle:
-            dist = np.sqrt(dist)
-            unit = (self.position - other.position) / dist
-            overlap = (self.radius + other.radius - dist) * unit
+            if dist == 0.0:
+                overlap = (self.radius + other.radius) * basis(1)
+            else:
+                dist = np.sqrt(dist)
+                unit = (self.position - other.position) / dist
+                overlap = (self.radius + other.radius - dist) * unit
         elif type(other) is Rectangle:
             overlap = -other.overlap(self)
 

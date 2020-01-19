@@ -21,6 +21,7 @@ class GameObject:
         self.image_path = image_path
         self.size = size
         self.image_position = np.zeros(2)
+        self.parent = None
 
     def flip_horizontally(self):
         if type(self.collider) is Rectangle:
@@ -200,7 +201,7 @@ class Destroyable(PhysicsObject):
         if self.health <= 0 and not self.destroyed:
             self.destroy(velocity)
 
-    def destroy(self, velocity=(0, 0)):
+    def destroy(self, velocity):
         if self.destroyed:
             return
 

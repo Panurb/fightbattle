@@ -25,7 +25,7 @@ class Gun(Weapon):
         self.barrel_position = np.array([1.0, 0.3])
         self.hand_position = np.zeros(2)
         self.grip_position = None
-        self.bullet_speed = 1.5
+        self.bullet_speed = 3.0
 
         self.bullets = []
 
@@ -61,8 +61,10 @@ class Gun(Weapon):
     def attack(self):
         v = 0.1 * self.direction * polar_to_cartesian(1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
-        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, 0.5 * np.pi), self.parent.velocity))
-        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
+        self.particle_clouds.append(
+            MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, 0.5 * np.pi), self.parent.velocity))
+        self.particle_clouds.append(
+            MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
 
 
 class Revolver(Gun):
@@ -85,7 +87,7 @@ class Shotgun(Gun):
         self.image_path = 'shotgun'
         self.image_position = np.array([0, -0.1])
         self.add_collider(Rectangle([0, -0.1], 1.8, 0.6, Group.GUNS))
-        self.bullet_speed = 1.0
+        self.bullet_speed = 2.0
         self.hand_position = np.array([-0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
 
@@ -166,7 +168,7 @@ class Sword(PhysicsObject):
             for c in self.collider.collisions:
                 obj = c.collider.parent
                 if self.parent and obj not in [self.parent.body, self.parent.head]:
-                    obj.damage(10, self.position, self.direction * basis(0))
+                    obj.damage(50, self.position, self.direction * basis(0))
                     self.hit = True
                     self.timer = 0.0
                     break
@@ -187,16 +189,19 @@ class Shield(PhysicsObject):
 
 class Grenade(Destroyable):
     def __init__(self, position):
-        super().__init__(position, size=0.25)
+        super().__init__(position, size=1.1, image_path='grenade')
         self.add_collider(Circle([0, 0], 0.25, Group.PROPS))
         self.explosion_collider = Circle([0, 0], 5.0)
         self.timer = 50.0
         self.primed = False
+        self.pin = PhysicsObject(self.position, image_path='grenade_pin')
+        self.pin.add_collider(Circle([0, 0], 0.25, Group.DEBRIS))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
         if self.primed:
+            self.pin.update(gravity, time_step, colliders)
             self.timer -= time_step
 
             if self.timer <= 0.0:
@@ -210,6 +215,9 @@ class Grenade(Destroyable):
                         obj.damage(int(abs(30 * (5 - r_norm))), obj.position, 0.1 * r / (r_norm + 0.1))
 
                 self.destroy()
+        else:
+            self.pin.set_position(self.position + 0.15 * rotate(basis(0), self.angle))
+            self.pin.rotate(self.angle - self.pin.angle)
 
     def destroy(self, velocity=(0, 0)):
         if not self.destroyed:
@@ -218,7 +226,17 @@ class Grenade(Destroyable):
         super().destroy(velocity)
 
     def attack(self):
-        self.primed = True
+        if not self.primed:
+            self.pin.velocity[0] = self.velocity[0] - self.direction * 0.25
+            self.pin.velocity[1] = 0.5
+            self.primed = True
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
+        self.pin.draw(screen, camera, image_handler)
+
+
+class Bow(Weapon):
+    def __init__(self, position):
+        super().__init__(position)
+        self.image_path = 'bow'

@@ -7,7 +7,8 @@ from helpers import polar_angle, polar_to_cartesian, norm2, random_unit
 
 class Cloud:
     def __init__(self, position, velocity, number, lifetime, size, gravity_scale=1.0, image_path='',
-                 start_color=(255, 255, 255), end_color=(255, 255, 255), base_velocity=(0, 0), shading=0.0, shine=0.0):
+                 start_color=(255, 255, 255), end_color=(255, 255, 255), base_velocity=(0, 0), shading=0.0, shine=0.0,
+                 stretch=0.0):
         self.position = np.repeat(np.array(position, dtype=float)[np.newaxis], number, axis=0)
         self.velocity = 0.5 * np.repeat(np.array(base_velocity, dtype=float)[np.newaxis], number, axis=0)
         self.acceleration = np.zeros_like(self.position)
@@ -19,6 +20,7 @@ class Cloud:
         self.end_color = np.array(end_color, dtype=int)
         self.shading = shading
         self.shine = shine
+        self.stretch = stretch
 
         self.time = 0.0
 
@@ -30,10 +32,11 @@ class Cloud:
             angle = polar_angle(velocity)
         else:
             angle = None
+
         v_norm = norm(velocity)
         for i in range(number):
             if angle is None:
-                v = 0.1 * random_unit()
+                v = 0.5 * random_unit()
             else:
                 theta = np.random.normal(angle, 0.25)
                 r = np.abs(np.random.normal(v_norm, v_norm))
@@ -74,7 +77,7 @@ class Cloud:
                 screen.blit(image, rect)
         else:
             color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
-            size = [(1 + 0.5 * norm2(self.velocity)) * size, size]
+            size = [(1 + self.stretch * norm2(self.velocity)) * size, size]
             for i, p in enumerate(self.position):
                 surface = pygame.Surface(size)
                 surface.set_colorkey(pygame.Color('black'))
@@ -90,13 +93,14 @@ class Cloud:
                                        size[1] // 5)
 
                 surface = pygame.transform.rotate(surface, np.rad2deg(polar_angle(self.velocity[i, :])))
-                screen.blit(surface, camera.world_to_screen(p))
+                pos = camera.world_to_screen(p)
+                screen.blit(surface, [pos[0] - 0.5 * size[0], pos[1] - 0.5 * size[1]])
 
 
 class BloodSplatter(Cloud):
     def __init__(self, position, direction, number=10):
         super().__init__(position, direction, number, 10.0, 0.5, start_color=(255, 0, 0), end_color=(255, 0, 0),
-                         shading=0.17, shine=1.0)
+                         shading=0.17, shine=1.0, stretch=0.5)
 
 
 class MuzzleFlash(Cloud):
@@ -108,4 +112,4 @@ class MuzzleFlash(Cloud):
 class Explosion(Cloud):
     def __init__(self, position, base_velocity=(0, 0)):
         super().__init__(position, np.zeros(2), 20, 10.0, 2.0, base_velocity=base_velocity, gravity_scale=0.0,
-                         start_color=(255, 255, 200), end_color=(255, 215, 0))
+                         start_color=(255, 255, 200), end_color=(50, 50, 50))
