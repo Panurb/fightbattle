@@ -3,7 +3,7 @@ from numpy.linalg import norm
 
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
-from weapon import Revolver, Shotgun, Shield, Sword, Grenade
+from weapon import Revolver, Shotgun, Shield, Sword, Grenade, Bow
 from helpers import random_unit
 
 
@@ -13,7 +13,8 @@ class Crate(Destroyable):
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
         for _ in range(np.random.randint(4)):
             self.rotate_90()
-        self.loot = np.random.choice([Shotgun, Revolver, Grenade, Ball, Shield, Sword])
+        #self.loot = np.random.choice([Shotgun, Revolver, Grenade, Ball, Shield, Sword])
+        self.loot = Bow
         if self.loot:
             self.loot = self.loot(self.position)
             self.loot.active = False

@@ -4,9 +4,9 @@ import pygame
 
 from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
-from helpers import norm2, basis, perp, normalized, rotate
+from helpers import norm2, basis, perp, normalized
 from particle import BloodSplatter
-from weapon import Shotgun, Shield
+from weapon import Shotgun, Shield, Bow, Sword, Revolver
 
 
 class Player(Destroyable):
@@ -38,7 +38,7 @@ class Player(Destroyable):
         self.hand.add_collider(Circle([0, 0], 0.2, Group.HANDS))
         self.hand.gravity_scale = 0.0
 
-        self.back_hand = AnimatedObject(self.position, '', 1.0)
+        self.back_hand = AnimatedObject(self.position, '', 1.2)
 
         self.object = None
 
@@ -47,6 +47,8 @@ class Player(Destroyable):
 
         self.lt_pressed = False
         self.rt_pressed = False
+
+        self.attack_charge = 0.0
 
         self.throw_speed = 1.0
         self.throw_charge = 0.0
@@ -58,6 +60,8 @@ class Player(Destroyable):
         super().flip_horizontally()
 
         self.head.flip_horizontally()
+
+        self.back_hand.flip_horizontally()
 
         self.hand.flip_horizontally()
         self.hand.angle += np.sign(self.hand.position[1] - self.position[1]) * self.direction * np.pi
@@ -115,6 +119,8 @@ class Player(Destroyable):
                 if collision.overlap[1] > 0:
                     self.on_ground = True
                     self.velocity[1] = 0.0
+                elif collision.overlap[1] < 0:
+                    self.velocity[1] *= -1
 
                 self.position += collision.overlap
 
@@ -212,7 +218,7 @@ class Player(Destroyable):
                     self.object.set_position(self.hand.position)
                 self.object.rotate(self.hand.angle - self.object.angle)
 
-                if type(self.object) is Shotgun:
+                if self.back_hand.image_path:
                     self.back_hand.set_position(self.object.get_grip_position())
 
             if norm(self.shoulder - self.object.position) > 1.6 * self.arm_length:
@@ -270,7 +276,10 @@ class Player(Destroyable):
                 if self.object.destroyed:
                     return
 
-            if self.object.collider.group is Group.GUNS:
+            if type(self.object) is Bow:
+                self.hand.image_path = 'hand'
+                self.back_hand.image_path = 'fist_front'
+            elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
                 w = normalized(self.object.collider.half_width)
                 self.hand.image_position = 0.08 * w * self.direction
@@ -279,7 +288,7 @@ class Player(Destroyable):
             else:
                 self.hand.image_path = 'hand'
 
-            if self.hand.animation in ['attack', 'shoot', 'shotgun']:
+            if self.hand.animation in ['sword', 'pistol', 'shotgun']:
                 angle = np.arctan(self.hand_goal[1] / self.hand_goal[0])
                 self.hand.animation_angle = angle
 
@@ -309,15 +318,16 @@ class Player(Destroyable):
             if self.object.collider.group is Group.SHIELDS:
                 self.draw_limb(self.shoulder, self.hand.position, 1.0, screen, camera)
                 self.object.draw(screen, camera, image_handler)
-            elif type(self.object) is Shotgun:
+            elif self.back_hand.image_path:
                 pos = self.object.get_hand_position()
                 self.draw_limb(self.shoulder, pos, 1.0, screen, camera)
                 self.object.draw(screen, camera, image_handler)
-                self.hand.image_position = pos - self.object.position
-                self.hand.draw(screen, camera, image_handler)
 
                 self.back_hand.angle = self.object.angle
                 self.back_hand.draw(screen, camera, image_handler)
+
+                self.hand.image_position = pos - self.object.position
+                self.hand.draw(screen, camera, image_handler)
             else:
                 self.object.draw(screen, camera, image_handler)
                 self.draw_limb(self.shoulder, self.hand.position, 1.0, screen, camera)
@@ -365,23 +375,33 @@ class Player(Destroyable):
             self.crouched = max(0.0, self.crouched - self.crouch_speed)
 
         stick_norm = norm(controller.right_stick)
-        if stick_norm != 0 and self.hand.animation not in ['attack', 'shoot', 'shotgun']:
+        if stick_norm != 0 and self.hand.animation not in ['sword', 'pistol', 'shotgun']:
             self.hand_goal = self.arm_length * controller.right_stick / stick_norm
 
         if controller.right_trigger > 0.5:
             if self.object:
                 if not self.rt_pressed:
-                    self.attack()
-                    self.rt_pressed = True
+                    if type(self.object) is Bow:
+                        # FIXME
+                        if self.object.timer == 0.0:
+                            self.attack_charge = min(1.0, self.attack_charge + self.charge_speed)
+                    else:
+                        self.attack()
+                        self.rt_pressed = True
             else:
+                self.attack_charge = 0.0
                 self.grab_object()
                 self.rt_pressed = True
         else:
             self.rt_pressed = False
+            if self.attack_charge:
+                self.attack()
+                self.attack_charge = 0.0
 
         if self.object:
             if controller.left_trigger > 0.5:
                 if not self.lt_pressed:
+                    # FIXME
                     self.throw_charge = min(1.0, self.throw_charge + self.charge_speed)
             else:
                 self.lt_pressed = False
@@ -395,7 +415,7 @@ class Player(Destroyable):
             self.throw_charge = 0.0
 
     def damage(self, amount, position, velocity):
-        self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.25 * velocity, amount // 2))
+        self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.1 * velocity, amount // 2))
 
         if self.health > 0:
             self.health -= amount
@@ -422,13 +442,15 @@ class Player(Destroyable):
     def throw_object(self, velocity=0.0):
         self.object.velocity[:] = normalized(self.hand_goal) * velocity * self.throw_speed
 
-        if self.object.collider.group is Group.SWORDS:
-            self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
-            self.object.timer = 0.0
-        elif type(self.object) is Shield:
-            self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
-        else:
-            self.object.rotate(-self.object.angle)
+        # TODO: purk fix
+        if self.object.collider:
+            if type(self.object) in [Sword, Bow]:
+                self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
+                self.object.timer = 0.0
+            elif type(self.object) is Shield:
+                self.object.rotate(-self.direction * np.pi / 2 - self.object.angle)
+            else:
+                self.object.rotate(-self.object.angle)
 
         self.object.gravity_scale = 1.0
         self.object.parent = None
@@ -450,13 +472,13 @@ class Player(Destroyable):
     def attack(self):
         try:
             if self.hand.animation == 'idle':
-                if self.object.collider.group is Group.SWORDS:
-                    self.hand.play_animation('attack')
-                elif self.object.collider.group is Group.GUNS:
-                    if type(self.object) is Shotgun:
-                        self.hand.play_animation('shotgun')
-                    else:
-                        self.hand.play_animation('shoot')
+                t = type(self.object)
+                if t is Sword:
+                    self.hand.play_animation('sword')
+                elif t is Shotgun:
+                    self.hand.play_animation('shotgun')
+                elif t is Revolver:
+                    self.hand.play_animation('pistol')
                 self.object.attack()
         except AttributeError:
             print('Cannot attack with object', self.object)
@@ -502,7 +524,7 @@ class Hand(PhysicsObject, AnimatedObject):
         xs = np.array([-0.275, -0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
         ys = np.array([-0.05, -0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
         angles = np.pi * np.array([0.3, -0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
-        self.add_animation(xs, ys, angles, 'attack')
+        self.add_animation(xs, ys, angles, 'sword')
 
         xs = 2 * np.array([-0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
         ys = 3 * np.array([0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
@@ -512,7 +534,7 @@ class Hand(PhysicsObject, AnimatedObject):
         xs = np.array([-0.15, -0.25, -0.2, -0.1, -0.05])
         ys = np.array([0.1, 0.2, 0.15, 0.1, 0.05])
         angles = np.pi * np.array([0.3, 0.5, 0.45, 0.35, 0.2])
-        self.add_animation(xs, ys, angles, 'shoot')
+        self.add_animation(xs, ys, angles, 'pistol')
 
 
 class Foot(PhysicsObject, AnimatedObject):

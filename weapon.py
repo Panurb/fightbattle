@@ -58,6 +58,12 @@ class Gun(Weapon):
         for b in self.bullets:
             b.draw(screen, camera, image_handler)
 
+    def debug_draw(self, screen, camera, image_handler):
+        super().debug_draw(screen, camera, image_handler)
+
+        for b in self.bullets:
+            b.debug_draw(screen, camera, image_handler)
+
     def attack(self):
         v = 0.1 * self.direction * polar_to_cartesian(1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
@@ -120,10 +126,11 @@ class Bullet(PhysicsObject):
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
-        self.angle = polar_angle(self.velocity)
 
         if self.collider.collisions:
             self.destroyed = True
+        elif np.any(self.velocity):
+            self.angle = polar_angle(self.velocity)
 
         if self.time < self.lifetime:
             self.time += time_step
@@ -164,16 +171,17 @@ class Sword(PhysicsObject):
 
         self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
 
-        if self.timer > 0:
-            for c in self.collider.collisions:
-                obj = c.collider.parent
-                if self.parent and obj not in [self.parent.body, self.parent.head]:
-                    obj.damage(50, self.position, self.direction * basis(0))
-                    self.hit = True
-                    self.timer = 0.0
-                    break
-            else:
-                self.timer = max(0.0, self.timer - time_step)
+        if self.parent:
+            if self.timer > 0:
+                for c in self.collider.collisions:
+                    obj = c.collider.parent
+                    if obj not in [self.parent.body, self.parent.head]:
+                        obj.damage(50, self.position, self.direction * basis(0))
+                        self.hit = True
+                        self.timer = 0.0
+                        break
+                else:
+                    self.timer = max(0.0, self.timer - time_step)
 
     def attack(self):
         self.hit = False
@@ -236,7 +244,64 @@ class Grenade(Destroyable):
         self.pin.draw(screen, camera, image_handler)
 
 
-class Bow(Weapon):
+class Arrow(Bullet):
+    def __init__(self, position, velocity, parent):
+        super().__init__(position, velocity, parent, lifetime=80)
+        self.gravity_scale = 1.0
+        self.image_path = 'arrow'
+        self.bounce = 0.0
+
+
+class Bow(Gun):
     def __init__(self, position):
         super().__init__(position)
         self.image_path = 'bow'
+        self.add_collider(Rectangle([0, 0], 0.5, 1.9, Group.GUNS))
+        self.bullet_speed = 2.0
+        self.rotate(np.pi / 2)
+        self.hand_position = -0.2 * basis(0)
+        self.barrel_position = 0.5 * basis(0)
+        self.grip_position = 0.2 * basis(0)
+        self.string_upper = np.array([-0.22, 1.0])
+        self.string_lower = np.array([-0.22, -1.0])
+        self.timer = 0.0
+        self.string_color = [50, 50, 50]
+
+    def update(self, gravity, time_step, colliders):
+        Weapon.update(self, gravity, time_step, colliders)
+
+        for b in self.bullets:
+            if b.destroyed:
+                b.time += time_step
+                if b.time > b.lifetime:
+                    self.bullets.remove(b)
+            else:
+                b.update(gravity, time_step, colliders)
+
+        if self.parent:
+            if self.timer == 0.0 and self.parent.attack_charge > 0.0:
+                self.hand_position = -(0.2 + 0.6 * self.parent.attack_charge) * basis(0)
+            else:
+                self.hand_position = -0.8 * basis(0)
+                self.timer = max(0.0, self.timer - time_step)
+        else:
+            self.hand_position = -0.2 * basis(0)
+            self.timer = 0.0
+
+    def attack(self):
+        if self.timer == 0.0:
+            v = self.direction * self.parent.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
+            self.bullets.append(Arrow(self.get_barrel_position(), v, self.parent))
+            self.timer = 10.0
+
+    def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
+
+        a = camera.world_to_screen(self.position + self.direction * rotate(self.string_upper, self.angle))
+        c = camera.world_to_screen(self.position + self.direction * rotate(self.string_lower, self.angle))
+        if self.parent and self.parent.attack_charge:
+            b = camera.world_to_screen(self.get_hand_position())
+            pygame.draw.line(screen, self.string_color, a, b, 2)
+            pygame.draw.line(screen, self.string_color, b, c, 2)
+        else:
+            pygame.draw.line(screen, self.string_color, a, c, 2)

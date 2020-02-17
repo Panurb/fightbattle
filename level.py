@@ -34,7 +34,6 @@ class Level:
         self.add_wall([0, 8.2], 30, 1, 0.0)
 
         self.reset()
-        self.timer = 10.0
 
     def reset(self):
         self.players.clear()
@@ -47,10 +46,16 @@ class Level:
 
         self.add_player([-22, 10])
         #self.add_player([22, 10])
+        #self.add_player([-10, 10])
+        #self.add_player([10, 10])
 
         self.add_object(Crate([0, 2]))
+        self.add_object(Crate([0, 2]))
+        self.add_object(Crate([0, 10]))
         self.add_object(Crate([0, 10]))
         self.add_object(Crate([-22, 10]))
+        self.add_object(Crate([-22, 10]))
+        self.add_object(Crate([22, 10]))
         self.add_object(Crate([22, 10]))
 
         self.add_object(Grenade([0, 5]))
@@ -101,23 +106,17 @@ class Level:
         self.colliders[e.body.collider.group].append(e.body.collider)
 
     def update(self, time_step):
-        if self.timer >= 50.0:
-            if len(self.enemies) < 5:
-                #self.add_enemy([0, 10])
-                pass
-            self.timer = 0.0
-        else:
-            self.timer += time_step
+        #if not self.enemies:
+        #    self.add_enemy([0, 10])
 
-        for p in self.players:
-            if p.destroyed:
-                if p.active:
-                    self.time_scale = 0.5
-                    break
-                else:
-                    self.reset()
-        else:
-            self.time_scale = 1.0
+        if len(self.players) > 1:
+            count = 0
+            for p in self.players:
+                if p.destroyed:
+                    count += 1
+
+            if count >= len(self.players) - 1:
+                self.reset()
 
         for player in self.players:
             player.update(self.gravity, self.time_scale * time_step, self.colliders)
@@ -126,6 +125,8 @@ class Level:
             if e.active:
                 e.seek_players(self.players)
                 e.update(self.gravity, self.time_scale * time_step, self.colliders)
+            else:
+                self.enemies.remove(e)
 
         for obj in self.objects:
             obj.update(self.gravity, self.time_scale * time_step, self.colliders)

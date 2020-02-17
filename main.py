@@ -61,7 +61,7 @@ def main():
     main_window.main_loop()
 
 
-if __name__ == "__main__":
+def profile():
     pr = cProfile.Profile()
     pr.enable()
     main()
@@ -71,3 +71,7 @@ if __name__ == "__main__":
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
     print(s.getvalue())
+
+
+if __name__ == "__main__":
+    main()

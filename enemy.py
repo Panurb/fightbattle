@@ -12,6 +12,11 @@ class Enemy(Player):
         self.object = Sword(self.hand.position)
         self.object.parent = self
 
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+        if self.object:
+            self.object.update(gravity, time_step, colliders)
+
     def seek_players(self, players):
         if self.destroyed:
             return
