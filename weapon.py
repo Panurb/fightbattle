@@ -3,7 +3,7 @@ import pygame
 import numpy as np
 from numpy.linalg import norm
 
-from gameobject import PhysicsObject, Destroyable
+from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
 from helpers import basis, polar_to_cartesian, polar_angle, rotate
 from particle import MuzzleFlash, Explosion
@@ -31,7 +31,6 @@ class Gun(Weapon):
 
     def get_hand_position(self):
         v = self.hand_position.copy()
-        v[0] *= self.direction
         return self.position + rotate(v, self.angle)
 
     def get_grip_position(self):
@@ -94,7 +93,7 @@ class Shotgun(Gun):
         self.image_position = np.array([0, -0.1])
         self.add_collider(Rectangle([0, -0.1], 1.8, 0.6, Group.GUNS))
         self.bullet_speed = 2.0
-        self.hand_position = np.array([-0.7, -0.2])
+        self.hand_position = np.array([0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
 
     def flip_horizontally(self):
@@ -197,7 +196,7 @@ class Shield(PhysicsObject):
 
 class Grenade(Destroyable):
     def __init__(self, position):
-        super().__init__(position, size=1.1, image_path='grenade')
+        super().__init__(position, size=1.1, image_path='grenade', health=1)
         self.add_collider(Circle([0, 0], 0.25, Group.PROPS))
         self.explosion_collider = Circle([0, 0], 5.0)
         self.timer = 50.0
@@ -246,10 +245,42 @@ class Grenade(Destroyable):
 
 class Arrow(Bullet):
     def __init__(self, position, velocity, parent):
-        super().__init__(position, velocity, parent, lifetime=80)
+        super().__init__(position, velocity, parent, lifetime=80, size=1.2)
         self.gravity_scale = 1.0
         self.image_path = 'arrow'
         self.bounce = 0.0
+        self.hit = False
+
+    def update(self, gravity, time_step, colliders):
+        if self.time < self.lifetime:
+            self.time += time_step
+        else:
+            self.destroyed = True
+
+        if self.hit:
+            return
+
+        PhysicsObject.update(self, gravity, time_step, colliders)
+
+        if self.collider.collisions:
+            self.hit = True
+            return
+
+        if np.any(self.velocity):
+            self.angle = polar_angle(self.velocity)
+
+        self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
+
+        for c in self.collider.collisions:
+            obj = c.collider.parent
+            if obj not in [self.parent.body, self.parent.head]:
+                try:
+                    obj.damage(self.dmg, self.position, self.velocity)
+                except AttributeError:
+                    print('Cannot damage', obj)
+                self.destroyed = True
+
+            return
 
 
 class Bow(Gun):
@@ -266,26 +297,32 @@ class Bow(Gun):
         self.string_lower = np.array([-0.22, -1.0])
         self.timer = 0.0
         self.string_color = [50, 50, 50]
+        self.arrow = GameObject(self.position, 'arrow', size=1.2)
+        self.arrow.image_position = 0.5 * basis(0)
+
+    def flip_horizontally(self):
+        super().flip_horizontally()
+        self.arrow.flip_horizontally()
 
     def update(self, gravity, time_step, colliders):
         Weapon.update(self, gravity, time_step, colliders)
 
         for b in self.bullets:
             if b.destroyed:
-                b.time += time_step
-                if b.time > b.lifetime:
-                    self.bullets.remove(b)
+                self.bullets.remove(b)
             else:
                 b.update(gravity, time_step, colliders)
 
         if self.parent:
             if self.timer == 0.0 and self.parent.attack_charge > 0.0:
-                self.hand_position = -(0.2 + 0.6 * self.parent.attack_charge) * basis(0)
+                self.hand_position[0] = -(0.2 + 0.6 * self.parent.attack_charge) * self.direction
+                self.arrow.set_position(self.get_hand_position())
+                self.arrow.angle = self.parent.hand.angle
             else:
-                self.hand_position = -0.8 * basis(0)
+                self.hand_position[0] = -0.8 * self.direction
                 self.timer = max(0.0, self.timer - time_step)
         else:
-            self.hand_position = -0.2 * basis(0)
+            self.hand_position[0] = -0.2 * self.direction
             self.timer = 0.0
 
     def attack(self):

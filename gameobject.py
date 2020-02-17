@@ -59,7 +59,7 @@ class GameObject:
         image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
 
         rect = image.get_rect()
-        rect.center = camera.world_to_screen(self.position + self.image_position)
+        rect.center = camera.world_to_screen(self.position + rotate(self.image_position, self.angle))
 
         screen.blit(image, rect)
 
@@ -99,7 +99,6 @@ class PhysicsObject(GameObject):
             self.collider.rotate(delta_angle)
             r = self.collider.position - self.position
             self.collider.position = self.position + rotate(r, delta_angle)
-            self.image_position = rotate(r, delta_angle)  # ?
 
     def rotate_90(self):
         self.angle += np.pi / 2

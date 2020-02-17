@@ -4,7 +4,7 @@ import pygame
 
 from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
-from helpers import norm2, basis, perp, normalized
+from helpers import norm2, basis, perp, normalized, rotate
 from particle import BloodSplatter
 from weapon import Shotgun, Shield, Bow, Sword, Revolver
 
@@ -277,12 +277,15 @@ class Player(Destroyable):
                     return
 
             if type(self.object) is Bow:
-                self.hand.image_path = 'hand'
+                if self.attack_charge > 0.0:
+                    self.hand.image_path = 'hand_arrow'
+                else:
+                    self.hand.image_path = 'hand'
+                self.hand.image_position = self.object.hand_position
                 self.back_hand.image_path = 'fist_front'
             elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
-                w = normalized(self.object.collider.half_width)
-                self.hand.image_position = 0.08 * w * self.direction
+                self.hand.image_position = self.object.hand_position
             elif self.object.collider.group is Group.SWORDS:
                 self.hand.image_path = 'fist'
             else:
@@ -326,7 +329,9 @@ class Player(Destroyable):
                 self.back_hand.angle = self.object.angle
                 self.back_hand.draw(screen, camera, image_handler)
 
-                self.hand.image_position = pos - self.object.position
+                if type(self.object) is Bow and self.attack_charge:
+                    self.object.arrow.draw(screen, camera, image_handler)
+
                 self.hand.draw(screen, camera, image_handler)
             else:
                 self.object.draw(screen, camera, image_handler)
@@ -529,12 +534,12 @@ class Hand(PhysicsObject, AnimatedObject):
         xs = 2 * np.array([-0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
         ys = 3 * np.array([0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
         angles = 0.5 * np.pi * np.array([0.3, 0.5, 0.55, 0.575, 0.6, 0.5, 0.45, 0.35, 0.2])
-        self.add_animation(xs, ys, angles, 'shotgun')
+        self.add_animation(xs, ys, angles, 'shotgun', image='hand_trigger')
 
         xs = np.array([-0.15, -0.25, -0.2, -0.1, -0.05])
         ys = np.array([0.1, 0.2, 0.15, 0.1, 0.05])
         angles = np.pi * np.array([0.3, 0.5, 0.45, 0.35, 0.2])
-        self.add_animation(xs, ys, angles, 'pistol')
+        self.add_animation(xs, ys, angles, 'pistol', image='hand_trigger')
 
 
 class Foot(PhysicsObject, AnimatedObject):
