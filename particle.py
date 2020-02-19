@@ -111,5 +111,5 @@ class MuzzleFlash(Cloud):
 
 class Explosion(Cloud):
     def __init__(self, position, base_velocity=(0, 0)):
-        super().__init__(position, np.zeros(2), 20, 10.0, 2.0, base_velocity=base_velocity, gravity_scale=0.0,
-                         start_color=(255, 255, 200), end_color=(50, 50, 50))
+        super().__init__(position, np.zeros(2), 10, 5.0, 5.0, base_velocity=base_velocity, gravity_scale=0.0,
+                         start_color=(255, 255, 200), end_color=(255, 255, 200))

@@ -31,6 +31,7 @@ class Gun(Weapon):
 
     def get_hand_position(self):
         v = self.hand_position.copy()
+        v[0] *= self.direction
         return self.position + rotate(v, self.angle)
 
     def get_grip_position(self):
@@ -59,6 +60,8 @@ class Gun(Weapon):
 
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)
+
+        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.get_hand_position()), 2)
 
         for b in self.bullets:
             b.debug_draw(screen, camera, image_handler)
@@ -93,11 +96,8 @@ class Shotgun(Gun):
         self.image_position = np.array([0, -0.1])
         self.add_collider(Rectangle([0, -0.1], 1.8, 0.6, Group.GUNS))
         self.bullet_speed = 2.0
-        self.hand_position = np.array([0.7, -0.2])
+        self.hand_position = np.array([-0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
-
-    def flip_horizontally(self):
-        super().flip_horizontally()
 
     def attack(self):
         super().attack()
@@ -250,6 +250,7 @@ class Arrow(Bullet):
         self.image_path = 'arrow'
         self.bounce = 0.0
         self.hit = False
+        self.angle = polar_angle(self.velocity)
 
     def update(self, gravity, time_step, colliders):
         if self.time < self.lifetime:
@@ -275,7 +276,7 @@ class Arrow(Bullet):
             obj = c.collider.parent
             if obj not in [self.parent.body, self.parent.head]:
                 try:
-                    obj.damage(self.dmg, self.position, self.velocity)
+                    obj.damage(int(self.speed * self.dmg), self.position, self.velocity)
                 except AttributeError:
                     print('Cannot damage', obj)
                 self.destroyed = True
@@ -315,14 +316,14 @@ class Bow(Gun):
 
         if self.parent:
             if self.timer == 0.0 and self.parent.attack_charge > 0.0:
-                self.hand_position[0] = -(0.2 + 0.6 * self.parent.attack_charge) * self.direction
+                self.hand_position[0] = -(0.2 + 0.6 * self.parent.attack_charge)
                 self.arrow.set_position(self.get_hand_position())
                 self.arrow.angle = self.parent.hand.angle
             else:
-                self.hand_position[0] = -0.8 * self.direction
+                self.hand_position[0] = -0.8
                 self.timer = max(0.0, self.timer - time_step)
         else:
-            self.hand_position[0] = -0.2 * self.direction
+            self.hand_position[0] = -0.2
             self.timer = 0.0
 
     def attack(self):

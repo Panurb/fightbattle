@@ -200,7 +200,7 @@ class Player(Destroyable):
             self.object.set_position(self.object.position + time_step * self.velocity)
             hand_pos = self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal
             self.object.velocity = 0.5 * (hand_pos - self.object.position) - 0.125 * gravity * basis(1)
-            PhysicsObject.update(self.object, gravity, time_step, colliders)
+            #PhysicsObject.update(self.object, gravity, time_step, colliders)
 
             if not self.object.collider:
                 self.throw_object()
@@ -216,6 +216,11 @@ class Player(Destroyable):
                         self.hand.play_animation('idle')
                     self.hand.animate(time_step)
                     self.object.set_position(self.hand.position)
+
+                    # experimental
+                    PhysicsObject.update(self.object, gravity, time_step, colliders)
+                    self.hand.set_position(self.object.position)
+
                 self.object.rotate(self.hand.angle - self.object.angle)
 
                 if self.back_hand.image_path:
@@ -281,11 +286,13 @@ class Player(Destroyable):
                     self.hand.image_path = 'hand_arrow'
                 else:
                     self.hand.image_path = 'hand'
-                self.hand.image_position = self.object.hand_position
+                self.hand.image_position = self.object.hand_position.copy()
+                self.hand.image_position[0] *= self.object.direction
                 self.back_hand.image_path = 'fist_front'
             elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
-                self.hand.image_position = self.object.hand_position
+                self.hand.image_position = self.object.hand_position.copy()
+                self.hand.image_position[0] *= self.object.direction
             elif self.object.collider.group is Group.SWORDS:
                 self.hand.image_path = 'fist'
             else:
@@ -324,13 +331,14 @@ class Player(Destroyable):
             elif self.back_hand.image_path:
                 pos = self.object.get_hand_position()
                 self.draw_limb(self.shoulder, pos, 1.0, screen, camera)
+
+                if type(self.object) is Bow and self.attack_charge:
+                    self.object.arrow.draw(screen, camera, image_handler)
+
                 self.object.draw(screen, camera, image_handler)
 
                 self.back_hand.angle = self.object.angle
                 self.back_hand.draw(screen, camera, image_handler)
-
-                if type(self.object) is Bow and self.attack_charge:
-                    self.object.arrow.draw(screen, camera, image_handler)
 
                 self.hand.draw(screen, camera, image_handler)
             else:

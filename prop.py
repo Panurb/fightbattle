@@ -13,7 +13,7 @@ class Crate(Destroyable):
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
         for _ in range(np.random.randint(4)):
             self.rotate_90()
-        self.loot = np.random.choice([Shotgun, Bow])
+        self.loot = np.random.choice([Shotgun, Bow, Revolver])
         if self.loot:
             self.loot = self.loot(self.position)
             self.loot.active = False
