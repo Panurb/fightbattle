@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pygame
 
@@ -28,45 +30,11 @@ class Level:
 
         self.gravity = np.array([0, -0.1])
 
-        self.add_room([0, 10], 50, 20)
-        self.add_wall([16, 4], 20, 1, 0.15 * np.pi)
-        self.add_wall([-16, 4], 20, 1, -0.15 * np.pi)
-        self.add_wall([0, 8.2], 30, 1, 0.0)
-
-        self.reset()
-
-    def reset(self):
-        self.players.clear()
-        self.enemies.clear()
-        self.objects.clear()
-
-        for g in Group:
-            if g is not Group.WALLS:
-                self.colliders[g] = []
-
-        self.add_player([-22, 10])
-        #self.add_player([22, 10])
-        #self.add_player([-10, 10])
-        #self.add_player([10, 10])
-
-        self.add_object(Crate([0, 2]))
-        self.add_object(Crate([0, 2]))
-        self.add_object(Crate([0, 10]))
-        self.add_object(Crate([0, 10]))
-        self.add_object(Crate([-22, 10]))
-        self.add_object(Crate([-22, 10]))
-        self.add_object(Crate([22, 10]))
-        self.add_object(Crate([22, 10]))
-
-        self.add_object(Grenade([0, 5]))
-
     def input(self, input_handler):
         if input_handler.keys_pressed[pygame.K_c]:
             self.add_object(Crate(input_handler.mouse_position))
         if input_handler.keys_pressed[pygame.K_b]:
             self.add_object(Ball(input_handler.mouse_position))
-        if input_handler.keys_pressed[pygame.K_r]:
-            self.reset()
         if input_handler.keys_pressed[pygame.K_v]:
             self.add_enemy(input_handler.mouse_position)
         if input_handler.keys_pressed[pygame.K_g]:
@@ -106,18 +74,6 @@ class Level:
         self.colliders[e.body.collider.group].append(e.body.collider)
 
     def update(self, time_step):
-        #if not self.enemies:
-        #    self.add_enemy([0, 10])
-
-        if len(self.players) > 1:
-            count = 0
-            for p in self.players:
-                if p.destroyed:
-                    count += 1
-
-            if count >= len(self.players) - 1:
-                self.reset()
-
         for player in self.players:
             player.update(self.gravity, self.time_scale * time_step, self.colliders)
 
@@ -132,9 +88,12 @@ class Level:
             obj.update(self.gravity, self.time_scale * time_step, self.colliders)
 
         self.camera.position[:] = np.zeros(2)
+
         for player in self.players:
             self.camera.position += player.position
-        self.camera.position /= len(self.players)
+
+        if self.players:
+            self.camera.position /= len(self.players)
 
         if len(self.players) > 1:
             dist = 0

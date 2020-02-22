@@ -155,6 +155,9 @@ class Collider:
     def overlap(self, other):
         pass
 
+    def point_inside(self, point):
+        pass
+
 
 class Rectangle(Collider):
     def __init__(self, position, width, height, group=Group.NONE):
@@ -185,6 +188,14 @@ class Rectangle(Collider):
                                             other.radius, other.position)
 
         return np.zeros(2)
+
+    def point_inside(self, point):
+        # TODO
+        if -self.half_width[0] < point[0] - self.position[0] < self.half_width[0]:
+            if -self.half_height[1] < point[1] - self.position[1] < self.half_height[1]:
+                return True
+
+        return False
 
     def rotate(self, angle):
         r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
@@ -224,6 +235,9 @@ class Circle(Collider):
             overlap = -other.overlap(self)
 
         return overlap
+
+    def point_inside(self, point):
+        return norm2(self.position - point) <= self.radius**2
 
     def draw(self, screen, camera, image_handler):
         center = camera.world_to_screen(self.position)

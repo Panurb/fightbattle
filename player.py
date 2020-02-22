@@ -21,10 +21,10 @@ class Player(Destroyable):
         self.body = Body(self.position, self)
         self.head = Head(self.position + basis(1), self)
 
-        self.back_hip = np.zeros(2)
-        self.front_hip = np.zeros(2)
-        self.back_foot = Foot(np.zeros(2))
-        self.front_foot = Foot(np.zeros(2))
+        self.back_hip = self.position + np.array([0.1, -0.5])
+        self.front_hip = self.position + np.array([-0.1, -0.5])
+        self.back_foot = Foot(self.position + np.array([0.1, -1.5]))
+        self.front_foot = Foot(self.position + np.array([-0.1, -1.5]))
         self.leg_length = 1.0
 
         self.max_speed = 0.5

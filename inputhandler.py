@@ -156,15 +156,15 @@ class Keyboard(Controller):
 class InputHandler:
     def __init__(self):
         self.controllers = []
-        self.controllers.append(Keyboard(self))
+        #self.controllers.append(Keyboard(self))
         for i in range(pygame.joystick.get_count()):
             if 'Xbox 360' in pygame.joystick.Joystick(i).get_name():
                 self.controllers.append(Controller(i))
-            #else:
-                #try:
-                #    self.controllers.append(DualShock4(i))
-                #except:
-                #    pass
+            else:
+                try:
+                    self.controllers.append(DualShock4(i))
+                except:
+                    pass
 
         self.keys_down = {}
         self.keys_pressed = {}
@@ -178,6 +178,9 @@ class InputHandler:
         self.mouse_down = [False] * 6
         self.mouse_pressed = [False] * 6
         self.mouse_released = [False] * 6
+
+        self.mouse_screen = np.zeros(2)
+        self.mouse_change = np.zeros(2)
 
         self.quit = False
 
@@ -201,8 +204,15 @@ class InputHandler:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.mouse_released[event.button] = True
 
-                self.mouse_position[:] = level.camera.screen_to_world(pygame.mouse.get_pos())
-                self.relative_mouse[:] = self.mouse_position - level.players[0].shoulder
+        mouse_pos = level.camera.screen_to_world(pygame.mouse.get_pos())
+        self.mouse_position[:] = mouse_pos
+        if level.players:
+            self.relative_mouse[:] = self.mouse_position - level.players[0].shoulder
+
+        mouse_screen = pygame.mouse.get_pos()
+        self.mouse_change = (mouse_screen - self.mouse_screen) / level.camera.zoom
+        self.mouse_change[1] *= -1
+        self.mouse_screen[:] = mouse_screen
 
         for key in self.keys_down:
             if self.keys_down[key] and not pygame.key.get_pressed()[key]:

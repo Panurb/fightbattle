@@ -11,12 +11,13 @@ class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        for _ in range(np.random.randint(4)):
-            self.rotate_90()
-        self.loot = np.random.choice([Shotgun, Bow, Revolver])
-        if self.loot:
-            self.loot = self.loot(self.position)
-            self.loot.active = False
+        #for _ in range(np.random.randint(4)):
+        #    self.rotate_90()
+        self.loot_list = [Shield, Bow, Revolver, Shotgun, Sword, Grenade]
+        #if self.loot:
+        #    self.loot = self.loot(self.position)
+        #    self.loot.active = False
+        self.loot = None
 
     def update(self, gravity, time_step, colliders):
         if self.destroyed and self.loot:
@@ -52,7 +53,8 @@ class Crate(Destroyable):
         super().destroy(velocity)
 
         self.gravity_scale = 0.0
-        if self.loot:
+        if self.loot_list:
+            self.loot = np.random.choice(self.loot_list)
             self.loot.set_position(self.position)
             self.loot.velocity[:] = 0.25 * random_unit()
 
