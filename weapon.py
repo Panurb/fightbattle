@@ -142,7 +142,7 @@ class Bullet(PhysicsObject):
             obj = c.collider.parent
             if obj not in [self.parent.body, self.parent.head]:
                 try:
-                    obj.damage(self.dmg, self.position, self.velocity)
+                    obj.damage(self.dmg, self.position, self.velocity, colliders)
                 except AttributeError:
                     print('Cannot damage', obj)
                 self.destroyed = True
@@ -175,7 +175,7 @@ class Sword(PhysicsObject):
                 for c in self.collider.collisions:
                     obj = c.collider.parent
                     if obj not in [self.parent.body, self.parent.head]:
-                        obj.damage(50, self.position, self.direction * basis(0))
+                        obj.damage(50, self.position, self.direction * basis(0), colliders)
                         self.hit = True
                         self.timer = 0.0
                         break
@@ -219,18 +219,18 @@ class Grenade(Destroyable):
                         obj = c.collider.parent
                         r = -self.position + obj.position
                         r_norm = norm(r)
-                        obj.damage(int(abs(30 * (5 - r_norm))), obj.position, 0.1 * r / (r_norm + 0.1))
+                        obj.damage(int(abs(30 * (5 - r_norm))), obj.position, 0.1 * r / (r_norm + 0.1), colliders)
 
-                self.destroy()
+                self.destroy([0, 0], colliders)
         else:
             self.pin.set_position(self.position + 0.15 * rotate(basis(0), self.angle))
             self.pin.rotate(self.angle - self.pin.angle)
 
-    def destroy(self, velocity=(0, 0)):
+    def destroy(self, velocity, colliders):
         if not self.destroyed:
             self.particle_clouds.append(Explosion(self.position))
 
-        super().destroy(velocity)
+        super().destroy(velocity, colliders)
 
     def attack(self):
         if not self.primed:
@@ -276,7 +276,7 @@ class Arrow(Bullet):
             obj = c.collider.parent
             if obj not in [self.parent.body, self.parent.head]:
                 try:
-                    obj.damage(int(self.speed * self.dmg), self.position, self.velocity)
+                    obj.damage(int(self.speed * self.dmg), self.position, self.velocity, colliders)
                 except AttributeError:
                     print('Cannot damage', obj)
                 self.destroyed = True

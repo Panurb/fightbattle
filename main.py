@@ -43,8 +43,9 @@ class Main:
         while self.loop.state != gameloop.State.QUIT:
             fps = self.clock.get_fps()
 
-            if fps != 0:
-                self.time_step = 15.0 / fps
+            if self.option_handler.fps == 999:
+                if fps != 0:
+                    self.time_step = 15.0 / fps
 
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen, self.image_handler)

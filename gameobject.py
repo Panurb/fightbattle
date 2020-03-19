@@ -177,7 +177,7 @@ class PhysicsObject(GameObject):
             p.draw(screen, camera, image_handler)
         super().draw(screen, camera, image_handler)
 
-    def damage(self, amount, position, velocity):
+    def damage(self, amount, position, velocity, colliders):
         self.velocity += velocity
 
 
@@ -192,15 +192,15 @@ class Destroyable(PhysicsObject):
         self.debris_size = debris_size
         self.parent = parent
 
-    def damage(self, amount, position, velocity):
+    def damage(self, amount, position, velocity, colliders):
         if self.health > 0:
             self.health -= amount
             self.velocity += velocity
 
         if self.health <= 0 and not self.destroyed:
-            self.destroy(velocity)
+            self.destroy(velocity, colliders)
 
-    def destroy(self, velocity):
+    def destroy(self, velocity, colliders):
         if self.destroyed:
             return
 

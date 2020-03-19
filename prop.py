@@ -11,23 +11,18 @@ class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        #for _ in range(np.random.randint(4)):
-        #    self.rotate_90()
         self.loot_list = [Shield, Bow, Revolver, Shotgun, Sword, Grenade]
-        #if self.loot:
-        #    self.loot = self.loot(self.position)
-        #    self.loot.active = False
         self.loot = None
 
     def update(self, gravity, time_step, colliders):
-        if self.destroyed and self.loot:
-            if not self.loot.active:
-                if isinstance(self.loot, Destroyable) and self.loot.destroyed:
-                    self.loot = None
-                    return
-                else:
-                    colliders[self.loot.collider.group].append(self.loot.collider)
-                    self.loot.active = True
+        if self.destroyed and self.loot is not None:
+            if isinstance(self.loot, Destroyable) and self.loot.destroyed:
+                self.loot = None
+                return
+            elif not self.loot.active:
+                colliders[self.loot.collider.group].append(self.loot.collider)
+                self.loot.active = True
+
             self.loot.update(gravity, time_step, colliders)
 
         super().update(gravity, time_step, colliders)
@@ -35,7 +30,7 @@ class Crate(Destroyable):
         if not self.destroyed:
             if self.collider.collisions:
                 if norm(self.velocity) / self.bounce > 0.9:
-                    self.destroy(-self.velocity)
+                    self.destroy(-self.velocity, colliders)
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
@@ -49,14 +44,15 @@ class Crate(Destroyable):
         if self.destroyed and self.loot:
             self.loot.debug_draw(screen, camera, image_handler)
 
-    def destroy(self, velocity):
-        super().destroy(velocity)
+    def destroy(self, velocity, colliders):
+        if not self.destroyed:
+            self.gravity_scale = 0.0
+            if self.loot_list:
+                self.loot = np.random.choice(self.loot_list)(self.position)
+                self.loot.velocity[:] = 0.25 * random_unit()
+                self.loot.active = False
 
-        self.gravity_scale = 0.0
-        if self.loot_list:
-            self.loot = np.random.choice(self.loot_list)
-            self.loot.set_position(self.position)
-            self.loot.velocity[:] = 0.25 * random_unit()
+        super().destroy(velocity, colliders)
 
 
 class Ball(PhysicsObject):
