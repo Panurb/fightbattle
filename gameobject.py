@@ -114,7 +114,7 @@ class PhysicsObject(GameObject):
         if not self.active:
             return
 
-        if self.velocity[1] > 0:
+        if self.velocity[1] != 0:
             self.on_ground = False
 
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
@@ -144,6 +144,12 @@ class PhysicsObject(GameObject):
             obj = collision.collider.parent
             if not obj.collision_enabled:
                 continue
+
+            if obj.collider.group is Group.PLATFORMS:
+                if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
+                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
+                    self.collider.collisions.remove(collision)
+                    break
 
             if collision.overlap[1] > 0:
                 self.on_ground = True

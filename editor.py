@@ -34,9 +34,7 @@ class Editor:
         self.input_handler = inputhandler.InputHandler()
 
         self.clock = pygame.time.Clock()
-
         self.time_step = 15.0 / self.option_handler.fps
-
         self.font = pygame.font.Font(None, 30)
 
         self.level = Level()
@@ -46,6 +44,8 @@ class Editor:
         self.wall_start = None
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
+        self.object_types = ['wall', 'scaffolding']
+        self.type_index = 0
 
         self.camera = Camera([0, 0], self.option_handler.resolution)
 
@@ -68,6 +68,9 @@ class Editor:
                 p.draw(self.screen, self.camera, self.image_handler)
 
             self.draw_selection()
+
+            type_str = self.font.render(self.object_types[self.type_index], True, self.image_handler.debug_color)
+            self.screen.blit(type_str, (50, 50))
 
             pygame.display.update()
             self.clock.tick(self.option_handler.fps)
@@ -97,7 +100,10 @@ class Editor:
                 pos = 0.5 * (self.wall_start + end)
                 size = np.abs(end - self.wall_start)
                 if np.all(size):
-                    self.level.add_wall(pos, size[0], size[1])
+                    if self.type_index == 0:
+                        self.level.add_wall(pos, size[0], size[1])
+                    else:
+                        self.level.add_platform(pos, size[0])
                 self.wall_start = None
 
         if self.input_handler.mouse_down[1]:
@@ -129,6 +135,12 @@ class Editor:
         if self.input_handler.keys_pressed[pygame.K_l]:
             with open('lvl.pickle', 'rb') as f:
                 self.level = pickle.load(f)
+
+        if self.input_handler.keys_pressed[pygame.K_w]:
+            if self.type_index == len(self.object_types) - 1:
+                self.type_index = 0
+            else:
+                self.type_index += 1
 
         if self.input_handler.keys_pressed[pygame.K_p]:
             pos = np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])

@@ -96,70 +96,62 @@ class Player(Destroyable):
 
         if self.destroyed:
             self.update_ragdoll(gravity, time_step, colliders)
-        else:
-            if self.velocity[1] > 0:
-                self.on_ground = False
-
-            delta_pos = self.velocity * time_step # + 0.5 * self.acceleration * time_step**2
-            self.position += delta_pos
-
-            self.collider.position += delta_pos
-
-            self.collider.update_collisions(colliders)
-
-            if not self.collision_enabled:
-                return
-
-            for collision in self.collider.collisions:
-                if not collision.collider.parent.collision_enabled:
-                    continue
-
-                if collision.overlap[1] > 0:
-                    self.on_ground = True
-                    self.velocity[1] = 0.0
-                elif collision.overlap[1] < 0:
-                    self.velocity[1] *= -1
-
-                self.position += collision.overlap
-
-                self.collider.position += collision.overlap
-
-                if not collision.overlap[1]:
-                    self.velocity[0] = 0.0
-
-            if not self.on_ground or np.any(self.goal_velocity):
-                self.acceleration[:] = gravity
-            else:
-                self.acceleration[:] = 0.0
-
-            if np.any(self.goal_velocity):
-                self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.walk_acceleration
-            else:
-                self.velocity[0] *= 0.5
-
-            self.velocity += self.acceleration * time_step
-
-            self.speed = norm(self.velocity)
-            if self.speed != 0:
-                self.velocity *= min(self.speed, MAX_SPEED) / self.speed
-
-        w = normalized(self.collider.half_width)
-        h = normalized(self.collider.half_height)
-
-        self.body.set_position(self.position - 0.5 * self.crouched * h)
-        self.body.angle = self.angle
-
-        self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * h
-
-        self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
-        self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
-
-        if self.head.gravity_scale == 0.0:
-            self.head.set_position(self.position + (1 - self.crouched) * h)
-            self.head.angle = self.angle
-
-        if self.destroyed:
+            self.update_joints()
             return
+
+        if self.velocity[1] != 0:
+            self.on_ground = False
+
+        delta_pos = self.velocity * time_step # + 0.5 * self.acceleration * time_step**2
+        self.position += delta_pos
+
+        self.collider.position += delta_pos
+
+        self.collider.update_collisions(colliders)
+
+        if not self.collision_enabled:
+            return
+
+        for collision in self.collider.collisions:
+            obj = collision.collider.parent
+            if not obj.collision_enabled:
+                continue
+
+            if self.position[1] - self.collider.half_height[1] - delta_pos[1] \
+                    < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
+                if obj.collider.group is Group.PLATFORMS:
+                    break
+
+            if collision.overlap[1] > 0:
+                self.on_ground = True
+                self.velocity[1] = 0.0
+            elif collision.overlap[1] < 0:
+                self.velocity[1] *= -1
+
+            self.position += collision.overlap
+
+            self.collider.position += collision.overlap
+
+            if not collision.overlap[1]:
+                self.velocity[0] = 0.0
+
+        if not self.on_ground or np.any(self.goal_velocity):
+            self.acceleration[:] = gravity
+        else:
+            self.acceleration[:] = 0.0
+
+        if np.any(self.goal_velocity):
+            self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.walk_acceleration
+        else:
+            self.velocity[0] *= 0.5
+
+        self.velocity += self.acceleration * time_step
+
+        self.speed = norm(self.velocity)
+        if self.speed != 0:
+            self.velocity *= min(self.speed, MAX_SPEED) / self.speed
+
+        self.update_joints()
 
         self.back_foot.set_position(self.position - np.array([0.35 * self.direction, 1.5]))
         self.front_foot.set_position(self.position - np.array([0.55 * self.direction, 1.5]))
@@ -223,6 +215,22 @@ class Player(Destroyable):
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS])
+
+    def update_joints(self):
+        w = normalized(self.collider.half_width)
+        h = normalized(self.collider.half_height)
+
+        self.body.set_position(self.position - 0.5 * self.crouched * h)
+        self.body.angle = self.angle
+
+        self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * h
+
+        self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
+        self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
+
+        if self.head.gravity_scale == 0.0:
+            self.head.set_position(self.position + (1 - self.crouched) * h)
+            self.head.angle = self.angle
 
     def update_ragdoll(self, gravity, time_step, colliders):
         self.timer += time_step

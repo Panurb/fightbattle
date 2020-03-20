@@ -39,9 +39,9 @@ class GameLoop:
         with open('lvl.pickle', 'rb') as f:
             self.level = pickle.load(f)
 
-        self.players = []
-        self.enemies = []
-        self.colliders = dict()
+        self.players.clear()
+        self.enemies.clear()
+        self.colliders.clear()
 
         for g in Group:
             if g is not Group.NONE:
@@ -130,6 +130,10 @@ class GameLoop:
         for e in self.enemies:
             e.draw(screen, self.camera, image_handler)
 
+        #self.debug_draw(screen, image_handler)
+
     def debug_draw(self, screen, image_handler):
         for player in self.players:
             player.debug_draw(screen, self.camera, image_handler)
+
+        self.level.debug_draw(screen, self.camera, image_handler)

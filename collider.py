@@ -19,19 +19,21 @@ class Group(enum.IntEnum):
     DEBRIS = 8
     SWORDS = 9
     HITBOXES = 10
+    PLATFORMS = 11
 
 
 COLLIDES_WITH = {Group.NONE: [],
-                 Group.PLAYERS: [Group.WALLS],
+                 Group.PLAYERS: [Group.WALLS, Group.PLATFORMS],
                  Group.WALLS: [],
-                 Group.GUNS: [Group.WALLS, Group.SHIELDS, Group.PROPS],
+                 Group.GUNS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
                  Group.HANDS: [Group.WALLS],
-                 Group.PROPS: [Group.WALLS, Group.PROPS, Group.SHIELDS],
+                 Group.PROPS: [Group.WALLS, Group.PROPS, Group.SHIELDS, Group.PLATFORMS],
                  Group.BULLETS: [Group.WALLS, Group.SHIELDS],
                  Group.SHIELDS: [Group.WALLS, Group.PROPS, Group.SHIELDS],
-                 Group.DEBRIS: [Group.WALLS],
+                 Group.DEBRIS: [Group.WALLS, Group.PLATFORMS],
                  Group.SWORDS: [Group.WALLS, Group.SHIELDS, Group.SWORDS],
-                 Group.HITBOXES: []}
+                 Group.HITBOXES: [],
+                 Group.PLATFORMS: []}
 
 
 @njit
@@ -216,6 +218,7 @@ class Circle(Collider):
     def __init__(self, position, radius, group=Group.NONE):
         super().__init__(position, group)
         self.radius = radius
+        self.half_height = radius * basis(1)
 
     def overlap(self, other):
         overlap = np.zeros(2)

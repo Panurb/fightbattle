@@ -3,7 +3,7 @@ import numpy as np
 from collider import Rectangle
 from gameobject import GameObject
 from helpers import basis
-from wall import Wall
+from wall import Wall, Platform
 
 
 class Level:
@@ -12,6 +12,7 @@ class Level:
 
         self.walls = []
         self.objects = []
+        self.background = []
 
         self.gravity = np.array([0, -0.1])
 
@@ -19,14 +20,12 @@ class Level:
         wall = Wall(position, width, height, angle)
         self.walls.append(wall)
 
+    def add_platform(self, position, width):
+        plat = Platform(position, width)
+        self.walls.append(plat)
+
     def add_object(self, obj):
         self.objects.append(obj)
-
-    def add_room(self, position, width, height):
-        self.add_wall(position + 0.5 * width * basis(0), 1, height)
-        self.add_wall(position - 0.5 * width * basis(0), 1, height)
-        self.add_wall(position + 0.5 * height * basis(1), width, 1)
-        self.add_wall(position - 0.5 * height * basis(1), width, 1)
 
     def update(self, time_step, colliders):
         for obj in self.objects:

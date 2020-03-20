@@ -21,9 +21,7 @@ class Main:
 
         self.option_handler = optionhandler.OptionsHandler()
 
-        mode = 0
-        if self.option_handler.fullscreen:
-            mode = pygame.FULLSCREEN
+        mode = pygame.FULLSCREEN if self.option_handler.fullscreen else 0
 
         self.screen = pygame.display.set_mode(self.option_handler.resolution, mode)
 
@@ -50,7 +48,7 @@ class Main:
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen, self.image_handler)
 
-            fps_str = self.font.render(str(int(fps)), True, pygame.Color('magenta'))
+            fps_str = self.font.render(str(int(fps)), True, self.image_handler.debug_color)
             self.screen.blit(fps_str, (50, 50))
 
             pygame.display.update()

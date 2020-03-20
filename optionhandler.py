@@ -1,5 +1,5 @@
 class OptionsHandler:
     def __init__(self):
-        self.fps = 999
+        self.fps = 60
         self.resolution = (1280, 720)
         self.fullscreen = False
