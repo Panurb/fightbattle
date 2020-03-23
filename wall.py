@@ -3,6 +3,7 @@ import pygame
 
 from gameobject import GameObject
 from collider import Rectangle, Group
+from helpers import basis
 
 
 class Wall(GameObject):
@@ -11,14 +12,27 @@ class Wall(GameObject):
         self.add_collider(Rectangle([0, 0], width, height, Group.WALLS))
         self.collider.rotate(angle)
         self.angle = angle
+        self.image_path = 'wall'
+        self.image_position[1] = 0.05
 
     def draw(self, screen, camera, image_handler):
-        points = []
-        for c in self.collider.corners():
-            points.append(camera.world_to_screen(c))
+        width = int(2 * self.collider.half_width[0])
 
-        pygame.draw.polygon(screen, pygame.Color('gray'), points)
-        pygame.draw.polygon(screen, pygame.Color('black'), points, int(max(1, camera.zoom / 25)))
+        offset = 0.0 if width % 2 else 0.5
+
+        for i in range(-width // 2 + 1, width // 2 + 1):
+            self.image_position[0] = i - offset
+            GameObject.draw(self, screen, camera, image_handler)
+
+        size = int(camera.zoom / 20)
+
+        start = camera.world_to_screen(self.position + np.array([width / 2, 0.7]))
+        end = camera.world_to_screen(self.position + np.array([width / 2, -0.6]))
+        pygame.draw.line(screen, pygame.Color('black'), start, end, size)
+
+        start = camera.world_to_screen(self.position + np.array([-width / 2, 0.7]))
+        end = camera.world_to_screen(self.position + np.array([-width / 2, -0.6]))
+        pygame.draw.line(screen, pygame.Color('black'), start, end, size)
 
 
 class Platform(Wall):
@@ -26,14 +40,23 @@ class Platform(Wall):
         super().__init__(position, width, 1, 0.0)
         self.collider.group = Group.PLATFORMS
         self.image_path = 'platform'
+        self.image_position[1] = 0.33
 
     def draw(self, screen, camera, image_handler):
         width = int(2 * self.collider.half_width[0])
-        if width % 2:
-            for i in range(-width // 2, width // 2 + 1):
-                self.image_position[0] = i
-                GameObject.draw(self, screen, camera, image_handler)
-        else:
-            for i in range(-width // 2 + 1, width // 2 + 1):
-                self.image_position[0] = i
-                GameObject.draw(self, screen, camera, image_handler)
+
+        offset = 0.0 if width % 2 else 0.5
+
+        for i in range(-width // 2 + 1, width // 2 + 1):
+            self.image_position[0] = i - offset
+            GameObject.draw(self, screen, camera, image_handler)
+
+        size = int(camera.zoom / 20)
+
+        start = camera.world_to_screen(self.position + np.array([width / 2, 0.65]))
+        end = camera.world_to_screen(self.position + np.array([width / 2, 0.25]))
+        pygame.draw.line(screen, pygame.Color('black'), start, end, size)
+
+        start = camera.world_to_screen(self.position + np.array([-width / 2, 0.65]))
+        end = camera.world_to_screen(self.position + np.array([-width / 2, 0.25]))
+        pygame.draw.line(screen, pygame.Color('black'), start, end, size)

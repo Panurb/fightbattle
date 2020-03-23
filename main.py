@@ -16,6 +16,8 @@ class Main:
         pygame.mixer.pre_init(44100, -16, 2, 2048)
         pygame.mixer.init()
 
+        #pygame.mixer.set_num_channels(16)
+
         pygame.init()
         pygame.display.set_caption('NEXTGAME')
 
@@ -47,6 +49,7 @@ class Main:
 
             self.loop.update(self.input_handler, self.time_step)
             self.loop.draw(self.screen, self.image_handler)
+            self.loop.play_sounds(self.sound_handler)
 
             fps_str = self.font.render(str(int(fps)), True, self.image_handler.debug_color)
             self.screen.blit(fps_str, (50, 50))

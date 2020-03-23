@@ -11,7 +11,7 @@ class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        self.loot_list = [Shield, Bow, Revolver, Shotgun, Sword, Grenade]
+        self.loot_list = [Bow, Shotgun, Revolver]
         self.loot = None
 
     def update(self, gravity, time_step, colliders):
@@ -32,6 +32,9 @@ class Crate(Destroyable):
                 if norm(self.velocity) / self.bounce > 0.9:
                     self.destroy(-self.velocity, colliders)
 
+            if not self.parent and self.collider.collisions and self.speed > 0.1:
+                self.sounds.append('crate')
+
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
 
@@ -46,6 +49,7 @@ class Crate(Destroyable):
 
     def destroy(self, velocity, colliders):
         if not self.destroyed:
+            self.sounds.append('crate_break')
             self.gravity_scale = 0.0
             if self.loot_list:
                 self.loot = np.random.choice(self.loot_list)(self.position)
@@ -53,6 +57,11 @@ class Crate(Destroyable):
                 self.loot.active = False
 
         super().destroy(velocity, colliders)
+
+    def play_sounds(self, sound_handler):
+        super().play_sounds(sound_handler)
+        if self.loot is not None:
+            self.loot.play_sounds(sound_handler)
 
 
 class Ball(PhysicsObject):
@@ -63,3 +72,9 @@ class Ball(PhysicsObject):
         self.bounce = 0.8
         self.image_path = 'ball'
         self.size = 2.1 * radius
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        if not self.parent and self.collider.collisions and self.speed > 0.1:
+            self.sounds.append('ball')

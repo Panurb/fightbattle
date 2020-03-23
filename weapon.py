@@ -6,7 +6,7 @@ from numpy.linalg import norm
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
 from helpers import basis, polar_to_cartesian, polar_angle, rotate
-from particle import MuzzleFlash, Explosion
+from particle import MuzzleFlash, Explosion, Sparks
 
 
 class Weapon(PhysicsObject):
@@ -84,6 +84,7 @@ class Revolver(Gun):
 
     def attack(self):
         super().attack()
+        self.sounds.append('revolver')
         v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
         self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent))
 
@@ -127,27 +128,42 @@ class Bullet(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if self.collider.collisions:
-            self.destroyed = True
+            self.destroy(True)
         elif np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
         if self.time < self.lifetime:
             self.time += time_step
         else:
+            self.destroy(False)
+
+        if not self.destroyed:
+            self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
+
+            for c in self.collider.collisions:
+                obj = c.collider.parent
+                if obj not in [self.parent.body, self.parent.head]:
+                    try:
+                        obj.damage(self.dmg, self.position, self.velocity, colliders)
+                    except AttributeError:
+                        print('Cannot damage', obj)
+                    self.destroy(False)
+
+                return
+
+    def destroy(self, sparks):
+        if not self.destroyed:
             self.destroyed = True
+            if sparks:
+                self.particle_clouds.append(Sparks(self.position, 0.05 * self.velocity))
+            self.active = False
 
-        self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
-
-        for c in self.collider.collisions:
-            obj = c.collider.parent
-            if obj not in [self.parent.body, self.parent.head]:
-                try:
-                    obj.damage(self.dmg, self.position, self.velocity, colliders)
-                except AttributeError:
-                    print('Cannot damage', obj)
-                self.destroyed = True
-
-            return
+    def draw(self, screen, camera, image_handler):
+        if self.destroyed:
+            for p in self.particle_clouds:
+                p.draw(screen, camera, image_handler)
+        else:
+            super().draw(screen, camera, image_handler)
 
 
 class Sword(PhysicsObject):
@@ -328,6 +344,7 @@ class Bow(Gun):
 
     def attack(self):
         if self.timer == 0.0:
+            self.sounds.append('bow_release')
             v = self.direction * self.parent.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
             self.bullets.append(Arrow(self.get_barrel_position(), v, self.parent))
             self.timer = 10.0

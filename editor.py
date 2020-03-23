@@ -9,7 +9,7 @@ import inputhandler
 import optionhandler
 from camera import Camera
 from level import Level, PlayerSpawn
-from prop import Crate
+from prop import Crate, Ball
 from weapon import Weapon, Revolver
 
 
@@ -44,7 +44,7 @@ class Editor:
         self.wall_start = None
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
-        self.object_types = ['wall', 'scaffolding']
+        self.object_types = ['wall', 'platform']
         self.type_index = 0
 
         self.camera = Camera([0, 0], self.option_handler.resolution)
@@ -149,8 +149,8 @@ class Editor:
         if self.input_handler.keys_pressed[pygame.K_c]:
             self.level.add_object(Crate(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
 
-        if self.input_handler.keys_pressed[pygame.K_r]:
-            self.level.add_object(Revolver(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
+        if self.input_handler.keys_pressed[pygame.K_b]:
+            self.level.add_object(Ball(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
 
     def draw_grid(self, size):
         x_min = math.floor(self.camera.position[0] - self.camera.half_width[0] / self.camera.zoom)

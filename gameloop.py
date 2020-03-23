@@ -81,11 +81,11 @@ class GameLoop:
             self.input(input_handler)
 
             for player in self.players:
-                player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-
                 if player.destroyed and player.timer >= self.respawn_time:
                     player.reset(self.colliders)
                     player.set_position(self.level.player_spawns[player.number].position)
+
+                player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
             for e in self.enemies:
                 if e.active:
@@ -96,13 +96,7 @@ class GameLoop:
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
-            cam_goal = sum(p.position for p in self.players) / len(self.players)
-            self.camera.position[:] += self.time_scale * time_step * (cam_goal - self.camera.position)
-
-            if len(self.players) > 1:
-                dist2 = max(norm2(p.position - cam_goal) for p in self.players)
-                zoom_goal = min(500 / (np.sqrt(dist2) + 1e-6), self.camera.max_zoom)
-                self.camera.zoom += self.time_scale * time_step * (zoom_goal - self.camera.zoom)
+            self.camera.update(self.time_scale * time_step, self.players)
 
     def input(self, input_handler):
         input_handler.update(self.camera)
@@ -137,3 +131,9 @@ class GameLoop:
             player.debug_draw(screen, self.camera, image_handler)
 
         self.level.debug_draw(screen, self.camera, image_handler)
+
+    def play_sounds(self, sound_handler):
+        for p in self.players:
+            p.play_sounds(sound_handler)
+
+        self.level.play_sounds(sound_handler)

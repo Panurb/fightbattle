@@ -45,6 +45,10 @@ class Level:
         for obj in self.objects:
             obj.debug_draw(screen, camera, image_handler)
 
+    def play_sounds(self, sound_handler):
+        for o in self.objects:
+            o.play_sounds(sound_handler)
+
 
 class PlayerSpawn(GameObject):
     def __init__(self, position):

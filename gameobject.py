@@ -4,7 +4,7 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Rectangle
-from helpers import random_unit, norm2, rotate, projection, normalized, polar_angle
+from helpers import norm2, rotate, normalized, polar_angle
 
 MAX_SPEED = 5.0
 
@@ -22,6 +22,8 @@ class GameObject:
         self.size = size
         self.image_position = np.zeros(2)
         self.parent = None
+
+        self.sounds = []
 
     def flip_horizontally(self):
         if type(self.collider) is Rectangle:
@@ -68,6 +70,12 @@ class GameObject:
         if self.collider:
             self.collider.draw(screen, camera, image_handler)
 
+    def play_sounds(self, sound_handler):
+        for sound in self.sounds:
+            sound_handler.sounds[sound].play()
+
+        self.sounds.clear()
+
 
 class PhysicsObject(GameObject):
     def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0):
@@ -110,6 +118,8 @@ class PhysicsObject(GameObject):
     def update(self, gravity, time_step, colliders):
         for p in self.particle_clouds:
             p.update(gravity, time_step)
+            if not p.active:
+                self.particle_clouds.remove(p)
 
         if not self.active:
             return
@@ -146,6 +156,10 @@ class PhysicsObject(GameObject):
                 continue
 
             if obj.collider.group is Group.PLATFORMS:
+                # TODO: optimize
+                if self.collider.group in [Group.GUNS, Group.SWORDS, Group.SHIELDS] and self.parent is not None:
+                    continue
+
                 if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
                         < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
                     self.collider.collisions.remove(collision)
@@ -253,7 +267,6 @@ class Destroyable(PhysicsObject):
                 self.active = True
 
     def draw(self, screen, camera, image_handler):
-        # TODO: check if onscreen
         if self.destroyed:
             for d in self.debris:
                 d.draw(screen, camera, image_handler)
