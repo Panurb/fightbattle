@@ -5,7 +5,7 @@ from numpy.linalg import norm
 
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
-from helpers import basis, polar_to_cartesian, polar_angle, rotate
+from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit
 from particle import MuzzleFlash, Explosion, Sparks
 
 
@@ -180,13 +180,17 @@ class Sword(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if self.collider.collisions:
+            if self.parent is not None and self.timer > 0:
+                self.sounds.append('sword')
+                self.parent.camera_shake = 10 * random_unit()
+                self.particle_clouds.append(Sparks(self.position + self.collider.half_height, np.zeros(2)))
             self.hit = True
             self.timer = 0.0
             return
 
         self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
 
-        if self.parent:
+        if self.parent is not None:
             if self.timer > 0:
                 for c in self.collider.collisions:
                     obj = c.collider.parent
@@ -194,6 +198,7 @@ class Sword(PhysicsObject):
                         obj.damage(50, self.position, self.direction * basis(0), colliders)
                         self.hit = True
                         self.timer = 0.0
+                        self.parent.camera_shake = 10 * random_unit()
                         break
                 else:
                     self.timer = max(0.0, self.timer - time_step)
@@ -201,6 +206,7 @@ class Sword(PhysicsObject):
     def attack(self):
         self.hit = False
         self.timer = 5.0
+        self.sounds.append('sword_swing')
 
 
 class Shield(PhysicsObject):

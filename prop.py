@@ -11,7 +11,7 @@ class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        self.loot_list = [Bow, Shotgun, Revolver]
+        self.loot_list = [Bow, Shotgun, Revolver, Sword]
         self.loot = None
 
     def update(self, gravity, time_step, colliders):

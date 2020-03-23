@@ -165,6 +165,8 @@ class Player(Destroyable):
         if self.speed != 0:
             self.velocity *= min(self.speed, MAX_SPEED) / self.speed
 
+        self.angle = -0.5 * self.velocity[0]
+
         self.update_joints()
 
         self.back_foot.set_position(self.position - np.array([0.35 * self.direction, 1.4]))
@@ -234,10 +236,12 @@ class Player(Destroyable):
         w = normalized(self.collider.half_width)
         h = normalized(self.collider.half_height)
 
-        self.body.set_position(self.position - 0.5 * self.crouched * h)
+        offset = -0.5 * self.angle * w if not self.destroyed else 0.0
+
+        self.body.set_position(self.position + offset - 0.5 * self.crouched * h)
         self.body.angle = self.angle
 
-        self.shoulder = self.position + (0.15 - 0.75 * self.crouched) * h
+        self.shoulder = self.position + offset + (0.15 - 0.75 * self.crouched) * h
 
         self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
         self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
@@ -249,7 +253,7 @@ class Player(Destroyable):
 
         angle_goal = max(self.angle - 0.25, min(self.angle + 0.25, angle_goal))
         self.head.angle += 0.1 * (angle_goal - self.head.angle)
-        self.head.set_position(self.position - 0.35 * (self.head.angle - self.angle) * w + (1 - self.crouched) * h)
+        self.head.set_position(self.position + 3 * offset - 0.35 * (self.head.angle - self.angle) * w + (1 - self.crouched) * h)
 
     def update_ragdoll(self, gravity, time_step, colliders):
         self.timer += time_step
@@ -550,7 +554,8 @@ class Player(Destroyable):
                 elif t is Revolver:
                     self.hand.play_animation('pistol')
                 self.object.attack()
-                self.camera_shake = 20 * random_unit()
+                if t is not Sword:
+                    self.camera_shake = 20 * random_unit()
         except AttributeError:
             print('Cannot attack with object', self.object)
 

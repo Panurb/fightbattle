@@ -31,7 +31,7 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.BULLETS: [Group.WALLS, Group.SHIELDS],
                  Group.SHIELDS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
                  Group.DEBRIS: [Group.WALLS, Group.PLATFORMS],
-                 Group.SWORDS: [Group.WALLS, Group.SHIELDS, Group.SWORDS, Group.PLATFORMS],
+                 Group.SWORDS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
                  Group.HITBOXES: [],
                  Group.PLATFORMS: []}
 

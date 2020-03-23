@@ -158,6 +158,7 @@ class PhysicsObject(GameObject):
             if obj.collider.group is Group.PLATFORMS:
                 # TODO: optimize
                 if self.collider.group in [Group.GUNS, Group.SWORDS, Group.SHIELDS] and self.parent is not None:
+                    self.collider.collisions.remove(collision)
                     continue
 
                 if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
