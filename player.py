@@ -331,12 +331,12 @@ class Player(Destroyable):
                 else:
                     self.hand.image_path = 'hand'
                 self.hand.image_position = self.object.hand_position.copy()
-                self.hand.image_position[0] *= self.object.direction
+                self.hand.image_position[0] *= self.direction
                 self.back_hand.image_path = 'fist_front'
             elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
                 self.hand.image_position = self.object.hand_position.copy()
-                self.hand.image_position[0] *= self.object.direction
+                self.hand.image_position[0] *= self.direction
             elif self.object.collider.group is Group.SWORDS:
                 self.hand.image_path = 'fist'
             else:
@@ -477,7 +477,7 @@ class Player(Destroyable):
     def damage(self, amount, position, velocity, colliders, player=None):
         self.sounds.append('hit')
 
-        n = max(amount // 2, 1)
+        n = max(amount // 4, 1)
         self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.1 * velocity, n))
 
         if self.health > 0:
@@ -596,9 +596,7 @@ class Head(Destroyable):
     def destroy(self, velocity, colliders):
         self.parent.destroy(velocity, colliders)
         super().destroy([0, -1], colliders)
-        self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4]))
-        self.particle_clouds.append(BloodSplatter(self.position, [-0.2, 0.1], 5))
-        self.particle_clouds.append(BloodSplatter(self.position, [0.2, 0.1], 5))
+        self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4], 5))
 
 
 class Body(Destroyable):

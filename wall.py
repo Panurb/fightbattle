@@ -3,7 +3,6 @@ import pygame
 
 from gameobject import GameObject
 from collider import Rectangle, Group
-from helpers import basis
 
 
 class Wall(GameObject):
@@ -12,27 +11,45 @@ class Wall(GameObject):
         self.add_collider(Rectangle([0, 0], width, height, Group.WALLS))
         self.collider.rotate(angle)
         self.angle = angle
-        self.image_path = 'wall'
-        self.image_position[1] = 0.05
+        self.size = 1.0
+        self.vertical = False
+
+        if width == 1:
+            self.vertical = True
 
     def draw(self, screen, camera, image_handler):
-        width = int(2 * self.collider.half_width[0])
+        if self.vertical:
+            h = self.collider.half_height[1]
+            ny = int(2 * h)
 
-        offset = 0.0 if width % 2 else 0.5
+            for j, y in enumerate(np.linspace(-h, h, ny, False)):
+                if j == 0:
+                    l = 2
+                elif j == ny - 1:
+                    l = 0
+                else:
+                    l = 1
 
-        for i in range(-width // 2 + 1, width // 2 + 1):
-            self.image_position[0] = i - offset
-            GameObject.draw(self, screen, camera, image_handler)
+                self.image_position[0] = 0.5
+                self.image_position[1] = y + 0.52
+                self.image_path = f'wall_vertical_0_{l}'
+                GameObject.draw(self, screen, camera, image_handler)
+        else:
+            w = self.collider.half_width[0]
+            nx = int(2 * w)
 
-        size = int(camera.zoom / 20)
+            for i, x in enumerate(np.linspace(-w, w, nx, False)):
+                if i == 0:
+                    k = 0
+                elif i == nx - 1:
+                    k = 2
+                else:
+                    k = 1
 
-        start = camera.world_to_screen(self.position + np.array([width / 2, 0.7]))
-        end = camera.world_to_screen(self.position + np.array([width / 2, -0.6]))
-        pygame.draw.line(screen, pygame.Color('black'), start, end, size)
-
-        start = camera.world_to_screen(self.position + np.array([-width / 2, 0.7]))
-        end = camera.world_to_screen(self.position + np.array([-width / 2, -0.6]))
-        pygame.draw.line(screen, pygame.Color('black'), start, end, size)
+                self.image_position[0] = x + 0.5
+                self.image_position[1] = 0.04
+                self.image_path = f'wall_{k}_0'
+                GameObject.draw(self, screen, camera, image_handler)
 
 
 class Platform(Wall):
@@ -43,20 +60,18 @@ class Platform(Wall):
         self.image_position[1] = 0.33
 
     def draw(self, screen, camera, image_handler):
-        width = int(2 * self.collider.half_width[0])
+        w = self.collider.half_width[0]
+        nx = int(2 * w)
 
-        offset = 0.0 if width % 2 else 0.5
+        for i, x in enumerate(np.linspace(-w, w, nx, False)):
+            if i == 0:
+                k = 0
+            elif i == nx - 1:
+                k = 2
+            else:
+                k = 1
 
-        for i in range(-width // 2 + 1, width // 2 + 1):
-            self.image_position[0] = i - offset
+            self.image_position[0] = x + 0.5
+            self.image_position[1] = 0.33
+            self.image_path = f'platform_{k}_0'
             GameObject.draw(self, screen, camera, image_handler)
-
-        size = int(camera.zoom / 20)
-
-        start = camera.world_to_screen(self.position + np.array([width / 2, 0.65]))
-        end = camera.world_to_screen(self.position + np.array([width / 2, 0.25]))
-        pygame.draw.line(screen, pygame.Color('black'), start, end, size)
-
-        start = camera.world_to_screen(self.position + np.array([-width / 2, 0.65]))
-        end = camera.world_to_screen(self.position + np.array([-width / 2, 0.25]))
-        pygame.draw.line(screen, pygame.Color('black'), start, end, size)

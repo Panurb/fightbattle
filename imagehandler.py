@@ -24,3 +24,18 @@ class ImageHandler:
                         self.images[file.replace('.png', '')] = image
                     except pygame.error as message:
                         raise SystemExit(message)
+
+        self.image_to_tiles('wall', 3, 1)
+        self.image_to_tiles('wall_vertical', 1, 3)
+        self.image_to_tiles('platform', 3, 1)
+
+    def image_to_tiles(self, name, nx, ny):
+        image = self.images[name]
+        width, height = image.get_size()
+        tile_width = width // nx
+        tile_height = height // ny
+
+        for i in range(nx):
+            for j in range(ny):
+                rect = pygame.Rect(i * tile_width, j * tile_height, tile_width, tile_height)
+                self.images[f'{name}_{i}_{j}'] = image.subsurface(rect)

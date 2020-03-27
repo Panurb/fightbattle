@@ -82,8 +82,19 @@ class GameLoop:
 
             for player in self.players:
                 if player.destroyed and player.timer >= self.respawn_time:
+                    i = 0
+                    max_dist = 0.0
+                    for j, s in enumerate(self.level.player_spawns):
+                        min_dist = np.inf
+                        for p in self.players:
+                            if not p.destroyed:
+                                min_dist = min(min_dist, norm2(s.position - p.position))
+                        if min_dist > max_dist:
+                            max_dist = min_dist
+                            i = j
+
                     player.reset(self.colliders)
-                    player.set_position(self.level.player_spawns[player.number].position)
+                    player.set_position(self.level.player_spawns[i].position)
 
                 player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
