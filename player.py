@@ -10,7 +10,7 @@ from weapon import Shotgun, Shield, Bow, Sword, Revolver
 
 
 class Player(Destroyable):
-    def __init__(self, position, number=0):
+    def __init__(self, position, controller_id=0):
         super().__init__(position)
         self.goal_velocity = np.zeros(2)
         self.walk_acceleration = 0.5
@@ -54,17 +54,20 @@ class Player(Destroyable):
         self.throw_charge = 0.0
         self.charge_speed = 0.05
 
-        self.number = number
+        self.controller_id = controller_id
         self.timer = 0.0
 
         self.walking = False
 
-        self.channel = pygame.mixer.Channel(self.number + 1)
+        self.channel = pygame.mixer.Channel(self.controller_id + 1)
         self.camera_shake = np.zeros(2)
 
     def set_position(self, position):
         super().set_position(position)
+        self.update_joints()
         self.hand.set_position(position)
+        self.back_foot.set_position(self.position - np.array([0.35 * self.direction, 1.4]))
+        self.front_foot.set_position(self.position - np.array([0.55 * self.direction, 1.4]))
 
     def reset(self, colliders):
         colliders[Group.DEBRIS].remove(self.collider)
@@ -131,10 +134,13 @@ class Player(Destroyable):
             if not obj.collision_enabled:
                 continue
 
-            if self.position[1] - self.collider.half_height[1] - delta_pos[1] \
-                    < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
-                if obj.collider.group is Group.PLATFORMS:
-                    break
+            if obj.collider.group is Group.PLATFORMS:
+                if self.position[1] - self.collider.half_height[1] - delta_pos[1] \
+                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
+                    continue
+
+            if abs(self.velocity[1]) > 0.1:
+                self.sounds.append('bump')
 
             if collision.overlap[1] > 0:
                 self.on_ground = True
@@ -249,7 +255,7 @@ class Player(Destroyable):
         if self.destroyed:
             angle_goal = self.angle
         else:
-            angle_goal = np.arctan(self.hand_goal[1] / self.hand_goal[0])
+            angle_goal = np.arctan(self.hand_goal[1] / (self.hand_goal[0] + 1e-6))
 
         angle_goal = max(self.angle - 0.25, min(self.angle + 0.25, angle_goal))
         self.head.angle += 0.1 * (angle_goal - self.head.angle)
@@ -259,6 +265,8 @@ class Player(Destroyable):
         self.timer += time_step
 
         PhysicsObject.update(self, gravity, time_step, colliders)
+        if self.collider.collisions and self.speed > 0.1:
+            self.sounds.append('bump')
         self.head.update_active()
         if not self.head.active or not self.head.destroyed:
             #self.update_active()
@@ -411,10 +419,10 @@ class Player(Destroyable):
         self.body.debug_draw(screen, camera, image_handler)
 
     def input(self, input_handler):
-        if self.destroyed or self.number == -1 or self.number >= len(input_handler.controllers):
+        if self.destroyed or self.controller_id == -1 or self.controller_id >= len(input_handler.controllers):
             return
 
-        controller = input_handler.controllers[self.number]
+        controller = input_handler.controllers[self.controller_id]
 
         if controller.button_pressed['A']:
             if self.on_ground:
@@ -532,7 +540,10 @@ class Player(Destroyable):
     def grab_object(self):
         for c in self.hand.collider.collisions:
             if c.collider.group in [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS]:
-                if norm2(self.velocity - c.collider.parent.velocity) < 0.25:
+                if norm2(self.shoulder - c.collider.position) > 1.5**2:
+                    continue
+
+                if abs(self.speed - c.collider.parent.speed) < 0.25:
                     self.object = c.collider.parent
                     self.object.on_ground = False
                     self.object.gravity_scale = 0.0
@@ -625,9 +636,9 @@ class Hand(PhysicsObject, AnimatedObject):
 
         self.add_animation(np.zeros(1), np.zeros(1), np.zeros(1), 'idle')
 
-        xs = np.array([-0.275, -0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
-        ys = np.array([-0.05, -0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
-        angles = np.pi * np.array([0.3, -0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
+        xs = np.array([-0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
+        ys = np.array([-0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
+        angles = np.pi * np.array([-0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
         self.add_animation(xs, ys, angles, 'sword')
 
         xs = 2 * np.array([-0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])

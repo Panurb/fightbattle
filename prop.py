@@ -29,11 +29,8 @@ class Crate(Destroyable):
 
         if not self.destroyed:
             if self.collider.collisions:
-                if norm(self.velocity) / self.bounce > 0.9:
+                if self.speed / self.bounce > 0.9:
                     self.destroy(-self.velocity, colliders)
-
-            if not self.parent and self.collider.collisions and self.speed > 0.1:
-                self.sounds.append('crate')
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)

@@ -3,6 +3,7 @@ from pstats import SortKey
 
 import pygame
 
+import menu
 import gameloop
 import imagehandler
 import inputhandler
@@ -40,14 +41,15 @@ class Main:
         self.font = pygame.font.Font(None, 30)
 
     def main_loop(self):
-        while self.loop.state != gameloop.State.QUIT:
+        while self.loop.state != menu.State.QUIT:
             fps = self.clock.get_fps()
 
             if self.option_handler.fps == 999:
                 if fps != 0:
                     self.time_step = 15.0 / fps
 
-            self.loop.update(self.input_handler, self.time_step)
+            self.loop.input(self.input_handler)
+            self.loop.update(self.time_step)
             self.loop.draw(self.screen, self.image_handler)
             self.loop.play_sounds(self.sound_handler)
 

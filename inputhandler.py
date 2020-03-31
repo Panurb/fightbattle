@@ -110,8 +110,8 @@ class Keyboard(Controller):
                         'Y': pygame.K_f,
                         'LB': pygame.K_c,
                         'RB': pygame.K_e,
-                        'SELECT': pygame.K_TAB,
-                        'START': pygame.K_ESCAPE}
+                        'SELECT': pygame.K_RSHIFT,
+                        'START': pygame.K_RETURN}
 
         self.input_handler = input_handler
 

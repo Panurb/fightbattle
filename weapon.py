@@ -11,8 +11,7 @@ from particle import MuzzleFlash, Explosion, Sparks
 
 class Weapon(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position)
-        self.parent = None
+        super().__init__(position, bump_sound='gun')
         self.hit = False
 
     def attack(self):
@@ -74,13 +73,18 @@ class Gun(Weapon):
         self.particle_clouds.append(
             MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
 
+    def play_sounds(self, sound_handler):
+        super().play_sounds(sound_handler)
+        for b in self.bullets:
+            b.play_sounds(sound_handler)
+
 
 class Revolver(Gun):
     def __init__(self, position):
         super().__init__(position)
         self.image_path = 'revolver'
         self.image_position = np.array([0.35, 0.15])
-        self.add_collider(Rectangle([0.35, 0.15], 1.1, 0.6, Group.GUNS))
+        self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.GUNS))
 
     def attack(self):
         super().attack()
@@ -95,7 +99,7 @@ class Shotgun(Gun):
         self.size = 0.9
         self.image_path = 'shotgun'
         self.image_position = np.array([0, -0.1])
-        self.add_collider(Rectangle([0, -0.1], 1.8, 0.6, Group.GUNS))
+        self.add_collider(Rectangle([0, 0.08], 1.8, 0.3, Group.GUNS))
         self.bullet_speed = 2.0
         self.hand_position = np.array([-0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
@@ -157,6 +161,7 @@ class Bullet(PhysicsObject):
             if sparks:
                 self.particle_clouds.append(Sparks(self.position, 0.05 * self.velocity))
             self.active = False
+            self.sounds.append('gun')
 
     def draw(self, screen, camera, image_handler):
         if self.destroyed:
@@ -168,7 +173,7 @@ class Bullet(PhysicsObject):
 
 class Sword(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, image_path='sword', size=1.0)
+        super().__init__(position, image_path='sword', size=1.0, bump_sound='gun')
         self.add_collider(Rectangle([0.0, 0.8], 0.25, 2.25, Group.SWORDS))
         self.image_position = np.array([0.0, 0.8])
         self.rotate(np.pi / 2)
@@ -211,14 +216,14 @@ class Sword(PhysicsObject):
 
 class Shield(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, image_path='shield', size=0.85)
+        super().__init__(position, image_path='shield', size=0.85, bump_sound='gun')
         self.add_collider(Rectangle([0.0, 0.0], 0.25, 2.0, Group.SHIELDS))
         self.rotate_90()
 
 
 class Grenade(Destroyable):
     def __init__(self, position):
-        super().__init__(position, size=1.1, image_path='grenade', health=1)
+        super().__init__(position, size=1.1, image_path='grenade', health=1, bump_sound='gun')
         self.add_collider(Circle([0, 0], 0.25, Group.PROPS))
         self.explosion_collider = Circle([0, 0], 5.0)
         self.timer = 50.0
@@ -287,6 +292,7 @@ class Arrow(Bullet):
 
         if self.collider.collisions:
             self.hit = True
+            self.sounds.append('gun')
             return
 
         if np.any(self.velocity):
@@ -309,6 +315,7 @@ class Arrow(Bullet):
 class Bow(Gun):
     def __init__(self, position):
         super().__init__(position)
+        self.bump_sound = 'bump'
         self.image_path = 'bow'
         self.add_collider(Rectangle([0, 0], 0.5, 1.9, Group.GUNS))
         self.bullet_speed = 2.0

@@ -78,7 +78,7 @@ class GameObject:
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0):
+    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0, bump_sound='bump'):
         super().__init__(position, image_path, size)
         self.velocity = np.array(velocity, dtype=float)
         self.speed = norm(self.velocity)
@@ -96,6 +96,10 @@ class PhysicsObject(GameObject):
         self.particle_clouds = []
 
         self.active = True
+
+        self.bump_sound = bump_sound
+
+        self.parent = None
 
     def set_position(self, position):
         super().set_position(position)
@@ -193,6 +197,9 @@ class PhysicsObject(GameObject):
         if type(self.collider) is Circle:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
+        if self.parent is None and self.collider.collisions and self.speed > 0.1:
+            self.sounds.append(self.bump_sound)
+
     def draw(self, screen, camera, image_handler):
         for p in self.particle_clouds:
             p.draw(screen, camera, image_handler)
@@ -204,8 +211,8 @@ class PhysicsObject(GameObject):
 
 class Destroyable(PhysicsObject):
     def __init__(self, position, velocity=(0, 0), image_path='', debris_path='', size=1.0, debris_size=1.0,
-                 health=100, parent=None):
-        super().__init__(position, velocity, image_path, size)
+                 health=100, parent=None, bump_sound='bump'):
+        super().__init__(position, velocity, image_path, size, bump_sound=bump_sound)
         self.health = health
         self.debris_path = debris_path
         self.destroyed = False
@@ -275,6 +282,12 @@ class Destroyable(PhysicsObject):
                 p.draw(screen, camera, image_handler)
         else:
             super().draw(screen, camera, image_handler)
+
+    def play_sounds(self, sound_handler):
+        super().play_sounds(sound_handler)
+
+        for d in self.debris:
+            d.play_sounds(sound_handler)
 
 
 class Animation:
