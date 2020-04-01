@@ -10,7 +10,7 @@ from weapon import Shotgun, Shield, Bow, Sword, Revolver
 
 
 class Player(Destroyable):
-    def __init__(self, position, controller_id=0):
+    def __init__(self, position, controller_id=0, network_id=0):
         super().__init__(position)
         self.goal_velocity = np.zeros(2)
         self.walk_acceleration = 0.5
@@ -55,11 +55,12 @@ class Player(Destroyable):
         self.charge_speed = 0.05
 
         self.controller_id = controller_id
+        self.network_id = network_id
         self.timer = 0.0
 
         self.walking = False
 
-        self.channel = pygame.mixer.Channel(self.controller_id + 1)
+        #self.channel = pygame.mixer.Channel(self.controller_id + 1)
         self.camera_shake = np.zeros(2)
 
     def set_position(self, position):
@@ -232,6 +233,8 @@ class Player(Destroyable):
             else:
                 self.hand.set_position(self.object.position)
                 self.hand.update(gravity, time_step, colliders)
+
+                self.object.update(gravity, time_step, colliders)
         else:
             self.hand.set_position(self.hand.position + time_step * self.velocity)
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)

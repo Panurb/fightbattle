@@ -2,7 +2,6 @@ import numpy as np
 
 from collider import Rectangle
 from gameobject import GameObject
-from helpers import basis
 from wall import Wall, Platform
 
 
@@ -48,6 +47,10 @@ class Level:
     def play_sounds(self, sound_handler):
         for o in self.objects:
             o.play_sounds(sound_handler)
+
+    def clear_sounds(self):
+        for o in self.objects:
+            o.sounds.clear()
 
 
 class PlayerSpawn(GameObject):

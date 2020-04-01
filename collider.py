@@ -134,6 +134,9 @@ class Collider:
             groups = COLLIDES_WITH[self.group]
 
         for g in groups:
+            if g not in colliders:
+                continue
+
             for c in colliders[g]:
                 if c is self:
                     continue

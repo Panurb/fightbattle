@@ -13,15 +13,15 @@ class Camera:
         self.velocity = np.zeros(2)
 
     def update(self, time_step, players):
-        cam_goal = sum(p.position for p in players) / len(players)
+        cam_goal = sum(p.position for p in players.values()) / len(players)
         self.position[:] += time_step * (cam_goal - self.position)
 
         if len(players) > 1:
-            dist2 = max(norm2(p.position - cam_goal) for p in players)
+            dist2 = max(norm2(p.position - cam_goal) for p in players.values())
             zoom_goal = min(500 / (np.sqrt(dist2) + 1e-6), self.max_zoom)
             self.zoom += time_step * (zoom_goal - self.zoom)
 
-        self.shake = sum(p.camera_shake for p in players)
+        self.shake = sum(p.camera_shake for p in players.values())
 
     def set_zoom(self, zoom):
         self.half_width *= zoom / self.zoom

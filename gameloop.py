@@ -13,10 +13,10 @@ from player import Player
 
 class GameLoop:
     def __init__(self, option_handler):
-        self.state = State.MENU
+        self.state = State.PLAY
 
         self.level = None
-        self.players = []
+        self.players = dict()
         self.enemies = []
         self.colliders = dict()
         for g in Group:
@@ -25,7 +25,7 @@ class GameLoop:
 
         self.scores = [0] * len(self.players)
 
-        #self.reset_level()
+        self.reset_level()
 
         self.time_scale = 1.0
 
@@ -39,7 +39,7 @@ class GameLoop:
             self.player_menus.append(PlayerMenu((5 * i - 10) * basis(0)))
 
     def reset_level(self):
-        with open('levels/lvl.pickle', 'rb') as f:
+        with open('data/levels/lvl.pickle', 'rb') as f:
             self.level = pickle.load(f)
 
         self.enemies.clear()
@@ -63,7 +63,7 @@ class GameLoop:
 
     def add_player(self, controller_id):
         player = Player([0, 0], controller_id)
-        self.players.append(player)
+        self.players[controller_id] = player
         self.colliders[player.collider.group].append(player.collider)
         self.colliders[player.head.collider.group].append(player.head.collider)
         self.colliders[player.body.collider.group].append(player.body.collider)
@@ -77,7 +77,7 @@ class GameLoop:
 
     def update(self, time_step):
         if self.state is State.PLAY:
-            for player in self.players:
+            for player in self.players.values():
                 if player.destroyed and player.timer >= self.respawn_time:
                     i = 0
                     max_dist = 0.0
@@ -97,7 +97,7 @@ class GameLoop:
 
             for e in self.enemies:
                 if e.active:
-                    e.seek_players(self.players)
+                    e.seek_players(self.players.values())
                     e.update(self.level.gravity, self.time_scale * time_step, self.colliders)
                 else:
                     self.enemies.remove(e)
@@ -109,7 +109,7 @@ class GameLoop:
             self.state = self.menu.target_state
         elif self.state is State.PLAYER_SELECT:
             for pm in self.player_menus:
-                if pm.controller_id is not None and all(p.controller_id != pm.controller_id for p in self.players):
+                if pm.controller_id is not None and all(p.controller_id != pm.controller_id for p in self.players.values()):
                     self.add_player(pm.controller_id)
 
             if not self.players:
@@ -130,12 +130,12 @@ class GameLoop:
 
         if self.state is State.PLAY:
             if self.players:
-                input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
+                input_handler.relative_mouse[:] = input_handler.mouse_position #- self.players[0].shoulder
 
             if input_handler.keys_pressed[pygame.K_v]:
                 self.add_enemy(input_handler.mouse_position)
 
-            for i, player in enumerate(self.players):
+            for i, player in enumerate(self.players.values()):
                 player.input(input_handler)
 
             if input_handler.keys_pressed[pygame.K_r]:
@@ -161,7 +161,7 @@ class GameLoop:
         if self.state is State.PLAY:
             self.level.draw(screen, self.camera, image_handler)
 
-            for player in self.players:
+            for player in self.players.values():
                 player.draw(screen, self.camera, image_handler)
 
             for e in self.enemies:
@@ -175,14 +175,14 @@ class GameLoop:
                 pm.draw(screen, self.camera, image_handler)
 
     def debug_draw(self, screen, image_handler):
-        for player in self.players:
+        for player in self.players.values():
             player.debug_draw(screen, self.camera, image_handler)
 
         self.level.debug_draw(screen, self.camera, image_handler)
 
     def play_sounds(self, sound_handler):
         if self.state is State.PLAY:
-            for p in self.players:
+            for p in self.players.values():
                 p.play_sounds(sound_handler)
 
             self.level.play_sounds(sound_handler)

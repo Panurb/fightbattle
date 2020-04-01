@@ -129,11 +129,11 @@ class Editor:
             self.camera.zoom /= 1.5
 
         if self.input_handler.keys_pressed[pygame.K_s]:
-            with open('levels/lvl.pickle', 'wb') as f:
+            with open('data/levels/lvl.pickle', 'wb') as f:
                 pickle.dump(self.level, f)
 
         if self.input_handler.keys_pressed[pygame.K_l]:
-            with open('levels/lvl.pickle', 'rb') as f:
+            with open('data/levels/lvl.pickle', 'rb') as f:
                 self.level = pickle.load(f)
 
         if self.input_handler.keys_pressed[pygame.K_w]:

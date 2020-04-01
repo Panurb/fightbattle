@@ -1,6 +1,7 @@
+import itertools
+
 import numpy as np
 from numpy.linalg import norm
-
 import pygame
 
 from collider import Circle, Group, Rectangle
@@ -10,8 +11,12 @@ MAX_SPEED = 5.0
 
 
 class GameObject:
+    id_iter = itertools.count()
+
     def __init__(self, position, image_path='', size=1.0):
         super().__init__()
+        self.id = next(self.id_iter)
+
         self.position = np.array(position, dtype=float)
         self.collider = None
         self.collision_enabled = True
