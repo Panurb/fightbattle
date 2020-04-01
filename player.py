@@ -63,6 +63,9 @@ class Player(Destroyable):
         #self.channel = pygame.mixer.Channel(self.controller_id + 1)
         self.camera_shake = np.zeros(2)
 
+    def get_data(self):
+        return (self.network_id, ) + super().get_data()[1:]
+
     def set_position(self, position):
         super().set_position(position)
         self.update_joints()

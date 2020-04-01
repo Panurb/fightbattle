@@ -9,6 +9,7 @@ import soundhandler
 import optionhandler
 from collider import Group
 from network import Network
+from player import Player
 
 
 class Main:
@@ -42,10 +43,12 @@ class Main:
 
         self.network = Network()
 
-        p = self.network.getP()
-        self.network_id = p.network_id
-        self.loop.players = dict()
-        self.loop.players[self.network_id] = p
+        p = self.network.player
+        self.network_id = p[0]
+
+        player = Player([p[1], p[2]], network_id=p[0])
+        player.angle = p[3]
+        self.loop.players[p[0]] = player
 
     def main_loop(self):
         while self.loop.state != menu.State.QUIT:
@@ -62,22 +65,26 @@ class Main:
             self.loop.players[self.network_id].update(self.loop.level.gravity, self.time_step, self.loop.colliders)
             self.loop.camera.update(self.time_step, self.loop.players)
 
-            data = [self.loop.players[self.network_id], []]
+            data = [self.loop.players[self.network_id].get_data(), []]
             if old_obj is not None:
-                data[1].append(old_obj)
+                data[1].append(old_obj.get_data())
             data = self.network.send(data)
 
             for p in data[0]:
-                self.loop.players[p.network_id] = p
+                if p[0] not in self.loop.players:
+                    self.loop.players[p[0]] = Player([0, 0], network_id=p[0])
+                player = self.loop.players[p[0]]
+                player.set_position([p[1], p[2]])
+                player.angle = p[3]
 
             for i, obj in enumerate(self.loop.level.objects):
-                if obj.id == old_obj:
+                if old_obj is not None and obj.id == old_obj.id:
                     continue
 
                 o = data[1][i]
-                obj.set_position(o.position)
-                obj.angle = o.angle
-                obj.sounds[:] = o.sounds
+                obj.set_position([o[1], o[2]])
+                obj.angle = o[3]
+                obj.sounds[:] = o[6]
                 #if o.destroyed:
                 #    obj.destroy(np.zeros(2), self.loop.colliders)
 

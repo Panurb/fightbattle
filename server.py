@@ -47,25 +47,28 @@ class Server:
 
     def threaded_client(self, conn, p):
         self.players[p] = Player([0, 0], network_id=p)
-        conn.send(pickle.dumps(self.players[p]))
+        conn.send(pickle.dumps(self.players[p].get_data()))
 
         while True:
             try:
-                data = pickle.loads(conn.recv(2048 * 20))
-                self.players[p] = data[0]
+                data = pickle.loads(conn.recv(2048))
+                player = self.players[p]
+                player.set_position([data[0][1], data[0][2]])
+                player.angle = data[0][3]
                 if data[1]:
                     for i, o in enumerate(self.level.objects):
-                        if o.id == data[1][0].id:
-                            o.set_position(data[1][0].position)
-                            o.velocity[:] = data[1][0].velocity
+                        if o.id == data[1][0][0]:
+                            o.set_position([data[1][0][1], data[1][0][2]])
+                            o.velocity[0] = data[1][0][4]
+                            o.velocity[1] = data[1][0][5]
                             break
 
                 if not data:
                     print('Disconnected')
                     break
                 else:
-                    reply = [[v for v in self.players.values() if v.network_id != p],
-                             [o for o in self.level.objects if o.parent is None or o.parent.id != self.players[p].id]]
+                    reply = [[v.get_data() for v in self.players.values() if v.network_id != p],
+                             [o.get_data() for o in self.level.objects if o.parent is None or o.parent.id != self.players[p].id]]
                 conn.sendall(pickle.dumps(reply))
             except:
                 break
@@ -83,5 +86,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    s = Server('84.249.49.75', 5555)
+    s = Server('192.168.1.100', 5555)
     s.start()

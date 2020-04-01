@@ -30,6 +30,11 @@ class GameObject:
 
         self.sounds = []
 
+    def get_data(self):
+        data = (self.id, self.position[0], self.position[1], self.angle)
+
+        return data
+
     def flip_horizontally(self):
         if type(self.collider) is Rectangle:
             w = normalized(self.collider.half_width)
@@ -105,6 +110,9 @@ class PhysicsObject(GameObject):
         self.bump_sound = bump_sound
 
         self.parent = None
+
+    def get_data(self):
+        return super().get_data() + (self.velocity[0], self.velocity[1], self.sounds)
 
     def set_position(self, position):
         super().set_position(position)
