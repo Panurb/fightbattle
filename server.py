@@ -11,6 +11,7 @@ from player import Player
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
+        server = '25.97.148.11'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
