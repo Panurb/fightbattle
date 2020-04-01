@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.linalg import norm
 
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
@@ -30,6 +29,7 @@ class Crate(Destroyable):
         if not self.destroyed:
             if self.collider.collisions:
                 if self.speed / self.bounce > 0.9:
+                    self.health = 0
                     self.destroy(-self.velocity, colliders)
 
     def draw(self, screen, camera, image_handler):

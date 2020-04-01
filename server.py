@@ -9,7 +9,9 @@ from player import Player
 
 
 class Server:
-    def __init__(self, server, port):
+    def __init__(self):
+        server = socket.gethostbyname(socket.gethostname())
+        port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
@@ -58,9 +60,7 @@ class Server:
                 if data[1]:
                     for i, o in enumerate(self.level.objects):
                         if o.id == data[1][0][0]:
-                            o.set_position([data[1][0][1], data[1][0][2]])
-                            o.velocity[0] = data[1][0][4]
-                            o.velocity[1] = data[1][0][5]
+                            o.apply_data(data[1][0])
                             break
 
                 if not data:
@@ -68,13 +68,15 @@ class Server:
                     break
                 else:
                     reply = [[v.get_data() for v in self.players.values() if v.network_id != p],
-                             [o.get_data() for o in self.level.objects if o.parent is None or o.parent.id != self.players[p].id]]
+                             [o.get_data() for o in self.level.objects]]
+                #print(len(pickle.dumps(reply)))
                 conn.sendall(pickle.dumps(reply))
             except:
                 break
 
         print("Lost connection")
         conn.close()
+        del self.players[p]
 
     def physics_thread(self):
         clock = pygame.time.Clock()
@@ -86,5 +88,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    s = Server('192.168.1.100', 5555)
+    s = Server()
     s.start()

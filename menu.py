@@ -15,6 +15,7 @@ class State(Enum):
     LEVEL_SELECT = 5
     PAUSED = 6
     OPTIONS = 7
+    LAN = 8
 
 
 class Menu:
@@ -71,6 +72,7 @@ class MainMenu(Menu):
     def __init__(self):
         super().__init__()
         self.buttons.append(Button('PLAY', State.PLAYER_SELECT))
+        self.buttons.append(Button('LAN', State.LAN))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('QUIT', State.QUIT))
 

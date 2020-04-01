@@ -216,7 +216,7 @@ class Player(Destroyable):
                     self.object.flip_horizontally()
                 self.hand.set_position(hand_pos)
 
-                if self.hand.animation is not 'idle':
+                if self.hand.animation != 'idle':
                     if self.object.hit:
                         self.hand.play_animation('idle')
                     self.hand.animate(time_step)

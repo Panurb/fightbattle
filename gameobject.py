@@ -35,6 +35,10 @@ class GameObject:
 
         return data
 
+    def apply_data(self, data):
+        self.set_position(np.array([data[1], data[2]]))
+        self.angle = data[3]
+
     def flip_horizontally(self):
         if type(self.collider) is Rectangle:
             w = normalized(self.collider.half_width)
@@ -113,6 +117,12 @@ class PhysicsObject(GameObject):
 
     def get_data(self):
         return super().get_data() + (self.velocity[0], self.velocity[1], self.sounds)
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.velocity[0] = data[4]
+        self.velocity[1] = data[5]
+        self.sounds[:] = data[6]
 
     def set_position(self, position):
         super().set_position(position)
@@ -233,12 +243,19 @@ class Destroyable(PhysicsObject):
         self.debris_size = debris_size
         self.parent = parent
 
+    def get_data(self):
+        return super().get_data() + (self.health, )
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.health = data[7]
+
     def damage(self, amount, position, velocity, colliders):
         if self.health > 0:
             self.health -= amount
             self.velocity += velocity
 
-        if self.health <= 0 and not self.destroyed:
+        if self.health <= 0:
             self.destroy(velocity, colliders)
 
     def destroy(self, velocity, colliders):

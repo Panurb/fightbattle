@@ -6,14 +6,16 @@ import pygame
 from camera import Camera
 from collider import Group
 from enemy import Enemy
+from gameobject import Destroyable
 from helpers import norm2, basis
 from menu import State, Menu, PlayerMenu, MainMenu
 from player import Player
+from network import Network
 
 
 class GameLoop:
     def __init__(self, option_handler):
-        self.state = State.PLAY
+        self.state = State.MENU
 
         self.level = None
         self.players = dict()
@@ -37,6 +39,12 @@ class GameLoop:
         self.player_menus = []
         for i in range(4):
             self.player_menus.append(PlayerMenu((5 * i - 10) * basis(0)))
+
+        self.network = None
+        self.network_id = -1
+        self.old_obj = None
+
+        self.controller_id = 0
 
     def reset_level(self):
         with open('data/levels/lvl.pickle', 'rb') as f:
@@ -83,7 +91,7 @@ class GameLoop:
                     max_dist = 0.0
                     for j, s in enumerate(self.level.player_spawns):
                         min_dist = np.inf
-                        for p in self.players:
+                        for p in self.players.values():
                             if not p.destroyed:
                                 min_dist = min(min_dist, norm2(s.position - p.position))
                         if min_dist > max_dist:
@@ -109,8 +117,9 @@ class GameLoop:
             self.state = self.menu.target_state
         elif self.state is State.PLAYER_SELECT:
             for pm in self.player_menus:
-                if pm.controller_id is not None and all(p.controller_id != pm.controller_id for p in self.players.values()):
-                    self.add_player(pm.controller_id)
+                if pm.controller_id is not None:
+                    if all(p.controller_id != pm.controller_id for p in self.players.values()):
+                        self.add_player(pm.controller_id)
 
             if not self.players:
                 return
@@ -121,6 +130,52 @@ class GameLoop:
 
             self.state = State.PLAY
             self.reset_level()
+        elif self.state is State.LAN:
+            if self.network is None:
+                self.network = Network()
+                p = self.network.player
+                self.network_id = p[0]
+
+                player = Player([p[1], p[2]], network_id=p[0], controller_id=self.controller_id)
+                player.angle = p[3]
+                self.players[p[0]] = player
+
+            self.players[self.network_id].update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            self.camera.update(time_step, self.players)
+
+            data = [self.players[self.network_id].get_data(), []]
+            if self.old_obj is not None:
+                data[1].append(self.old_obj.get_data())
+            data = self.network.send(data)
+
+            for p in data[0]:
+                if p[0] not in self.players:
+                    self.players[p[0]] = Player([0, 0], network_id=p[0])
+                player = self.players[p[0]]
+                player.apply_data(p)
+
+            # kinda purkka
+            ids = [self.network_id] + [p[0] for p in data[0]]
+            for k in list(self.players.keys()):
+                if k not in ids:
+                    del self.players[k]
+
+            for i, obj in enumerate(self.level.objects):
+                obj.apply_data(data[1][i])
+                if isinstance(obj, Destroyable) and obj.health <= 0:
+                    obj.destroy(np.zeros(2), self.colliders)
+
+            for g in Group:
+                if g not in [Group.NONE, Group.PLAYERS, Group.HITBOXES, Group.WALLS, Group.PLATFORMS]:
+                    self.colliders[g] = []
+
+            for obj in self.level.objects:
+                if obj.collider is not None:
+                    self.colliders[obj.collider.group].append(obj.collider)
+
+            for obj in self.level.objects:
+                if isinstance(obj, Destroyable) and obj.destroyed:
+                    obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
     def input(self, input_handler):
         input_handler.update(self.camera)
@@ -130,7 +185,7 @@ class GameLoop:
 
         if self.state is State.PLAY:
             if self.players:
-                input_handler.relative_mouse[:] = input_handler.mouse_position #- self.players[0].shoulder
+                input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
 
             if input_handler.keys_pressed[pygame.K_v]:
                 self.add_enemy(input_handler.mouse_position)
@@ -142,6 +197,10 @@ class GameLoop:
                 self.reset_level()
         elif self.state is State.MENU:
             self.menu.input(input_handler)
+            for i in range(len(input_handler.controllers)):
+                if self.menu.selection_moved[i]:
+                    self.controller_id = i
+                    break
         elif self.state is State.PLAYER_SELECT:
             for i, controller in enumerate(input_handler.controllers):
                 for pm in self.player_menus:
@@ -154,11 +213,20 @@ class GameLoop:
                             pm.input(input_handler, i)
                         if pm.controller_id == i:
                             break
+        elif self.state is State.LAN:
+            if self.network is not None:
+                player = self.players[self.network_id]
+
+                input_handler.relative_mouse[:] = input_handler.mouse_position - player.shoulder
+
+                self.old_obj = player.object
+
+                player.input(input_handler)
 
     def draw(self, screen, image_handler):
         screen.fill((150, 150, 150))
 
-        if self.state is State.PLAY:
+        if self.state in [State.PLAY, State.LAN]:
             self.level.draw(screen, self.camera, image_handler)
 
             for player in self.players.values():
@@ -181,7 +249,7 @@ class GameLoop:
         self.level.debug_draw(screen, self.camera, image_handler)
 
     def play_sounds(self, sound_handler):
-        if self.state is State.PLAY:
+        if self.state in [State.PLAY, State.LAN]:
             for p in self.players.values():
                 p.play_sounds(sound_handler)
 
