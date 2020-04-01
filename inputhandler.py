@@ -158,7 +158,10 @@ class InputHandler:
         self.controllers = []
         self.controllers.append(Keyboard(self))
         for i in range(pygame.joystick.get_count()):
-            if 'Xbox 360' in pygame.joystick.Joystick(i).get_name():
+            name = pygame.joystick.Joystick(i).get_name().lower()
+            if 'xbox' in name:
+                self.controllers.append(Controller(i))
+            elif 'xinput' in name:
                 self.controllers.append(Controller(i))
             else:
                 try:
