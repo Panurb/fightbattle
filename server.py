@@ -67,7 +67,7 @@ class Server:
 
         while True:
             try:
-                data = pickle.loads(conn.recv(4096))
+                data = pickle.loads(conn.recv(2048))
 
                 if not data:
                     print('Disconnected')
