@@ -146,7 +146,10 @@ class GameLoop:
 
             for p in data[0]:
                 if p[0] == self.network_id:
-                    self.players[self.network_id].health = p[9]
+                    player = self.players[self.network_id]
+                    if player.health <= 0 and p[9] > 0:
+                        player.reset(self.colliders)
+                    player.health = p[9]
                 else:
                     if p[0] not in self.players:
                         self.add_player(-1, p[0])

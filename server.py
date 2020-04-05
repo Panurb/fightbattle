@@ -13,6 +13,7 @@ from weapon import Gun, Bullet
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
+        server = '192.168.1.100'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -75,6 +76,10 @@ class Server:
                 player.apply_data(data[0])
                 player.health = old_health
 
+                if player.health <= 0 and player.timer >= self.respawn_time:
+                    player.health = 100
+                    player.timer = 0.0
+
                 if len(data) == 2:
                     obj = self.level.objects[data[1][0]]
                     obj.apply_data(data[1])
@@ -102,16 +107,15 @@ class Server:
 
     def physics_thread(self):
         clock = pygame.time.Clock()
+        time_step = 15.0 / 60
 
         while True:
-            print(len(self.level.objects))
             self.level.clear_sounds()
-            self.level.update(15.0 / 60, self.colliders)
+            self.level.update(time_step, self.colliders)
 
-            for player in self.players.values():
-                if player.destroyed and player.timer >= self.respawn_time:
-                    player.set_spawn(self.level, self.players)
-                    player.reset(self.colliders)
+            for p in self.players.values():
+                if p.health <= 0:
+                    p.timer += time_step
 
             clock.tick(60)
 
