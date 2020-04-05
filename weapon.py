@@ -12,10 +12,11 @@ from particle import MuzzleFlash, Explosion, Sparks
 class Weapon(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, bump_sound='gun')
+        self.attacked = False
         self.hit = False
 
     def attack(self):
-        pass
+        self.attacked = False
 
 
 class Gun(Weapon):
@@ -26,7 +27,12 @@ class Gun(Weapon):
         self.grip_position = None
         self.bullet_speed = 3.0
 
-        self.bullets = []
+    def get_data(self):
+        return super().get_data() + (self.attacked, )
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.attacked = data[9]
 
     def get_hand_position(self):
         v = self.hand_position.copy()
@@ -43,29 +49,13 @@ class Gun(Weapon):
         v[0] *= self.direction
         return self.position + rotate(v, self.angle)
 
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
-
-        for b in self.bullets:
-            b.update(gravity, time_step, colliders)
-            if b.destroyed and not b.particle_clouds:
-                self.bullets.remove(b)
-
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-
-        for b in self.bullets:
-            b.draw(screen, camera, image_handler)
-
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)
 
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.get_hand_position()), 2)
 
-        for b in self.bullets:
-            b.debug_draw(screen, camera, image_handler)
-
     def attack(self):
+        super().attack()
         v = 0.1 * self.direction * polar_to_cartesian(1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
         self.particle_clouds.append(
@@ -73,10 +63,10 @@ class Gun(Weapon):
         self.particle_clouds.append(
             MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
 
+        return []
+
     def play_sounds(self, sound_handler):
         super().play_sounds(sound_handler)
-        for b in self.bullets:
-            b.play_sounds(sound_handler)
 
 
 class Revolver(Gun):
@@ -87,10 +77,11 @@ class Revolver(Gun):
         self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.GUNS))
 
     def attack(self):
-        super().attack()
+        bs = super().attack()
         self.sounds.append('revolver')
         v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
-        self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent))
+        bs.append(Bullet(self.get_barrel_position(), v, self.parent))
+        return bs
 
 
 class Shotgun(Gun):
@@ -105,15 +96,18 @@ class Shotgun(Gun):
         self.grip_position = np.array([0.45, -0.05])
 
     def attack(self):
-        super().attack()
+        bs = super().attack()
+        self.sounds.append('shotgun')
         for _ in range(5):
             theta = np.random.normal(self.angle, 0.1)
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
-            self.bullets.append(Bullet(self.get_barrel_position(), v, self.parent, 10, 0.5, dmg=8))
+            bs.append(Pellet(self.get_barrel_position(), v, self.parent))
+
+        return bs
 
 
 class Bullet(PhysicsObject):
-    def __init__(self, position, velocity, parent, lifetime=20, size=1.0, dmg=20):
+    def __init__(self, position, velocity=(0, 0), parent=None, lifetime=20, size=1.0, dmg=20):
         super().__init__(position, velocity)
         self.parent = parent
         self.add_collider(Circle(np.zeros(2), 0.2, Group.BULLETS))
@@ -146,12 +140,12 @@ class Bullet(PhysicsObject):
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
-                if obj not in [self.parent.body, self.parent.head]:
-                    try:
-                        obj.damage(self.dmg, self.position, self.velocity, colliders)
-                    except AttributeError:
-                        print('Cannot damage', obj)
-                    self.destroy(False)
+                #if obj not in [self.parent.body, self.parent.head]:
+                try:
+                    obj.damage(self.dmg, self.position, self.velocity, colliders)
+                except AttributeError:
+                    print('Cannot damage', obj)
+                self.destroy(False)
 
                 return
 
@@ -169,6 +163,11 @@ class Bullet(PhysicsObject):
                 p.draw(screen, camera, image_handler)
         else:
             super().draw(screen, camera, image_handler)
+
+
+class Pellet(Bullet):
+    def __init__(self, position, velocity=(0, 0), parent=None):
+        super().__init__(position, velocity, parent, 10, 0.5, 8)
 
 
 class Sword(PhysicsObject):
@@ -250,6 +249,7 @@ class Grenade(Destroyable):
 
                 self.destroy([0, 0], colliders)
         else:
+
             self.pin.set_position(self.position + 0.15 * rotate(basis(0), self.angle))
             self.pin.rotate(self.angle - self.pin.angle)
 
@@ -271,7 +271,7 @@ class Grenade(Destroyable):
 
 
 class Arrow(Bullet):
-    def __init__(self, position, velocity, parent):
+    def __init__(self, position, velocity=(0, 0), parent=None):
         super().__init__(position, velocity, parent, lifetime=80, size=1.2)
         self.gravity_scale = 1.0
         self.image_path = 'arrow'
@@ -329,6 +329,14 @@ class Bow(Gun):
         self.string_color = [50, 50, 50]
         self.arrow = GameObject(self.position, 'arrow', size=1.2)
         self.arrow.image_position = 0.5 * basis(0)
+        self.attack_charge = 0.0
+
+    def get_data(self):
+        return super().get_data() + (self.attack_charge, )
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.attack_charge = data[-1]
 
     def flip_horizontally(self):
         super().flip_horizontally()
@@ -336,12 +344,6 @@ class Bow(Gun):
 
     def update(self, gravity, time_step, colliders):
         Weapon.update(self, gravity, time_step, colliders)
-
-        for b in self.bullets:
-            if b.destroyed:
-                self.bullets.remove(b)
-            else:
-                b.update(gravity, time_step, colliders)
 
         if self.parent:
             if self.timer == 0.0 and self.parent.attack_charge > 0.0:
@@ -357,10 +359,16 @@ class Bow(Gun):
 
     def attack(self):
         if self.timer == 0.0:
+            self.attacked = False
             self.sounds.append('bow_release')
-            v = self.direction * self.parent.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
-            self.bullets.append(Arrow(self.get_barrel_position(), v, self.parent))
+            v = self.direction * self.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
+            bs = [Arrow(self.get_barrel_position(), v, self.parent)]
             self.timer = 10.0
+            self.attack_charge = 0.0
+
+            return bs
+
+        return []
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)

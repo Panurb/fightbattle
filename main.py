@@ -1,20 +1,22 @@
-import cProfile, pstats, io
+import cProfile
+import io
+import pstats
 from pstats import SortKey
 
 import pygame
 
-import menu
 import gameloop
 import imagehandler
 import inputhandler
-import soundhandler
+import menu
 import optionhandler
+import soundhandler
 
 
 class Main:
     def __init__(self):
         # init mixer first to prevent audio delay
-        pygame.mixer.pre_init(44100, -16, 2, 2048)
+        pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.mixer.init()
 
         #pygame.mixer.set_num_channels(16)

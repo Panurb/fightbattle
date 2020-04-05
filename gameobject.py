@@ -5,7 +5,7 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Rectangle
-from helpers import norm2, rotate, normalized, polar_angle
+from helpers import norm2, rotate, normalized, polar_angle, basis
 
 MAX_SPEED = 5.0
 
@@ -31,13 +31,18 @@ class GameObject:
         self.sounds = []
 
     def get_data(self):
-        data = (self.id, self.position[0], self.position[1], self.angle)
+        data = (self.id, type(self), self.position[0], self.position[1], self.direction, self.angle)
 
         return data
 
     def apply_data(self, data):
-        self.set_position(np.array([data[1], data[2]]))
-        self.angle = data[3]
+        self.set_position(np.array([data[2], data[3]]))
+        if data[4] != self.direction:
+            self.flip_horizontally()
+        self.rotate(data[5] - self.angle)
+
+    def rotate(self, delta_angle):
+        self.angle += delta_angle
 
     def flip_horizontally(self):
         if type(self.collider) is Rectangle:
@@ -84,6 +89,12 @@ class GameObject:
         if self.collider:
             self.collider.draw(screen, camera, image_handler)
 
+        '''
+        font = pygame.font.Font(None, 20)
+        fps_str = font.render(str(self.id), True, (255, 255, 255))
+        screen.blit(fps_str, camera.world_to_screen(self.position))
+        '''
+
     def play_sounds(self, sound_handler):
         for sound in self.sounds:
             sound_handler.sounds[sound].play()
@@ -120,16 +131,16 @@ class PhysicsObject(GameObject):
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.velocity[0] = data[4]
-        self.velocity[1] = data[5]
-        self.sounds[:] = data[6]
+        self.velocity[0] = data[6]
+        self.velocity[1] = data[7]
+        self.sounds[:] = data[8]
 
     def set_position(self, position):
         super().set_position(position)
         self.velocity[:] = np.zeros(2)
 
     def rotate(self, delta_angle):
-        self.angle += delta_angle
+        super().rotate(delta_angle)
         if self.collider:
             self.collider.rotate(delta_angle)
             r = self.collider.position - self.position
@@ -248,7 +259,7 @@ class Destroyable(PhysicsObject):
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.health = data[7]
+        self.health = data[9]
 
     def damage(self, amount, position, velocity, colliders):
         if self.health > 0:
@@ -312,6 +323,11 @@ class Destroyable(PhysicsObject):
                 p.draw(screen, camera, image_handler)
         else:
             super().draw(screen, camera, image_handler)
+
+    def debug_draw(self, screen, camera, image_handler):
+        super().debug_draw(screen, camera, image_handler)
+        text = image_handler.font.render(str(self.health), True, image_handler.debug_color)
+        screen.blit(text, camera.world_to_screen(self.position))
 
     def play_sounds(self, sound_handler):
         super().play_sounds(sound_handler)

@@ -11,6 +11,7 @@ class ImageHandler:
         self.images = dict()
         self.load_images()
         self.debug_color = (255, 0, 255)
+        self.font = pygame.font.Font(None, 30)
 
     def load_images(self):
         path = os.path.join('data', 'images')

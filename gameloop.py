@@ -6,11 +6,13 @@ import pygame
 from camera import Camera
 from collider import Group
 from enemy import Enemy
-from gameobject import Destroyable
+from gameobject import Destroyable, PhysicsObject
 from helpers import norm2, basis
 from menu import State, Menu, PlayerMenu, MainMenu
 from player import Player
 from network import Network
+from prop import Crate
+from weapon import Weapon, Gun, Bullet
 
 
 class GameLoop:
@@ -42,7 +44,7 @@ class GameLoop:
 
         self.network = None
         self.network_id = -1
-        self.old_obj = None
+        self.obj_id = -1
 
         self.controller_id = 0
 
@@ -59,19 +61,14 @@ class GameLoop:
         for wall in self.level.walls:
             self.colliders[wall.collider.group].append(wall.collider)
 
-        for obj in self.level.objects:
+        for obj in self.level.objects.values():
             self.colliders[obj.collider.group].append(obj.collider)
-
-        for i, p in enumerate(self.level.player_spawns):
-            if i >= len(self.players):
-                break
-            self.players[i].set_position(p.position)
 
         self.scores = [0] * len(self.players)
 
-    def add_player(self, controller_id):
-        player = Player([0, 0], controller_id)
-        self.players[controller_id] = player
+    def add_player(self, controller_id, network_id=-1):
+        player = Player([0, 0], controller_id, network_id)
+        self.players[network_id] = player
         self.colliders[player.collider.group].append(player.collider)
         self.colliders[player.head.collider.group].append(player.head.collider)
         self.colliders[player.body.collider.group].append(player.body.collider)
@@ -87,19 +84,8 @@ class GameLoop:
         if self.state is State.PLAY:
             for player in self.players.values():
                 if player.destroyed and player.timer >= self.respawn_time:
-                    i = 0
-                    max_dist = 0.0
-                    for j, s in enumerate(self.level.player_spawns):
-                        min_dist = np.inf
-                        for p in self.players.values():
-                            if not p.destroyed:
-                                min_dist = min(min_dist, norm2(s.position - p.position))
-                        if min_dist > max_dist:
-                            max_dist = min_dist
-                            i = j
-
+                    player.set_spawn(self.level, self.players)
                     player.reset(self.colliders)
-                    player.set_position(self.level.player_spawns[i].position)
 
                 player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
@@ -136,23 +122,36 @@ class GameLoop:
                 p = self.network.player
                 self.network_id = p[0]
 
-                player = Player([p[1], p[2]], network_id=p[0], controller_id=self.controller_id)
-                player.angle = p[3]
-                self.players[p[0]] = player
+                self.add_player(self.controller_id, p[0])
+                self.players[p[0]].apply_data(p)
 
-            self.players[self.network_id].update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            player = self.players[self.network_id]
+            player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+
+            obj = self.players[self.network_id].object
+            if obj is not None:
+                obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+
             self.camera.update(time_step, self.players)
 
-            data = [self.players[self.network_id].get_data(), []]
-            if self.old_obj is not None:
-                data[1].append(self.old_obj.get_data())
+            data = [self.players[self.network_id].get_data()]
+
+            if self.obj_id != -1:
+                data.append(self.level.objects[self.obj_id].get_data())
+
             data = self.network.send(data)
 
+            if obj is not None:
+                obj.attacked = False
+
             for p in data[0]:
-                if p[0] not in self.players:
-                    self.players[p[0]] = Player([0, 0], network_id=p[0])
-                player = self.players[p[0]]
-                player.apply_data(p)
+                if p[0] == self.network_id:
+                    self.players[self.network_id].health = p[9]
+                else:
+                    if p[0] not in self.players:
+                        self.add_player(-1, p[0])
+
+                    self.players[p[0]].apply_data(p)
 
             # kinda purkka
             ids = [self.network_id] + [p[0] for p in data[0]]
@@ -160,22 +159,35 @@ class GameLoop:
                 if k not in ids:
                     del self.players[k]
 
-            for i, obj in enumerate(self.level.objects):
-                obj.apply_data(data[1][i])
-                if isinstance(obj, Destroyable) and obj.health <= 0:
-                    obj.destroy(np.zeros(2), self.colliders)
+            for d in data[1]:
+                if d[0] in self.level.objects:
+                    self.level.objects[d[0]].apply_data(d)
+                else:
+                    obj = d[1]([d[2], d[3]])
+                    obj.id = d[0]
+                    obj.apply_data(d)
+                    self.level.objects[d[0]] = obj
+
+            # kinda purkka
+            ids = [p[0] for p in data[1]]
+            for k in list(self.level.objects.keys()):
+                if k not in ids:
+                    del self.level.objects[k]
 
             for g in Group:
-                if g not in [Group.NONE, Group.PLAYERS, Group.HITBOXES, Group.WALLS, Group.PLATFORMS]:
-                    self.colliders[g] = []
+                if g not in [Group.NONE, Group.PLAYERS, Group.HITBOXES, Group.WALLS, Group.PLATFORMS, Group.DEBRIS]:
+                    self.colliders[g].clear()
 
-            for obj in self.level.objects:
+            for obj in self.level.objects.values():
                 if obj.collider is not None:
                     self.colliders[obj.collider.group].append(obj.collider)
 
-            for obj in self.level.objects:
-                if isinstance(obj, Destroyable) and obj.destroyed:
-                    obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            for obj in self.level.objects.values():
+                if isinstance(obj, Destroyable):
+                    if obj.health <= 0:
+                        obj.destroy(-basis(1), self.colliders)
+                    if obj.destroyed:
+                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
     def input(self, input_handler):
         input_handler.update(self.camera)
@@ -184,7 +196,7 @@ class GameLoop:
             self.state = State.QUIT
 
         if self.state is State.PLAY:
-            if self.players:
+            if 0 in self.players:
                 input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
 
             if input_handler.keys_pressed[pygame.K_v]:
@@ -219,7 +231,7 @@ class GameLoop:
 
                 input_handler.relative_mouse[:] = input_handler.mouse_position - player.shoulder
 
-                self.old_obj = player.object
+                self.obj_id = player.object.id if player.object is not None else -1
 
                 player.input(input_handler)
 

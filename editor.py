@@ -10,7 +10,7 @@ import optionhandler
 from camera import Camera
 from level import Level, PlayerSpawn
 from prop import Crate, Ball
-from weapon import Weapon, Revolver
+from weapon import Weapon, Revolver, Shotgun
 
 
 class Editor:
@@ -77,7 +77,7 @@ class Editor:
 
     def input(self):
         if self.input_handler.mouse_pressed[1]:
-            for obj in self.level.walls + self.level.player_spawns + self.level.objects:
+            for obj in self.level.walls + self.level.player_spawns + list(self.level.objects.values()):
                 if obj.collider.point_inside(self.input_handler.mouse_position):
                     self.grabbed_object = obj
                     self.grab_offset = self.grabbed_object.position - self.input_handler.mouse_position
@@ -88,10 +88,10 @@ class Editor:
         if self.input_handler.mouse_released[1]:
             if self.grabbed_object is not None:
                 if isinstance(self.grabbed_object, Weapon):
-                    for obj in self.level.objects:
+                    for obj in self.level.objects.values():
                         if type(obj) is Crate and obj.collider.point_inside(self.input_handler.mouse_position):
                             obj.loot_list.append(type(obj))
-                            self.level.objects.remove(self.grabbed_object)
+                            del self.grabbed_object
                             break
 
                 self.grabbed_object = None
@@ -118,9 +118,9 @@ class Editor:
                 if w.collider.point_inside(self.input_handler.mouse_position):
                     self.level.player_spawns.remove(w)
 
-            for w in self.level.objects:
-                if w.collider.point_inside(self.input_handler.mouse_position):
-                    self.level.objects.remove(w)
+            for k in list(self.level.objects.keys()):
+                if self.level.objects[k].collider.point_inside(self.input_handler.mouse_position):
+                    del self.level.objects[k]
 
         if self.input_handler.mouse_pressed[4]:
             self.camera.zoom *= 1.5
@@ -151,6 +151,9 @@ class Editor:
 
         if self.input_handler.keys_pressed[pygame.K_b]:
             self.level.add_object(Ball(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
+
+        if self.input_handler.keys_pressed[pygame.K_g]:
+            self.level.add_object(Shotgun(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
 
     def draw_grid(self, size):
         x_min = math.floor(self.camera.position[0] - self.camera.half_width[0] / self.camera.zoom)

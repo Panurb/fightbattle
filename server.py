@@ -5,13 +5,14 @@ import pickle
 import pygame
 
 from collider import Group
+from gameobject import Destroyable
 from player import Player
+from weapon import Gun, Bullet
 
 
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
-        server = '25.97.148.11'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -29,14 +30,23 @@ class Server:
 
         self.colliders = dict()
         for g in Group:
-            if g not in [Group.NONE, Group.PLAYERS, Group.HITBOXES]:
-                self.colliders[g] = []
+            self.colliders[g] = []
 
         for wall in self.level.walls:
             self.colliders[wall.collider.group].append(wall.collider)
 
-        for obj in self.level.objects:
+        for obj in self.level.objects.values():
             self.colliders[obj.collider.group].append(obj.collider)
+
+        self.respawn_time = 50.0
+
+    def add_player(self, network_id):
+        player = Player([0, 0], -1, network_id)
+        player.set_spawn(self.level, self.players)
+        self.players[network_id] = player
+        self.colliders[player.collider.group].append(player.collider)
+        self.colliders[player.head.collider.group].append(player.head.collider)
+        self.colliders[player.body.collider.group].append(player.body.collider)
 
     def start(self):
         start_new_thread(self.physics_thread, ())
@@ -49,29 +59,40 @@ class Server:
             p += 1
 
     def threaded_client(self, conn, p):
-        self.players[p] = Player([0, 0], network_id=p)
+        self.add_player(p)
         conn.send(pickle.dumps(self.players[p].get_data()))
 
         while True:
             try:
-                data = pickle.loads(conn.recv(2048))
-                player = self.players[p]
-                player.set_position([data[0][1], data[0][2]])
-                player.angle = data[0][3]
-                if data[1]:
-                    for i, o in enumerate(self.level.objects):
-                        if o.id == data[1][0][0]:
-                            o.apply_data(data[1][0])
-                            break
+                data = pickle.loads(conn.recv(4096))
 
                 if not data:
                     print('Disconnected')
                     break
-                else:
-                    reply = [[v.get_data() for v in self.players.values() if v.network_id != p],
-                             [o.get_data() for o in self.level.objects]]
-                #print(len(pickle.dumps(reply)))
-                conn.sendall(pickle.dumps(reply))
+
+                player = self.players[p]
+                old_health = player.health
+                player.apply_data(data[0])
+                player.health = old_health
+
+                if len(data) == 2:
+                    obj = self.level.objects[data[1][0]]
+                    obj.apply_data(data[1])
+                    obj.parent = player
+                    if isinstance(obj, Gun) and obj.attacked:
+                        bs = obj.attack()
+                        for b in bs:
+                            self.level.objects[b.id] = b
+
+                reply = [[v.get_data() for v in self.players.values()],
+                         [o.get_data() for o in self.level.objects.values()]]
+
+                reply = pickle.dumps(reply)
+
+                if len(reply) > 4096:
+                    print('Package too large')
+
+                conn.sendall(reply)
             except:
                 break
 
@@ -83,11 +104,19 @@ class Server:
         clock = pygame.time.Clock()
 
         while True:
+            print(len(self.level.objects))
             self.level.clear_sounds()
             self.level.update(15.0 / 60, self.colliders)
+
+            for player in self.players.values():
+                if player.destroyed and player.timer >= self.respawn_time:
+                    player.set_spawn(self.level, self.players)
+                    player.reset(self.colliders)
+
             clock.tick(60)
 
 
 if __name__ == '__main__':
+    print(len(pickle.dumps(Group)))
     s = Server()
     s.start()

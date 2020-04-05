@@ -14,35 +14,12 @@ class Crate(Destroyable):
         self.loot = None
 
     def update(self, gravity, time_step, colliders):
-        if self.destroyed and self.loot is not None:
-            if isinstance(self.loot, Destroyable) and self.loot.destroyed:
-                self.loot = None
-                return
-            elif not self.loot.active:
-                colliders[self.loot.collider.group].append(self.loot.collider)
-                self.loot.active = True
-
-            self.loot.update(gravity, time_step, colliders)
-
         super().update(gravity, time_step, colliders)
 
         if not self.destroyed:
             if self.collider.collisions:
                 if self.speed / self.bounce > 0.9:
-                    self.health = 0
-                    self.destroy(-self.velocity, colliders)
-
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-
-        if self.destroyed and self.loot:
-            self.loot.draw(screen, camera, image_handler)
-
-    def debug_draw(self, screen, camera, image_handler):
-        super().debug_draw(screen, camera, image_handler)
-
-        if self.destroyed and self.loot:
-            self.loot.debug_draw(screen, camera, image_handler)
+                    self.damage(self.health, self.position, -self.velocity, colliders)
 
     def destroy(self, velocity, colliders):
         if not self.destroyed:
@@ -50,15 +27,9 @@ class Crate(Destroyable):
             self.gravity_scale = 0.0
             if self.loot_list:
                 self.loot = np.random.choice(self.loot_list)(self.position)
-                self.loot.velocity[:] = 0.25 * random_unit()
                 self.loot.active = False
 
         super().destroy(velocity, colliders)
-
-    def play_sounds(self, sound_handler):
-        super().play_sounds(sound_handler)
-        if self.loot is not None:
-            self.loot.play_sounds(sound_handler)
 
 
 class Ball(PhysicsObject):
