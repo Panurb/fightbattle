@@ -13,7 +13,7 @@ from weapon import Gun, Bullet
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
-        server = '192.168.1.100'
+        server = '25.97.148.11'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -61,7 +61,9 @@ class Server:
 
     def threaded_client(self, conn, p):
         self.add_player(p)
-        conn.send(pickle.dumps(self.players[p].get_data()))
+        data = [self.players[p].get_data(),
+                [o.get_data() for o in self.level.objects.values()]]
+        conn.send(pickle.dumps(data))
 
         while True:
             try:
@@ -77,8 +79,7 @@ class Server:
                 player.health = old_health
 
                 if player.health <= 0 and player.timer >= self.respawn_time:
-                    player.health = 100
-                    player.timer = 0.0
+                    player.reset(self.colliders)
 
                 if len(data) == 2:
                     obj = self.level.objects[data[1][0]]
@@ -121,6 +122,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    print(len(pickle.dumps(Group)))
     s = Server()
     s.start()

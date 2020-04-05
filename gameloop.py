@@ -1,4 +1,5 @@
 import pickle
+from _thread import *
 
 import numpy as np
 import pygame
@@ -119,11 +120,16 @@ class GameLoop:
         elif self.state is State.LAN:
             if self.network is None:
                 self.network = Network()
-                p = self.network.player
-                self.network_id = p[0]
+                p = self.network.data
+                self.network_id = p[0][0]
 
-                self.add_player(self.controller_id, p[0])
-                self.players[p[0]].apply_data(p)
+                self.add_player(self.controller_id, p[0][0])
+                self.players[p[0][0]].apply_data(p[0])
+
+                self.level.objects.clear()
+                self.colliders[Group.PROPS].clear()
+
+                start_new_thread(self.network_thread, ())
 
             player = self.players[self.network_id]
             player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
@@ -134,20 +140,28 @@ class GameLoop:
 
             self.camera.update(time_step, self.players)
 
+            for obj in list(self.level.objects.values()):
+                if isinstance(obj, Destroyable):
+                    if obj.health <= 0:
+                        obj.destroy(-basis(1), self.colliders)
+                    if obj.destroyed:
+                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+
+    def network_thread(self):
+        while True:
             data = [self.players[self.network_id].get_data()]
 
             if self.obj_id != -1:
                 data.append(self.level.objects[self.obj_id].get_data())
+                self.level.objects[self.obj_id].attacked = False
 
             data = self.network.send(data)
-
-            if obj is not None:
-                obj.attacked = False
 
             for p in data[0]:
                 if p[0] == self.network_id:
                     player = self.players[self.network_id]
                     if player.health <= 0 and p[9] > 0:
+                        player.set_spawn(self.level, self.players)
                         player.reset(self.colliders)
                     player.health = p[9]
                 else:
@@ -163,6 +177,9 @@ class GameLoop:
                     del self.players[k]
 
             for d in data[1]:
+                if d[0] == self.obj_id:
+                    continue
+
                 if d[0] in self.level.objects:
                     self.level.objects[d[0]].apply_data(d)
                 else:
@@ -184,13 +201,6 @@ class GameLoop:
             for obj in self.level.objects.values():
                 if obj.collider is not None:
                     self.colliders[obj.collider.group].append(obj.collider)
-
-            for obj in self.level.objects.values():
-                if isinstance(obj, Destroyable):
-                    if obj.health <= 0:
-                        obj.destroy(-basis(1), self.colliders)
-                    if obj.destroyed:
-                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
     def input(self, input_handler):
         input_handler.update(self.camera)

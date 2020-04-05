@@ -133,7 +133,7 @@ class Bullet(PhysicsObject):
         if self.time < self.lifetime:
             self.time += time_step
         else:
-            self.destroy(False)
+            self.destroy(True)
 
         if not self.destroyed:
             self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
@@ -145,7 +145,7 @@ class Bullet(PhysicsObject):
                     obj.damage(self.dmg, self.position, self.velocity, colliders)
                 except AttributeError:
                     print('Cannot damage', obj)
-                self.destroy(False)
+                self.destroy(True)
 
                 return
 
@@ -285,10 +285,10 @@ class Arrow(Bullet):
         else:
             self.destroyed = True
 
+        PhysicsObject.update(self, gravity, time_step, colliders)
+
         if self.hit:
             return
-
-        PhysicsObject.update(self, gravity, time_step, colliders)
 
         if self.collider.collisions:
             self.hit = True
@@ -307,7 +307,7 @@ class Arrow(Bullet):
                     obj.damage(int(self.speed * self.dmg), self.position, self.velocity, colliders)
                 except AttributeError:
                     print('Cannot damage', obj)
-                self.destroyed = True
+                self.destroy(True)
 
             return
 

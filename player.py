@@ -105,7 +105,6 @@ class Player(Destroyable):
         i = 0
         max_dist = 0.0
         for j, s in enumerate(level.player_spawns):
-            print(j)
             if len(players) == 1:
                 break
 
@@ -671,19 +670,19 @@ class Hand(PhysicsObject, AnimatedObject):
 
         self.add_animation(np.zeros(1), np.zeros(1), np.zeros(1), 'idle')
 
-        xs = np.array([0.0, -0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
-        ys = np.array([0.0, -0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
-        angles = np.pi * np.array([0.0, -0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
+        xs = np.array([-0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
+        ys = np.array([-0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
+        angles = np.pi * np.array([-0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
         self.add_animation(xs, ys, angles, 'sword')
 
-        xs = 2 * np.array([0.0, -0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
-        ys = 3 * np.array([0.0, 0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
-        angles = 0.5 * np.pi * np.array([0.0, 0.3, 0.5, 0.55, 0.575, 0.6, 0.5, 0.45, 0.35, 0.2])
+        xs = 2 * np.array([-0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
+        ys = 3 * np.array([0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
+        angles = 0.5 * np.pi * np.array([0.3, 0.5, 0.55, 0.575, 0.6, 0.5, 0.45, 0.35, 0.2])
         self.add_animation(xs, ys, angles, 'shotgun', image='hand_trigger')
 
-        xs = np.array([0.0, -0.15, -0.25, -0.2, -0.1, -0.05])
-        ys = np.array([0.0, 0.1, 0.2, 0.15, 0.1, 0.05])
-        angles = np.pi * np.array([0.0, 0.3, 0.5, 0.45, 0.35, 0.2])
+        xs = np.array([-0.15, -0.25, -0.2, -0.1, -0.05])
+        ys = np.array([0.1, 0.2, 0.15, 0.1, 0.05])
+        angles = np.pi * np.array([0.3, 0.5, 0.45, 0.35, 0.2])
         self.add_animation(xs, ys, angles, 'pistol', image='hand_trigger')
 
 
