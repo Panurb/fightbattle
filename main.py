@@ -1,8 +1,3 @@
-import cProfile
-import io
-import pstats
-from pstats import SortKey
-
 import pygame
 
 import gameloop
@@ -22,13 +17,15 @@ class Main:
         #pygame.mixer.set_num_channels(16)
 
         pygame.init()
-        pygame.display.set_caption('NEXTGAME')
+        pygame.display.set_caption('FIGHTBATTLE')
 
         self.option_handler = optionhandler.OptionsHandler()
 
-        mode = pygame.FULLSCREEN if self.option_handler.fullscreen else 0
-
-        self.screen = pygame.display.set_mode(self.option_handler.resolution, mode)
+        if self.option_handler.fullscreen:
+            self.screen = pygame.display.set_mode(self.option_handler.resolution,
+                                                  flags=(pygame.FULLSCREEN | pygame.HWSURFACE))
+        else:
+            self.screen = pygame.display.set_mode(self.option_handler.resolution)
 
         self.image_handler = imagehandler.ImageHandler()
         self.sound_handler = soundhandler.SoundHandler()
@@ -65,18 +62,6 @@ class Main:
 def main():
     main_window = Main()
     main_window.main_loop()
-
-
-def profile():
-    pr = cProfile.Profile()
-    pr.enable()
-    main()
-    pr.disable()
-    s = io.StringIO()
-    sortby = SortKey.CUMULATIVE
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats()
-    print(s.getvalue())
 
 
 if __name__ == "__main__":

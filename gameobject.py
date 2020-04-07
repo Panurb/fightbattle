@@ -11,11 +11,8 @@ MAX_SPEED = 5.0
 
 
 class GameObject:
-    id_iter = itertools.count()
-
     def __init__(self, position, image_path='', size=1.0):
         super().__init__()
-        self.id = next(self.id_iter)
 
         self.position = np.array(position, dtype=float)
         self.collider = None
@@ -30,12 +27,15 @@ class GameObject:
 
         self.sounds = []
 
+        self.id = None
+
     def get_data(self):
         data = (self.id, type(self), self.position[0], self.position[1], self.direction, self.angle)
 
         return data
 
     def apply_data(self, data):
+        self.id = data[0]
         self.set_position(np.array([data[2], data[3]]))
         if data[4] != self.direction:
             self.flip_horizontally()
@@ -267,7 +267,7 @@ class Destroyable(PhysicsObject):
             self.velocity += velocity
 
         if self.health <= 0:
-            self.destroy(velocity, colliders)
+            self.destroy(np.zeros(2), colliders)
 
     def destroy(self, velocity, colliders):
         if self.destroyed:

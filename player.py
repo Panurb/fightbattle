@@ -10,7 +10,7 @@ from weapon import Shotgun, Shield, Bow, Sword, Revolver, Weapon
 
 
 class Player(Destroyable):
-    def __init__(self, position, controller_id=0, network_id=0):
+    def __init__(self, position=(0, 0), controller_id=0, network_id=0):
         super().__init__(position)
         self.goal_velocity = np.zeros(2)
         self.walk_acceleration = 0.5
@@ -23,8 +23,8 @@ class Player(Destroyable):
 
         self.back_hip = self.position + np.array([0.1, -0.5])
         self.front_hip = self.position + np.array([-0.1, -0.5])
-        self.back_foot = Foot(self.position + np.array([0.1, -1.5]))
-        self.front_foot = Foot(self.position + np.array([-0.1, -1.5]))
+        self.back_foot = Foot(self.position - np.array([0.35, 1.4]))
+        self.front_foot = Foot(self.position - np.array([0.55, 1.4]))
         self.leg_length = 0.8
 
         self.max_speed = 0.5
@@ -43,7 +43,7 @@ class Player(Destroyable):
         self.object = None
 
         self.crouched = 0
-        self.crouch_speed = 0.25
+        self.crouch_speed = 0.1
 
         self.lt_pressed = False
         self.rt_pressed = False
@@ -382,12 +382,12 @@ class Player(Destroyable):
                     self.hand.image_path = 'hand_arrow'
                 else:
                     self.hand.image_path = 'hand'
-                self.hand.image_position = self.object.hand_position.copy()
+                self.hand.image_position[:] = self.object.hand_position
                 self.hand.image_position[0] *= self.direction
                 self.back_hand.image_path = 'fist_front'
             elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
-                self.hand.image_position = self.object.hand_position.copy()
+                self.hand.image_position[:] = self.object.hand_position
                 self.hand.image_position[0] *= self.direction
             elif self.object.collider.group is Group.SWORDS:
                 self.hand.image_path = 'fist'
@@ -701,6 +701,9 @@ class Foot(PhysicsObject, AnimatedObject):
         ys = 0.25 * np.array([0, 0, 0, 0, 0.5, 1, 1, 0.5])
         angles = 0.25 * np.array([0, 0, -1, -1, -1, -1, 0, 0])
         self.add_animation(xs, ys, angles, 'walk')
+
+        self.loop_animation('idle')
+        self.loop_animation('idle')
 
     def reset(self):
         self.gravity_scale = 0.0

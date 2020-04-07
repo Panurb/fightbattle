@@ -6,6 +6,7 @@ import pygame
 
 from collider import Group
 from gameobject import Destroyable
+from level import Level
 from player import Player
 from weapon import Gun, Bullet
 
@@ -13,7 +14,6 @@ from weapon import Gun, Bullet
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
-        server = '25.97.148.11'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -26,8 +26,7 @@ class Server:
         print("Waiting for a connection, Server Started")
 
         self.players = dict()
-        with open('data/levels/lvl.pickle', 'rb') as f:
-            self.level = pickle.load(f)
+        self.level = Level('lvl', True)
 
         self.colliders = dict()
         for g in Group:
@@ -61,13 +60,12 @@ class Server:
 
     def threaded_client(self, conn, p):
         self.add_player(p)
-        data = [self.players[p].get_data(),
-                [o.get_data() for o in self.level.objects.values()]]
+        data = [self.players[p].get_data(), self.level.get_data()]
         conn.send(pickle.dumps(data))
 
         while True:
             try:
-                data = pickle.loads(conn.recv(2048))
+                data = pickle.loads(conn.recv(1500))
 
                 if not data:
                     print('Disconnected')
@@ -85,18 +83,20 @@ class Server:
                     obj = self.level.objects[data[1][0]]
                     obj.apply_data(data[1])
                     obj.parent = player
+
                     if isinstance(obj, Gun) and obj.attacked:
                         bs = obj.attack()
                         for b in bs:
-                            self.level.objects[b.id] = b
+                            self.level.add_object(b)
+                            self.colliders[b.collider.group].append(b.collider)
 
                 reply = [[v.get_data() for v in self.players.values()],
                          [o.get_data() for o in self.level.objects.values()]]
 
                 reply = pickle.dumps(reply)
 
-                if len(reply) > 4096:
-                    print('Package too large')
+                if len(reply) > 1500:
+                    print('Packet too large:', len(reply))
 
                 conn.sendall(reply)
             except:
@@ -111,8 +111,8 @@ class Server:
         time_step = 15.0 / 60
 
         while True:
-            self.level.clear_sounds()
             self.level.update(time_step, self.colliders)
+            self.level.clear_sounds()
 
             for p in self.players.values():
                 if p.health <= 0:

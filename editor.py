@@ -76,7 +76,7 @@ class Editor:
             self.clock.tick(self.option_handler.fps)
 
     def input(self):
-        if self.input_handler.mouse_pressed[1]:
+        if self.input_handler.mouse_pressed[0]:
             for obj in self.level.walls + self.level.player_spawns + list(self.level.objects.values()):
                 if obj.collider.point_inside(self.input_handler.mouse_position):
                     self.grabbed_object = obj
@@ -85,7 +85,7 @@ class Editor:
             else:
                 self.wall_start = np.round(self.input_handler.mouse_position)
 
-        if self.input_handler.mouse_released[1]:
+        if self.input_handler.mouse_released[0]:
             if self.grabbed_object is not None:
                 if isinstance(self.grabbed_object, Weapon):
                     for obj in self.level.objects.values():
@@ -109,7 +109,7 @@ class Editor:
         if self.input_handler.mouse_down[1]:
             self.camera.position -= self.input_handler.mouse_change
 
-        if self.input_handler.mouse_pressed[3]:
+        if self.input_handler.mouse_pressed[2]:
             for w in self.level.walls:
                 if w.collider.point_inside(self.input_handler.mouse_position):
                     self.level.walls.remove(w)
@@ -122,19 +122,24 @@ class Editor:
                 if self.level.objects[k].collider.point_inside(self.input_handler.mouse_position):
                     del self.level.objects[k]
 
-        if self.input_handler.mouse_pressed[4]:
+        if self.input_handler.mouse_pressed[3]:
             self.camera.zoom *= 1.5
 
-        if self.input_handler.mouse_pressed[5]:
+        if self.input_handler.mouse_pressed[4]:
             self.camera.zoom /= 1.5
 
         if self.input_handler.keys_pressed[pygame.K_s]:
             with open('data/levels/lvl.pickle', 'wb') as f:
-                pickle.dump(self.level, f)
+                pickle.dump(self.level.get_data(), f)
 
         if self.input_handler.keys_pressed[pygame.K_l]:
             with open('data/levels/lvl.pickle', 'rb') as f:
-                self.level = pickle.load(f)
+                data = pickle.load(f)
+                self.level.clear()
+                self.level.apply_data(data)
+
+        if self.input_handler.keys_pressed[pygame.K_DELETE]:
+            self.level.clear()
 
         if self.input_handler.keys_pressed[pygame.K_w]:
             if self.type_index == len(self.object_types) - 1:

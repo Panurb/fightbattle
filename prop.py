@@ -10,8 +10,7 @@ class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        self.loot_list = [Bow, Shotgun, Revolver, Sword]
-        self.loot = None
+        self.loot_list = [Bow, Shotgun, Revolver]
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -25,9 +24,6 @@ class Crate(Destroyable):
         if not self.destroyed:
             self.sounds.append('crate_break')
             self.gravity_scale = 0.0
-            if self.loot_list:
-                self.loot = np.random.choice(self.loot_list)(self.position)
-                self.loot.active = False
 
         super().destroy(velocity, colliders)
 

@@ -105,7 +105,7 @@ class Keyboard(Controller):
         super().__init__(-1)
 
         self.buttons = {'A': pygame.K_SPACE,
-                        'B': pygame.K_r,
+                        'B': pygame.K_ESCAPE,
                         'X': pygame.K_q,
                         'Y': pygame.K_f,
                         'LB': pygame.K_c,
@@ -193,19 +193,19 @@ class InputHandler:
 
         for key in self.keys_pressed:
             self.keys_pressed[key] = False
-        self.mouse_pressed = [False] * 6
-        self.mouse_released = [False] * 6
+        self.mouse_pressed = [False] * 8
+        self.mouse_released = [False] * 8
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or self.keys_down[pygame.K_ESCAPE]:
+            if event.type == pygame.QUIT or self.keys_down[pygame.K_END]:
                 self.quit = True
             else:
                 if event.type == pygame.KEYDOWN:
                     self.keys_pressed[event.key] = True
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.mouse_pressed[event.button] = True
+                    self.mouse_pressed[event.button - 1] = True
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    self.mouse_released[event.button] = True
+                    self.mouse_released[event.button - 1] = True
 
         mouse_pos = camera.screen_to_world(pygame.mouse.get_pos())
         self.mouse_position[:] = mouse_pos

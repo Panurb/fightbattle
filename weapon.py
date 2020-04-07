@@ -98,8 +98,9 @@ class Shotgun(Gun):
     def attack(self):
         bs = super().attack()
         self.sounds.append('shotgun')
-        for _ in range(5):
-            theta = np.random.normal(self.angle, 0.1)
+        theta = self.angle - 0.1
+        for _ in range(3):
+            theta += 0.1
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
             bs.append(Pellet(self.get_barrel_position(), v, self.parent))
 
@@ -119,7 +120,6 @@ class Bullet(PhysicsObject):
         self.lifetime = lifetime
         self.time = 0
         self.destroyed = False
-        self.collision = False
         self.dmg = dmg
 
     def update(self, gravity, time_step, colliders):
@@ -167,7 +167,7 @@ class Bullet(PhysicsObject):
 
 class Pellet(Bullet):
     def __init__(self, position, velocity=(0, 0), parent=None):
-        super().__init__(position, velocity, parent, 10, 0.5, 8)
+        super().__init__(position, velocity, parent, 10, 0.5, 15)
 
 
 class Sword(PhysicsObject):
@@ -272,7 +272,7 @@ class Grenade(Destroyable):
 
 class Arrow(Bullet):
     def __init__(self, position, velocity=(0, 0), parent=None):
-        super().__init__(position, velocity, parent, lifetime=80, size=1.2)
+        super().__init__(position, velocity, parent, lifetime=40, size=1.2)
         self.gravity_scale = 1.0
         self.image_path = 'arrow'
         self.bounce = 0.0
@@ -293,6 +293,8 @@ class Arrow(Bullet):
         if self.collider.collisions:
             self.hit = True
             self.sounds.append('gun')
+            self.velocity[:] = np.zeros(2)
+            self.active = False
             return
 
         if np.any(self.velocity):
@@ -310,6 +312,9 @@ class Arrow(Bullet):
                 self.destroy(True)
 
             return
+
+    def destroy(self, sparks):
+        self.destroyed = True
 
 
 class Bow(Gun):
