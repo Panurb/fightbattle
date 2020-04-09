@@ -215,7 +215,7 @@ class PhysicsObject(GameObject):
             self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
             self.velocity *= self.bounce
 
-            if type(obj) is PhysicsObject:
+            if isinstance(obj, PhysicsObject):
                 obj.velocity[:] = -self.velocity
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
@@ -238,9 +238,6 @@ class PhysicsObject(GameObject):
         for p in self.particle_clouds:
             p.draw(screen, camera, image_handler)
         super().draw(screen, camera, image_handler)
-
-    def damage(self, amount, position, velocity, colliders):
-        self.velocity += velocity
 
 
 class Destroyable(PhysicsObject):

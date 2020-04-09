@@ -180,7 +180,7 @@ class MainMenu(Menu):
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('QUIT', State.QUIT))
         self.update_buttons()
-        title_font = pygame.font.Font(None, 250)
+        title_font = pygame.font.Font('data/fonts/CollegiateBlackFLF.ttf', 160)
         self.title = title_font.render('FIGHTBATTLE', True, (255, 255, 255))
 
     def input(self, input_handler, controller_id=0):

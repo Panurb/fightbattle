@@ -531,9 +531,10 @@ class Player(Destroyable):
         self.sounds.append('hit')
 
         n = max(amount // 4, 1)
-        self.particle_clouds.append(BloodSplatter([self.position[0], position[1]], -0.1 * velocity, n))
 
         self.health -= amount
+
+        return BloodSplatter([self.position[0], position[1]], -0.1 * velocity, n)
 
     def destroy(self, velocity, colliders):
         if self.destroyed:

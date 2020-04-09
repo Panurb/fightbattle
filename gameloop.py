@@ -258,7 +258,7 @@ class GameLoop:
             for pm in self.player_menus:
                 pm.draw(screen, self.camera, image_handler)
                 if pm.controller_id is not None:
-                    self.players[pm.controller_id].set_position(pm.position + 2 * basis(1))
+                    self.players[pm.controller_id].set_position(pm.position + 3 * basis(1))
                     self.players[pm.controller_id].on_ground = True
                     self.players[pm.controller_id].animate(0.0)
                     self.players[pm.controller_id].draw(screen, self.camera, image_handler)
