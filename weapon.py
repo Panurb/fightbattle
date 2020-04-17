@@ -3,7 +3,7 @@ import pygame
 import numpy as np
 from numpy.linalg import norm
 
-from bullet import Pellet, Bullet
+from bullet import Pellet, Bullet, Arrow
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
 from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit

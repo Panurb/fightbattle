@@ -36,12 +36,12 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.PLATFORMS: []}
 
 
-#@njit
+@njit
 def axis_half_width(w1, h1, u):
     return abs(np.dot(w1, u)) + abs(np.dot(h1, u))
 
 
-#@njit
+@njit
 def axis_overlap(r1, p1, r2, p2, u):
     overlap = 0.0
     r = np.dot(p1 - p2, u)
@@ -55,7 +55,7 @@ def axis_overlap(r1, p1, r2, p2, u):
     return overlap
 
 
-#@njit
+@njit
 def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     overlaps = np.zeros(4)
 
@@ -76,7 +76,7 @@ def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     return overlaps[i] * axes[i, :]
 
 
-#@njit
+@njit
 def overlap_rectangle_circle(w1, h1, p1, r2, p2):
     overlaps = np.zeros(2)
     near_corner = True

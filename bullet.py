@@ -14,7 +14,7 @@ class Bullet(PhysicsObject):
         self.gravity_scale = 0
         self.image_path = 'bullet'
         self.size = size
-        self.bounce = 1.0
+        self.bounce = 0.0
 
         self.lifetime = lifetime
         self.time = 0
@@ -41,8 +41,8 @@ class Bullet(PhysicsObject):
                 obj = c.collider.parent
                 #if obj not in [self.parent.body, self.parent.head]:
                 if isinstance(obj, Destroyable):
-                    self.particle_clouds += obj.damage(self.dmg, self.position, self.velocity, colliders)
-                    self.destroy()
+                    particle_type = obj.damage(self.dmg, colliders)
+                    self.destroy(particle_type)
                 else:
                     obj.velocity += self.velocity
                     self.destroy(Sparks)
@@ -53,7 +53,7 @@ class Bullet(PhysicsObject):
         if not self.destroyed:
             self.destroyed = True
             if particle_type is not None:
-                self.particle_clouds.append(particle_type(self.position, 0.05 * self.velocity))
+                self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity))
             self.active = False
             self.sounds.append('gun')
 
@@ -104,14 +104,12 @@ class Arrow(Bullet):
 
         for c in self.collider.collisions:
             obj = c.collider.parent
-            if obj not in [self.parent.body, self.parent.head]:
-                try:
-                    obj.damage(int(self.speed * self.dmg), self.position, self.velocity, colliders)
-                except AttributeError:
-                    print('Cannot damage', obj)
-                self.destroy(True)
+            #if obj not in [self.parent.body, self.parent.head]:
+            if isinstance(obj, Destroyable):
+                particle_type = obj.damage(int(self.speed * self.dmg), colliders)
+                self.destroy(particle_type)
+            else:
+                obj.velocity += self.velocity
+                self.destroy(Sparks)
 
             return
-
-    def destroy(self, sparks):
-        self.destroyed = True

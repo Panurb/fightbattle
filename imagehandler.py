@@ -21,12 +21,17 @@ class ImageHandler:
         path = os.path.join('data', 'images')
 
         for r, d, f in os.walk(path):
+            if 'bodies' in r:
+                suffix = f'_{r.split(os.sep)[-1]}'
+            else:
+                suffix = ''
+
             for file in f:
                 if '.png' in file:
                     try:
                         image = pygame.image.load(os.path.join(r, file))
                         image = image.convert_alpha()
-                        self.images[file.replace('.png', '')] = image
+                        self.images[file.replace('.png', '') + suffix] = image
                     except pygame.error as message:
                         raise SystemExit(message)
 

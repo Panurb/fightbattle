@@ -19,7 +19,7 @@ class Main:
         pygame.init()
         pygame.display.set_caption('FIGHTBATTLE')
 
-        self.option_handler = optionhandler.OptionsHandler()
+        self.option_handler = optionhandler.OptionHandler()
 
         if self.option_handler.fullscreen:
             self.screen = pygame.display.set_mode(self.option_handler.resolution,
@@ -38,6 +38,8 @@ class Main:
         self.time_step = 15.0 / self.option_handler.fps
 
         self.font = pygame.font.Font(None, 30)
+
+        #self.sound_handler.set_music('line')
 
     def main_loop(self):
         while self.loop.state != menu.State.QUIT:

@@ -23,7 +23,7 @@ class SoundHandler:
             if file.endswith('wav'):
                 self.sounds[file.split('.')[0]] = load_sound(os.path.join(path, file))
 
-        self.set_music_volume(0.5)
+        self.set_music_volume(1.0)
 
     def set_volume(self, vol):
         self.volume = vol

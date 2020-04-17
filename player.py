@@ -18,6 +18,8 @@ class Player(Destroyable):
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
+        self.body_type = 'speedo'
+
         self.body = Body(self.position, self)
         self.head = Head(self.position + basis(1), self)
 
@@ -29,7 +31,8 @@ class Player(Destroyable):
 
         self.max_speed = 0.5
 
-        self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height
+        self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height \
+                        - 0.1 * self.direction * self.collider.half_width
         self.hand_goal = basis(0)
         self.arm_length = 1.0
         self.elbow = np.zeros(2)
@@ -64,11 +67,13 @@ class Player(Destroyable):
         self.camera_shake = np.zeros(2)
 
     def get_data(self):
-        return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1])
+        return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1],
+                                                               self.crouched)
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.hand.set_position(np.array(data[-2:]))
+        self.hand.set_position(np.array(data[-3:-1]))
+        self.crouched = data[-1]
 
         self.hand_goal[:] = self.hand.position - self.shoulder
 
@@ -143,9 +148,6 @@ class Player(Destroyable):
             if not b.active:
                 self.particle_clouds.remove(b)
 
-        if self.health <= 0:
-            self.destroy(np.zeros(2), colliders)
-
         if self.destroyed:
             self.update_ragdoll(gravity, time_step, colliders)
             self.update_joints()
@@ -174,13 +176,17 @@ class Player(Destroyable):
                         < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
                     continue
 
-            if abs(self.velocity[1]) > 0.1:
-                self.sounds.append('bump')
+            #if abs(self.velocity[1]) > 0.1:
+            #    self.sounds.append('bump')
 
             if collision.overlap[1] > 0:
+                if self.velocity[1] < -0.1:
+                    self.sounds.append('bump')
                 self.on_ground = True
                 self.velocity[1] = 0.0
             elif collision.overlap[1] < 0:
+                if self.velocity[1] > 0.1:
+                    self.sounds.append('bump')
                 self.velocity[1] *= -1
 
             self.position += collision.overlap
@@ -277,7 +283,8 @@ class Player(Destroyable):
 
         self.body.set_position(self.position + offset - 0.5 * self.crouched * h)
 
-        self.shoulder = self.position + offset + (0.15 - 0.75 * self.crouched) * h
+        self.shoulder = self.position + offset + (0.15 - 0.75 * self.crouched) * h \
+                            - 0.2 * self.direction * w
 
         self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
         self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
@@ -307,6 +314,7 @@ class Player(Destroyable):
             self.rotate(np.sign(self.angular_velocity) * np.pi / 2 - self.angle)
             self.angular_velocity = 0.0
 
+        self.body.angle = self.angle
         self.head.update(gravity, time_step, colliders)
 
         for limb, joint, length in [(self.hand, self.shoulder, self.arm_length),
@@ -319,9 +327,8 @@ class Player(Destroyable):
                 r *= length / r_norm
             GameObject.set_position(limb, joint + r)
 
-    def draw_limb(self, start, end, length, screen, camera, direction=1):
-        color = pygame.Color('black')
-        width = int(camera.zoom / 5)
+    def draw_limb(self, start, end, length, screen, camera, image_handler, image_path, image_joint, direction=1):
+        scale = 0.8 * camera.zoom * self.size / 100
 
         r = end - start
         r_norm = norm(r)
@@ -330,15 +337,27 @@ class Player(Destroyable):
         if r_norm != 0:
             joint -= 0.5 * direction * self.direction * length * perp(r) / r_norm
 
-        a = camera.world_to_screen(start)
-        b = camera.world_to_screen(joint)
-        c = camera.world_to_screen(end)
+        image = image_handler.images[f'{image_joint}_{self.body_type}']
+        image = pygame.transform.rotozoom(image, 0.0, 1.2 * scale)
+        rect = image.get_rect()
+        rect.center = camera.world_to_screen(joint)
+        screen.blit(image, rect)
 
-        pygame.draw.line(screen, color, a, b, width)
-        pygame.draw.line(screen, color, b, c, width)
+        image = image_handler.images[f'{image_path}_{self.body_type}']
+        pos = 0.5 * (start + joint)
+        angle = polar_angle(joint - start)
+        image = pygame.transform.rotozoom(image, np.degrees(angle), scale)
+        rect = image.get_rect()
+        rect.center = camera.world_to_screen(pos)
+        screen.blit(image, rect)
 
-        for x in (a, b):
-            pygame.draw.circle(screen, color, x, width // 2)
+        image = image_handler.images[f'{image_path}_{self.body_type}']
+        pos = 0.5 * (joint + end)
+        angle = polar_angle(end - joint)
+        image = pygame.transform.rotozoom(image, np.degrees(angle), scale)
+        rect = image.get_rect()
+        rect.center = camera.world_to_screen(pos)
+        screen.blit(image, rect)
 
     def animate(self, time_step):
         self.back_foot.set_position(self.position - np.array([0.35 * self.direction, 1.4]))
@@ -406,27 +425,31 @@ class Player(Destroyable):
             self.back_hand.image_path = ''
 
     def draw(self, screen, camera, image_handler):
+        self.back_foot.image_path = f'foot_{self.body_type}'
         self.back_foot.draw(screen, camera, image_handler)
-        self.draw_limb(self.back_hip, self.back_foot.position, self.leg_length, screen, camera, -1)
+        self.draw_limb(self.back_hip, self.back_foot.position, self.leg_length, screen, camera, image_handler,
+                       'leg', 'knee', -1)
 
         if not self.destroyed and self.back_hand.image_path:
             self.draw_limb(self.shoulder + 0.25 * self.direction * basis(0), self.back_hand.position, 1.0,
-                           screen, camera)
+                           screen, camera, image_handler, 'arm', 'elbow')
 
         self.body.draw(screen, camera, image_handler)
 
+        self.front_foot.image_path = f'foot_{self.body_type}'
         self.front_foot.draw(screen, camera, image_handler)
-        self.draw_limb(self.front_hip, self.front_foot.position, self.leg_length, screen, camera, -1)
+        self.draw_limb(self.front_hip, self.front_foot.position, self.leg_length, screen, camera, image_handler,
+                       'leg', 'knee', -1)
 
         self.head.draw(screen, camera, image_handler)
 
         if self.object and self.object.collider:
             if self.object.collider.group is Group.SHIELDS:
-                self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera)
+                self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera, image_handler)
                 self.object.draw(screen, camera, image_handler)
             elif self.back_hand.image_path:
                 pos = self.object.get_hand_position()
-                self.draw_limb(self.shoulder, pos, self.arm_length, screen, camera)
+                self.draw_limb(self.shoulder, pos, self.arm_length, screen, camera, image_handler, 'arm', 'elbow')
 
                 if type(self.object) is Bow and self.attack_charge:
                     self.object.arrow.draw(screen, camera, image_handler)
@@ -439,10 +462,12 @@ class Player(Destroyable):
                 self.hand.draw(screen, camera, image_handler)
             else:
                 self.object.draw(screen, camera, image_handler)
-                self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera)
+                self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera, image_handler,
+                               'arm', 'elbow')
                 self.hand.draw(screen, camera, image_handler)
         else:
-            self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera)
+            self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera, image_handler,
+                           'arm', 'elbow')
             self.hand.draw(screen, camera, image_handler)
 
         for b in self.particle_clouds:
@@ -527,16 +552,17 @@ class Player(Destroyable):
         else:
             self.throw_charge = 0.0
 
-    def damage(self, amount, position, velocity, colliders, player=None):
+    def damage(self, amount, colliders, player=None):
         self.sounds.append('hit')
-
-        n = max(amount // 4, 1)
 
         self.health -= amount
 
-        return BloodSplatter([self.position[0], position[1]], -0.1 * velocity, n)
+        if self.health <= 0:
+            self.destroy(colliders)
 
-    def destroy(self, velocity, colliders):
+        return BloodSplatter
+
+    def destroy(self, colliders):
         if self.destroyed:
             return
 
@@ -544,9 +570,9 @@ class Player(Destroyable):
         self.back_foot.gravity_scale = 1.0
         self.front_foot.gravity_scale = 1.0
 
-        self.velocity = 0.25 * velocity + 0.5 * basis(1)
+        self.velocity = -0.25 * self.direction * basis(0) + 0.5 * basis(1)
         self.bounce = 0.5
-        self.angular_velocity = -0.125 * np.sign(velocity[0])
+        self.angular_velocity = 0.125 * np.sign(self.direction)
         self.destroyed = True
         if self.object:
             self.throw_object(0)
@@ -635,20 +661,21 @@ class Head(Destroyable):
         self.health = 20
         self.active = True
 
-    def damage(self, amount, position, velocity, colliders):
-        super().damage(amount, position, velocity, colliders)
-        self.parent.damage(5 * amount, position, velocity, colliders)
+    def damage(self, amount, colliders):
+        super().damage(amount, colliders)
+        self.parent.damage(5 * amount, colliders)
 
-    def destroy(self, velocity, colliders):
-        self.parent.destroy(velocity, colliders)
-        super().destroy([0, -1], colliders)
+        return BloodSplatter
+
+    def destroy(self, colliders):
+        self.parent.destroy(colliders)
+        super().destroy(colliders)
         self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4], 5))
 
 
 class Body(Destroyable):
     def __init__(self, position, parent):
-        super().__init__(position, image_path='body', debris_path='gib', size=0.75, debris_size=0.5, health=100,
-                         parent=parent)
+        super().__init__(position, debris_path='gib', size=0.75, debris_size=0.5, health=100, parent=parent)
         self.reset()
 
     def reset(self):
@@ -656,12 +683,18 @@ class Body(Destroyable):
         self.destroyed = False
         self.health = 100
 
-    def damage(self, amount, position, velocity, colliders):
-        self.parent.damage(amount, position, velocity, colliders)
+    def damage(self, amount, colliders):
+        self.parent.damage(amount, colliders)
 
-    def destroy(self, velocity, colliders):
-        self.parent.destroy(velocity)
-        super().destroy(velocity, colliders)
+        return BloodSplatter
+
+    def destroy(self, colliders):
+        self.parent.destroy(colliders)
+        super().destroy(colliders)
+
+    def draw(self, screen, camera, image_handler):
+        self.image_path = f'body_{self.parent.body_type}'
+        super().draw(screen, camera, image_handler)
 
 
 class Hand(PhysicsObject, AnimatedObject):
@@ -689,7 +722,7 @@ class Hand(PhysicsObject, AnimatedObject):
 
 class Foot(PhysicsObject, AnimatedObject):
     def __init__(self, position):
-        super().__init__(position, image_path='foot', size=0.8)
+        super().__init__(position, image_path='', size=0.8)
         self.image_position = 0.15 * basis(0)
 
         self.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))

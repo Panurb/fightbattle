@@ -17,15 +17,15 @@ class Crate(Destroyable):
 
         if not self.destroyed:
             if self.collider.collisions:
-                if self.speed / self.bounce > 0.9:
-                    self.damage(self.health, self.position, -self.velocity, colliders)
+                if self.speed / self.bounce > 1.5:
+                    self.damage(self.health, colliders)
 
-    def destroy(self, velocity, colliders):
+    def destroy(self, colliders):
         if not self.destroyed:
             self.sounds.append('crate_break')
             self.gravity_scale = 0.0
 
-        super().destroy(velocity, colliders)
+        super().destroy(colliders)
 
 
 class Ball(PhysicsObject):

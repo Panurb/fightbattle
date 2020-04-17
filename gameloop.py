@@ -1,23 +1,21 @@
-import pickle
 from _thread import *
 
-import numpy as np
 import pygame
 
 from camera import Camera
 from collider import Group
-from gameobject import Destroyable, PhysicsObject
-from helpers import norm2, basis
+from gameobject import Destroyable
+from helpers import basis
 from level import Level
-from menu import State, Menu, PlayerMenu, MainMenu, OptionsMenu
+from menu import State, PlayerMenu, MainMenu, OptionsMenu
 from player import Player
 from network import Network
-from prop import Crate
-from weapon import Weapon, Gun, Bullet
+from weapon import Bullet
 
 
 class GameLoop:
     def __init__(self, option_handler):
+        self.option_handler = option_handler
         self.state = State.MENU
 
         self.level = Level()
@@ -91,7 +89,22 @@ class GameLoop:
                 return
 
             for pm in self.player_menus:
-                if pm.controller_id is not None and pm.target_state is not State.PLAY:
+                if pm.controller_id is not None:
+                    # FIXME: hardcoded index
+                    self.players[pm.controller_id].body_type = pm.buttons[1].get_value()
+
+            for pm in self.player_menus:
+                if pm.controller_id is None:
+                    if pm.controller_id in self.players:
+                        del self.players[pm.controller_id]
+
+                if pm.target_state is State.MENU:
+                    pm.target_state = State.PLAYER_SELECT
+                    self.state = State.MENU
+                    self.players.clear()
+                    return
+
+                if pm.controller_id is not None and pm.target_state is State.PLAYER_SELECT:
                     return
 
             self.state = State.PLAY
@@ -102,6 +115,13 @@ class GameLoop:
             if self.network is None:
                 self.network = Network()
                 data = self.network.data
+
+                if data is None:
+                    print('Server can not be reached')
+                    self.network = None
+                    self.state = State.MENU
+                    return
+
                 self.network_id = data[0][0]
 
                 self.add_player(self.controller_id, data[0][0])
@@ -144,6 +164,8 @@ class GameLoop:
         elif self.state is State.OPTIONS:
             self.state = self.options_menu.target_state
             self.options_menu.target_state = State.OPTIONS
+            #res = [int(x) for x in self.options_menu.buttons[1].get_value().split('x')]
+            #self.option_handler.resolution = res
 
     def network_thread(self):
         while True:
@@ -158,7 +180,7 @@ class GameLoop:
             for p in data[0]:
                 if p[0] == self.network_id:
                     player = self.players[self.network_id]
-                    if player.health <= 0 and p[9] > 0:
+                    if player.health <= 0 < p[9]:
                         player.set_spawn(self.level, self.players)
                         player.reset(self.colliders)
                     player.health = p[9]
@@ -191,9 +213,9 @@ class GameLoop:
                 obj = self.level.objects[i]
                 if i not in ids:
                     if isinstance(obj, Destroyable):
-                        obj.destroy(np.zeros(2), self.colliders)
+                        obj.destroy(self.colliders)
                     elif isinstance(obj, Bullet):
-                        obj.destroy(True)
+                        obj.destroy()
 
     def input(self, input_handler):
         input_handler.update(self.camera)

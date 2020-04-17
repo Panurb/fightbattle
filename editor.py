@@ -22,7 +22,7 @@ class Editor:
         pygame.init()
         pygame.display.set_caption('NEXTGAME')
 
-        self.option_handler = optionhandler.OptionsHandler()
+        self.option_handler = optionhandler.OptionHandler()
 
         mode = 0
         if self.option_handler.fullscreen:

@@ -81,7 +81,8 @@ class Menu:
                     self.slider_moved[controller_id] = False
 
             if controller.button_pressed['A']:
-                self.target_state = self.buttons[self.selection].target_state
+                if type(self.buttons[self.selection]) is Button:
+                    self.target_state = self.buttons[self.selection].target_state
 
             if controller.button_pressed['B']:
                 self.target_state = State.MENU
@@ -129,6 +130,9 @@ class Slider(GameObject):
         self.values = values
         self.cyclic = cyclic
 
+    def get_value(self):
+        return self.values[self.selection]
+
     def move_right(self):
         if self.cyclic:
             self.selection = (self.selection + 1) % len(self.values)
@@ -154,7 +158,7 @@ class Slider(GameObject):
 
     def draw(self, screen, camera, image_handler):
         self.draw_text(self.text, -32, screen, camera)
-        val_str = str(self.values[self.selection])
+        val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
 
         w, h = self.draw_text(val_str, 0, screen, camera)
 
@@ -195,11 +199,12 @@ class MainMenu(Menu):
 class PlayerMenu(Menu):
     def __init__(self, position):
         super().__init__()
+        self.target_state = State.PLAYER_SELECT
         self.position = np.array(position, dtype=float)
         self.controller_id = None
 
         self.buttons.append(Slider('Head', ['default']))
-        self.buttons.append(Slider('Body', ['default']))
+        self.buttons.append(Slider('Body', ['suit', 'speedo']))
         self.buttons.append(Slider('Team', ['solo']))
         self.buttons.append(Button('Ready up', State.PLAY))
 
@@ -215,7 +220,13 @@ class PlayerMenu(Menu):
                     self.controller_id = 0
                     self.target_state = State.PLAY
         else:
-            super().input(input_handler, self.controller_id)
+            if input_handler.controllers[controller_id].button_pressed['B']:
+                if self.target_state is State.PLAY:
+                    self.target_state = State.PLAYER_SELECT
+                else:
+                    self.controller_id = None
+            else:
+                super().input(input_handler, self.controller_id)
 
     def draw(self, screen, camera, image_handler):
         font = pygame.font.Font(None, int(0.75 * camera.zoom))
@@ -236,12 +247,23 @@ class OptionsMenu(Menu):
     def __init__(self):
         super().__init__()
         self.target_state = State.OPTIONS
-        self.buttons.append(Slider('Resolution', ['1280x720', '1360x768', '1366x768', '1920x1080'], False))
+        self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
+        self.buttons.append(Slider('Resolution', [(1280, 720), (1600, 900), (1920, 1080)], False))
         self.buttons.append(Slider('Sound volume', range(0, 110, 10), False, 10))
         self.buttons.append(Slider('Music volume', range(0, 110, 10), False, 10))
-        self.buttons.append(Button('Back', State.MENU))
         self.update_buttons()
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
+            controller = input_handler.controllers[i]
+            if controller.button_pressed['A']:
+                if self.buttons[0].get_value() == 'windowed':
+                    pygame.display.set_mode(self.buttons[1].get_value())
+                else:
+                    pygame.display.set_mode(self.buttons[1].get_value(), pygame.FULLSCREEN)
+
+            if controller.button_pressed['B']:
+                self.target_state = State.MENU
+                return
+
             super().input(input_handler, i)

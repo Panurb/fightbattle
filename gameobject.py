@@ -5,7 +5,8 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Rectangle
-from helpers import norm2, rotate, normalized, polar_angle, basis
+from helpers import norm2, rotate, normalized, polar_angle, basis, random_unit
+from particle import Sparks
 
 MAX_SPEED = 5.0
 
@@ -165,6 +166,10 @@ class PhysicsObject(GameObject):
         if self.velocity[1] != 0:
             self.on_ground = False
 
+        self.speed = norm(self.velocity)
+        if self.speed != 0:
+            self.velocity *= min(self.speed, MAX_SPEED) / self.speed
+
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
         acc_old = self.acceleration.copy()
@@ -224,10 +229,6 @@ class PhysicsObject(GameObject):
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0.0
 
-        self.speed = norm(self.velocity)
-        if self.speed != 0:
-            self.velocity *= min(self.speed, MAX_SPEED) / self.speed
-
         if type(self.collider) is Circle:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
@@ -258,26 +259,24 @@ class Destroyable(PhysicsObject):
         super().apply_data(data)
         self.health = data[9]
 
-    def damage(self, amount, position, velocity, colliders):
+    def damage(self, amount, colliders):
         if self.health > 0:
             self.health -= amount
-            self.velocity += velocity
 
         if self.health <= 0:
-            self.destroy(np.zeros(2), colliders)
+            self.destroy(colliders)
 
-    def destroy(self, velocity, colliders):
+        return Sparks
+
+    def destroy(self, colliders):
         if self.destroyed:
             return
 
         self.destroyed = True
 
-        angle = polar_angle(velocity) + np.pi
-
         for _ in range(3):
-            theta = np.random.normal(angle, 0.25)
             r = np.abs(np.random.normal(0.5, 0.2))
-            v = r * np.array([np.cos(theta), np.sin(theta)])
+            v = r * random_unit()
             d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size)
             d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
             self.debris.append(d)
