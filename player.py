@@ -176,9 +176,6 @@ class Player(Destroyable):
                         < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
                     continue
 
-            #if abs(self.velocity[1]) > 0.1:
-            #    self.sounds.append('bump')
-
             if collision.overlap[1] > 0:
                 if self.velocity[1] < -0.1:
                     self.sounds.append('bump')
@@ -230,6 +227,12 @@ class Player(Destroyable):
         else:
             self.hand.angular_velocity = 0.0
 
+        self.animate(time_step)
+
+        # purkka
+        if self.back_hand.image_path:
+            self.back_hand.set_position(self.object.get_grip_position())
+
         if self.object is not None:
             self.grab_object()
 
@@ -259,7 +262,11 @@ class Player(Destroyable):
                 self.object.rotate(self.hand.angle - self.object.angle)
 
             if norm(self.shoulder - self.object.position) > 1.6 * self.arm_length:
-                self.throw_object(0.0)
+                if isinstance(self.object, Weapon):
+                    self.object.set_position(self.position)
+                    self.hand.set_position(self.object.position)
+                else:
+                    self.throw_object(0.0)
             else:
                 self.hand.set_position(self.object.position)
                 self.hand.update(gravity, time_step, colliders)
@@ -268,12 +275,6 @@ class Player(Destroyable):
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS])
-
-        self.animate(time_step)
-
-        # purkka
-        if self.back_hand.image_path:
-            self.back_hand.set_position(self.object.get_grip_position())
 
     def update_joints(self):
         w = normalized(self.collider.half_width)
@@ -709,14 +710,14 @@ class Hand(PhysicsObject, AnimatedObject):
         angles = np.pi * np.array([-0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
         self.add_animation(xs, ys, angles, 'sword')
 
-        xs = 2 * np.array([-0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
-        ys = 3 * np.array([0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
-        angles = 0.5 * np.pi * np.array([0.3, 0.5, 0.55, 0.575, 0.6, 0.5, 0.45, 0.35, 0.2])
+        xs = 2 * np.array([0.0, -0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05])
+        ys = 3 * np.array([0.0, 0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05])
+        angles = 0.5 * np.pi * np.array([0.0, 0.3, 0.5, 0.55, 0.575, 0.6, 0.5, 0.45, 0.35, 0.2])
         self.add_animation(xs, ys, angles, 'shotgun', image='hand_trigger')
 
-        xs = np.array([-0.15, -0.25, -0.2, -0.1, -0.05])
-        ys = np.array([0.1, 0.2, 0.15, 0.1, 0.05])
-        angles = np.pi * np.array([0.3, 0.5, 0.45, 0.35, 0.2])
+        xs = np.array([0.0, -0.15, -0.25, -0.2, -0.1, -0.05])
+        ys = np.array([0.0, 0.1, 0.2, 0.15, 0.1, 0.05])
+        angles = np.pi * np.array([0.0, 0.3, 0.5, 0.45, 0.35, 0.2])
         self.add_animation(xs, ys, angles, 'pistol', image='hand_trigger')
 
 

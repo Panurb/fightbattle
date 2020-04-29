@@ -39,6 +39,8 @@ class Main:
 
         self.font = pygame.font.Font(None, 30)
 
+        self.sound_handler.set_volume(self.option_handler.volume)
+        self.sound_handler.set_music_volume(self.option_handler.music_volume)
         #self.sound_handler.set_music('line')
 
     def main_loop(self):
