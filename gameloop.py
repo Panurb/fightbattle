@@ -1,9 +1,10 @@
 from _thread import *
 
+import numpy as np
 import pygame
 
 from camera import Camera
-from collider import Group
+from collider import Group, GRID_SIZE
 from gameobject import Destroyable
 from helpers import basis
 from level import Level
@@ -20,10 +21,7 @@ class GameLoop:
 
         self.level = Level()
         self.players = dict()
-        self.colliders = dict()
-        for g in Group:
-            if g is not Group.NONE:
-                self.colliders[g] = []
+        self.colliders = []
 
         self.scores = [0] * len(self.players)
 
@@ -48,15 +46,15 @@ class GameLoop:
     def reset_level(self):
         self.level = Level('lvl')
 
-        for g in Group:
-            if g not in [Group.NONE, Group.PLAYERS, Group.HITBOXES]:
-                self.colliders[g] = []
+        self.colliders.clear()
+
+        self.colliders = [[[] for _ in range(int(self.level.height + 1))] for _ in range(int(self.level.width + 1))]
 
         for wall in self.level.walls:
-            self.colliders[wall.collider.group].append(wall.collider)
+            wall.collider.update_occupied_squares(self.colliders)
 
         for obj in self.level.objects.values():
-            self.colliders[obj.collider.group].append(obj.collider)
+            obj.collider.update_occupied_squares(self.colliders)
 
         self.scores = [0] * len(self.players)
 
@@ -65,9 +63,7 @@ class GameLoop:
             network_id = controller_id
         player = Player([0, 0], controller_id, network_id)
         self.players[network_id] = player
-        self.colliders[player.collider.group].append(player.collider)
-        self.colliders[player.head.collider.group].append(player.head.collider)
-        self.colliders[player.body.collider.group].append(player.body.collider)
+        #player.collider.update_occupied_squares(self.colliders)
 
     def update(self, time_step):
         if self.state is State.PLAY:
@@ -111,6 +107,7 @@ class GameLoop:
             self.reset_level()
             for p in self.players.values():
                 p.set_spawn(self.level, self.players)
+                p.reset(self.colliders)
         elif self.state is State.LAN:
             if self.network is None:
                 self.network = Network()
@@ -271,7 +268,8 @@ class GameLoop:
             for player in list(self.players.values()):
                 player.draw(screen, self.camera, image_handler)
 
-            #self.debug_draw(screen, image_handler)
+            if self.option_handler.debug_draw:
+                self.debug_draw(screen, image_handler)
         elif self.state is State.MENU:
             screen.fill((50, 50, 50))
             self.menu.draw(screen, self.camera, image_handler)

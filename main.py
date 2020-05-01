@@ -49,7 +49,7 @@ class Main:
 
             if self.option_handler.fps == 999:
                 if fps != 0:
-                    self.time_step = 15.0 / fps
+                    self.time_step = min(15.0 / fps, 15.0 / 60.0)
 
             self.loop.input(self.input_handler)
             self.loop.update(self.time_step)

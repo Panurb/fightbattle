@@ -22,6 +22,10 @@ class Level:
 
         self.server = server
 
+        self.width = 0.0
+        self.height = 0.0
+        self.position = np.zeros(2)
+
         if name:
             with open(f'data/levels/{name}.pickle', 'rb') as f:
                 self.apply_data(pickle.load(f))
@@ -50,6 +54,38 @@ class Level:
             self.objects[o[0]] = o[1]([o[2], o[3]])
             self.objects[o[0]].apply_data(o)
 
+        self.update_shape()
+
+        offset = 0.5 * np.array([self.width, self.height]) - self.position
+
+        for w in self.walls:
+            w.set_position(w.position + offset)
+
+        for o in self.objects.values():
+            o.set_position(o.position + offset)
+
+        for p in self.player_spawns:
+            p.set_position(p.position + offset)
+
+    def update_shape(self):
+        x_min = np.inf
+        y_min = np.inf
+
+        x_max = -np.inf
+        y_max = -np.inf
+
+        for w in self.walls:
+            x_min = min(x_min, w.position[0] - w.collider.half_width[0])
+            y_min = min(y_min, w.position[1] - w.collider.half_height[1])
+
+            x_max = max(x_max, w.position[0] + w.collider.half_width[0])
+            y_max = max(y_max, w.position[1] + w.collider.half_height[1])
+
+        self.width = x_max - x_min
+        self.height = y_max - y_min
+
+        self.position = np.array([x_min + 0.5 * self.width, y_min + 0.5 * self.height])
+
     def add_wall(self, position, width, height, angle=0.0):
         wall = Wall(position, width, height, angle)
         self.walls.append(wall)
@@ -71,6 +107,7 @@ class Level:
             if type(obj) is Crate and obj.destroyed:
                 if obj.loot_list:
                     loot = np.random.choice(obj.loot_list)(obj.position)
+                    loot.velocity[:] = -obj.velocity
                     self.add_object(loot)
                     colliders[loot.collider.group].append(loot.collider)
                     obj.loot_list.clear()

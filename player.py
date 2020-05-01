@@ -90,13 +90,9 @@ class Player(Destroyable):
         self.front_foot.set_position(self.position - np.array([0.55 * self.direction, 1.4]))
 
     def reset(self, colliders):
-        colliders[Group.DEBRIS].remove(self.collider)
         self.collider.group = Group.PLAYERS
-        colliders[Group.PLAYERS].append(self.collider)
         self.head.reset()
-        colliders[Group.HITBOXES].append(self.head.collider)
         self.body.reset()
-        colliders[Group.HITBOXES].append(self.body.collider)
 
         self.destroyed = False
         self.health = 100
@@ -105,6 +101,10 @@ class Player(Destroyable):
         self.front_foot.reset()
         self.back_foot.reset()
         self.active = True
+
+        self.collider.update_occupied_squares(colliders)
+        self.head.collider.update_occupied_squares(colliders)
+        self.body.collider.update_occupied_squares(colliders)
 
     def set_spawn(self, level, players):
         i = 0
@@ -156,10 +156,15 @@ class Player(Destroyable):
         if self.velocity[1] != 0:
             self.on_ground = False
 
-        delta_pos = self.velocity * time_step # + 0.5 * self.acceleration * time_step**2
+        delta_pos = self.velocity * time_step  # + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
 
         self.collider.position += delta_pos
+
+        #if any(np.abs(delta_pos) > 0.01):
+        self.collider.update_occupied_squares(colliders)
+        self.head.collider.update_occupied_squares(colliders)
+        self.body.collider.update_occupied_squares(colliders)
 
         self.collider.update_collisions(colliders)
 
@@ -173,7 +178,7 @@ class Player(Destroyable):
 
             if obj.collider.group is Group.PLATFORMS:
                 if self.position[1] - self.collider.half_height[1] - delta_pos[1] \
-                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
+                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2 + 1.0:
                     continue
 
             if collision.overlap[1] > 0:
@@ -284,8 +289,7 @@ class Player(Destroyable):
 
         self.body.set_position(self.position + offset - 0.5 * self.crouched * h)
 
-        self.shoulder = self.position + offset + (0.15 - 0.75 * self.crouched) * h \
-                            - 0.2 * self.direction * w
+        self.shoulder = self.position + offset + (0.15 - 0.75 * self.crouched) * h - 0.2 * self.direction * w
 
         self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
         self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
@@ -578,15 +582,18 @@ class Player(Destroyable):
         if self.object:
             self.throw_object(0)
         self.hand.image_path = 'hand'
+        self.hand.image_position[:] = np.zeros(2)
         self.timer = 0.0
 
-        colliders[Group.PLAYERS].remove(self.collider)
         self.collider.group = Group.DEBRIS
-        colliders[Group.DEBRIS].append(self.collider)
+
         if not self.head.destroyed:
-            colliders[Group.HITBOXES].remove(self.head.collider)
+            for i, j in self.head.collider.occupied_squares:
+                colliders[i][j].remove(self.head.collider)
             self.head.collider = None
-        colliders[Group.HITBOXES].remove(self.body.collider)
+
+        for i, j in self.body.collider.occupied_squares:
+            colliders[i][j].remove(self.body.collider)
         self.body.collider = None
 
     def throw_object(self, velocity=0.0):

@@ -188,6 +188,9 @@ class PhysicsObject(GameObject):
         if delta_angle:
             self.collider.rotate(delta_angle)
 
+        if any(np.abs(delta_pos) > 0.01) or abs(delta_angle) > 1e-3:
+            self.collider.update_occupied_squares(colliders)
+
         self.collider.update_collisions(colliders)
 
         if not self.collision_enabled:
@@ -205,7 +208,7 @@ class PhysicsObject(GameObject):
                     continue
 
                 if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
-                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
+                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2 + 1.0:
                     self.collider.collisions.remove(collision)
                     break
 
@@ -228,9 +231,6 @@ class PhysicsObject(GameObject):
 
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0.0
-
-        if type(self.collider) is Circle:
-            self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
         if self.parent is None and self.collider.collisions and self.speed > 0.1:
             self.sounds.append(self.bump_sound)
@@ -286,7 +286,8 @@ class Destroyable(PhysicsObject):
 
         if self.destroyed:
             if self.collider and self.collider.group is not Group.NONE:
-                colliders[self.collider.group].remove(self.collider)
+                for i, j in self.collider.occupied_squares:
+                    colliders[i][j].remove(self.collider)
                 self.collider = None
 
             for d in self.debris:

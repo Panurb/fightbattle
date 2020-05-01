@@ -7,6 +7,9 @@ from numba import njit, prange
 from helpers import norm2, perp, basis
 
 
+GRID_SIZE = 1
+
+
 class Group(enum.IntEnum):
     NONE = 0
     PLAYERS = 1
@@ -35,13 +38,15 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.HITBOXES: [],
                  Group.PLATFORMS: []}
 
-
-#@njit
-def axis_half_width(w1, h1, u):
-    return abs(np.dot(w1, u)) + abs(np.dot(h1, u))
+COLLISION_MATRIX = [[(j in gs) for j in COLLIDES_WITH.keys()] for i, gs in COLLIDES_WITH.items()]
 
 
-#@njit
+@njit
+def axis_half_width(w, h, u):
+    return abs(np.dot(w, u)) + abs(np.dot(h, u))
+
+
+@njit
 def axis_overlap(r1, p1, r2, p2, u):
     overlap = 0.0
     r = np.dot(p1 - p2, u)
@@ -55,7 +60,7 @@ def axis_overlap(r1, p1, r2, p2, u):
     return overlap
 
 
-#@njit
+@njit
 def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     overlaps = np.zeros(4)
 
@@ -76,7 +81,7 @@ def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     return overlaps[i] * axes[i, :]
 
 
-#@njit
+@njit
 def overlap_rectangle_circle(w1, h1, p1, r2, p2):
     overlaps = np.zeros(2)
     near_corner = True
@@ -126,33 +131,38 @@ class Collider:
         self.type = None
         self.collisions = []
         self.group = group
+        self.occupied_squares = []
 
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
 
-        if not groups:
-            groups = COLLIDES_WITH[self.group]
-
-        for g in groups:
-            if g not in colliders:
-                continue
-
-            for c in colliders[g]:
-                if c is self:
-                    continue
-
+        cs = set()
+        for i, j in self.occupied_squares:
+            for c in colliders[i][j]:
                 if c.parent is self.parent:
                     continue
 
-                overlap = self.overlap(c)
-                if overlap.any():
-                    self.collisions.append(Collision(c, overlap))
+                if groups:
+                    if c.group not in groups:
+                        continue
+                elif not COLLISION_MATRIX[self.group][c.group]:
+                    continue
+
+                cs.add(c)
+
+        for c in cs:
+            overlap = self.overlap(c)
+            if overlap.any():
+                self.collisions.append(Collision(c, overlap))
 
     def rotate(self, angle):
         pass
 
     def draw(self, screen, camera, image_handler):
-        return
+        for i, j in self.occupied_squares:
+            x, y = camera.world_to_screen(np.array([GRID_SIZE * i, GRID_SIZE * (j + 1)]))
+            rect = pygame.rect.Rect(x, y, GRID_SIZE * camera.zoom, GRID_SIZE * camera.zoom)
+            pygame.draw.rect(screen, pygame.Color('white'), rect, 1)
 
     def radius(self):
         pass
@@ -163,14 +173,15 @@ class Collider:
     def point_inside(self, point):
         pass
 
+    def update_occupied_squares(self, colliders):
+        pass
+
 
 class Rectangle(Collider):
     def __init__(self, position, width, height, group=Group.NONE):
         super().__init__(position, group)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
-
-        self.radius = norm(self.half_width + self.half_height)
 
     def corners(self):
         ur = self.position + self.half_width + self.half_height
@@ -181,10 +192,6 @@ class Rectangle(Collider):
         return [ur, ul, dl, dr]
 
     def overlap(self, other):
-        dist = norm2(self.position - other.position)
-        if dist > (self.radius + other.radius)**2:
-            return np.zeros(2)
-
         if type(other) is Rectangle:
             return overlap_rectangle_rectangle(self.half_width, self.half_height, self.position,
                                                other.half_width, other.half_height, other.position)
@@ -212,9 +219,31 @@ class Rectangle(Collider):
         self.half_height = perp(self.half_height)
 
     def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
+
         points = [camera.world_to_screen(p) for p in self.corners()]
 
         pygame.draw.polygon(screen, image_handler.debug_color, points, 1)
+
+    def update_occupied_squares(self, colliders):
+        for i, j in self.occupied_squares:
+            colliders[i][j].remove(self)
+
+        pos = self.position
+
+        half_width = axis_half_width(self.half_width, self.half_height, basis(0))
+        half_height = axis_half_width(self.half_width, self.half_height, basis(1))
+
+        squares = []
+
+        for i in range(int((pos[0] - half_width) / GRID_SIZE), int((pos[0] + half_width) / GRID_SIZE) + 1):
+            for j in range(int((pos[1] - half_height) / GRID_SIZE), int((pos[1] + half_height) / GRID_SIZE) + 1):
+                squares.append((i, j))
+
+        self.occupied_squares = squares
+
+        for i, j in self.occupied_squares:
+            colliders[i][j].append(self)
 
 
 class Circle(Collider):
@@ -226,11 +255,11 @@ class Circle(Collider):
     def overlap(self, other):
         overlap = np.zeros(2)
 
-        dist = norm2(self.position - other.position)
-        if dist > (self.radius + other.radius)**2:
-            return overlap
-
         if type(other) is Circle:
+            dist = norm2(self.position - other.position)
+            if dist > (self.radius + other.radius) ** 2:
+                return overlap
+
             if dist == 0.0:
                 overlap = (self.radius + other.radius) * basis(1)
             else:
@@ -249,7 +278,25 @@ class Circle(Collider):
         center = camera.world_to_screen(self.position)
         pygame.draw.circle(screen, image_handler.debug_color, center, int(self.radius * camera.zoom), 1)
 
+    def update_occupied_squares(self, colliders):
+        for i, j in self.occupied_squares:
+            colliders[i][j].remove(self)
 
-class Capsule(Collider):
-    def __init__(self, position, group=Group.NONE):
-        super().__init__(position, group)
+        pos = self.position
+
+        squares = []
+
+        for i in range(int(pos[0] - 0.5 * self.radius), int(pos[0] + 0.5 * self.radius + 1)):
+            for j in range(int(pos[1] - 0.5 * self.radius), int(pos[1] + 0.5 * self.radius + 1)):
+                squares.append((i, j))
+
+        r = 0.5 * self.radius
+
+        for i in range(int((pos[0] - r) / GRID_SIZE), int((pos[0] + r) / GRID_SIZE) + 1):
+            for j in range(int((pos[1] - r) / GRID_SIZE), int((pos[1] + r) / GRID_SIZE) + 1):
+                squares.append((i, j))
+
+        self.occupied_squares = squares
+
+        for i, j in self.occupied_squares:
+            colliders[i][j].append(self)

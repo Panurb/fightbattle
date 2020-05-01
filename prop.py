@@ -1,9 +1,6 @@
-import numpy as np
-
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
 from weapon import Revolver, Shotgun, Shield, Sword, Grenade, Bow
-from helpers import random_unit
 
 
 class Crate(Destroyable):
@@ -39,6 +36,8 @@ class Ball(PhysicsObject):
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
+
+        self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
         if not self.parent and self.collider.collisions and self.speed > 0.1:
             self.sounds.append('ball')
