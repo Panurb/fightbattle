@@ -12,8 +12,18 @@ class Camera:
         self.shake = np.zeros(2)
         self.velocity = np.zeros(2)
 
-    def update(self, time_step, players):
+    def update(self, time_step, players, level):
         cam_goal = sum(p.position for p in players.values()) / len(players)
+
+        cam_goal[0] -= min(cam_goal[0] - self.half_width[0] / self.zoom - (level.position[0] - 0.5 * level.width), 0)
+        cam_goal[0] -= max(cam_goal[0] + self.half_width[0] / self.zoom - (level.position[0] + 0.5 * level.width), 0)
+
+        if level.height > 2 * self.half_height[1] / self.zoom:
+            cam_goal[1] -= min(cam_goal[1] - self.half_height[1] / self.zoom - (level.position[1] - 0.5 * level.height), 0)
+            cam_goal[1] -= max(cam_goal[1] + self.half_height[1] / self.zoom - (level.position[1] + 0.5 * level.height), 0)
+        else:
+            cam_goal[1] = level.position[1]
+
         self.position[:] += time_step * (cam_goal - self.position)
 
         if len(players) > 1:

@@ -101,6 +101,7 @@ class Player(Destroyable):
         self.front_foot.reset()
         self.back_foot.reset()
         self.active = True
+        self.throw_object(0.0)
 
         self.collider.update_occupied_squares(colliders)
         self.head.collider.update_occupied_squares(colliders)
@@ -178,7 +179,7 @@ class Player(Destroyable):
 
             if obj.collider.group is Group.PLATFORMS:
                 if self.position[1] - self.collider.half_height[1] - delta_pos[1] \
-                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2 + 1.0:
+                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
                     continue
 
             if collision.overlap[1] > 0:
@@ -242,6 +243,8 @@ class Player(Destroyable):
             self.grab_object()
 
             self.object.set_position(self.object.position + time_step * self.velocity)
+            if self.object.collider:
+                self.object.collider.update_occupied_squares(colliders)
             hand_pos = self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal
             self.object.velocity = 0.5 * (hand_pos - self.object.position) - 0.125 * gravity * basis(1)
 
@@ -269,6 +272,7 @@ class Player(Destroyable):
             if norm(self.shoulder - self.object.position) > 1.6 * self.arm_length:
                 if isinstance(self.object, Weapon):
                     self.object.set_position(self.position)
+                    self.object.collider.update_occupied_squares(colliders)
                     self.hand.set_position(self.object.position)
                 else:
                     self.throw_object(0.0)
@@ -279,6 +283,7 @@ class Player(Destroyable):
             self.hand.set_position(self.hand.position + time_step * self.velocity)
             self.hand.velocity = self.shoulder + self.hand_goal - self.hand.position - 0.185 * gravity * basis(1)
             self.hand.update(gravity, time_step, colliders)
+            self.hand.collider.update_occupied_squares(colliders)
             self.hand.collider.update_collisions(colliders, [Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS])
 
     def update_joints(self):
@@ -597,6 +602,9 @@ class Player(Destroyable):
         self.body.collider = None
 
     def throw_object(self, velocity=0.0):
+        if not self.object:
+            return
+
         self.object.velocity[:] = normalized(self.hand_goal) * velocity * self.throw_speed
 
         # TODO: purk fix

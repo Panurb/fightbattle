@@ -33,6 +33,7 @@ class Ball(PhysicsObject):
         self.bounce = 0.8
         self.image_path = 'ball'
         self.size = 2.1 * radius
+        self.scored = False
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -41,3 +42,11 @@ class Ball(PhysicsObject):
 
         if not self.parent and self.collider.collisions and self.speed > 0.1:
             self.sounds.append('ball')
+
+        if not self.scored:
+            self.collider.update_collisions(colliders, [Group.GOALS])
+            for c in self.collider.collisions:
+                c.collider.parent.score += 1
+                c.collider.parent.collider.colliders[-1].group = Group.NONE
+                self.scored = True
+                break

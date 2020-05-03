@@ -2,19 +2,21 @@ import pickle
 
 import numpy as np
 
-from collider import Rectangle
+from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
-from prop import Crate
-from wall import Wall, Platform
+from prop import Crate, Ball
+from wall import Wall, Platform, Basket, Scoreboard
 from weapon import Gun, Bullet
 
 
 class Level:
     def __init__(self, name='', server=False):
+        self.name = name
         self.player_spawns = []
 
         self.walls = []
         self.objects = dict()
+        self.scoreboard = None
         self.background = []
 
         self.gravity = np.array([0, -0.1])
@@ -26,9 +28,28 @@ class Level:
         self.height = 0.0
         self.position = np.zeros(2)
 
-        if name:
-            with open(f'data/levels/{name}.pickle', 'rb') as f:
+        if self.name:
+            with open(f'data/levels/{self.name}.pickle', 'rb') as f:
                 self.apply_data(pickle.load(f))
+
+    def reset(self):
+        for w in self.walls:
+            if type(w) is Basket:
+                w.collider.colliders[-1].group = Group.WALLS
+
+        self.objects.clear()
+        if self.name:
+            with open(f'data/levels/{self.name}.pickle', 'rb') as f:
+                data = pickle.load(f)
+                for o in data[2]:
+                    self.id_count += 1
+                    self.objects[o[0]] = o[1]([o[2], o[3]])
+                    self.objects[o[0]].apply_data(o)
+
+                offset = 0.5 * np.array([self.width, self.height]) - self.position
+
+                for o in self.objects.values():
+                    o.set_position(o.position + offset)
 
     def clear(self):
         self.player_spawns.clear()
@@ -37,17 +58,19 @@ class Level:
 
     def get_data(self):
         return (tuple(p.get_data() for p in self.player_spawns), tuple(w.get_data() for w in self.walls),
-                tuple(o.get_data() for o in self.objects.values()))
+                tuple(o.get_data() for o in self.objects.values()), self.scoreboard.get_data())
 
     def apply_data(self, data):
         for p in data[0]:
             self.player_spawns.append(PlayerSpawn(p))
 
-        for w in data[1]:
-            if w[3] < 0:
-                self.walls.append(Platform([w[0], w[1]], w[2]))
-            else:
-                self.walls.append(Wall([w[0], w[1]], w[2], w[3]))
+        i = 0
+        for d in data[1]:
+            w = d[0]([d[1], d[2]], *d[3:])
+            self.walls.append(w)
+            if d[0] is Basket:
+                w.team = i
+                i += 1
 
         for o in data[2]:
             self.id_count += 1
@@ -67,6 +90,9 @@ class Level:
         for p in self.player_spawns:
             p.set_position(p.position + offset)
 
+        self.scoreboard = Scoreboard([0, 0])
+        self.scoreboard.apply_data(data[-1])
+
     def update_shape(self):
         x_min = np.inf
         y_min = np.inf
@@ -75,6 +101,9 @@ class Level:
         y_max = -np.inf
 
         for w in self.walls:
+            if type(w) is Basket:
+                continue
+
             x_min = min(x_min, w.position[0] - w.collider.half_width[0])
             y_min = min(y_min, w.position[1] - w.collider.half_height[1])
 
@@ -86,8 +115,8 @@ class Level:
 
         self.position = np.array([x_min + 0.5 * self.width, y_min + 0.5 * self.height])
 
-    def add_wall(self, position, width, height, angle=0.0):
-        wall = Wall(position, width, height, angle)
+    def add_wall(self, position, width, height):
+        wall = Wall(position, width, height)
         self.walls.append(wall)
 
     def add_platform(self, position, width):
@@ -109,7 +138,7 @@ class Level:
                     loot = np.random.choice(obj.loot_list)(obj.position)
                     loot.velocity[:] = -obj.velocity
                     self.add_object(loot)
-                    colliders[loot.collider.group].append(loot.collider)
+                    loot.collider.update_occupied_squares(colliders)
                     obj.loot_list.clear()
 
             if isinstance(obj, Destroyable):
@@ -120,7 +149,7 @@ class Level:
                 bs = obj.attack()
                 for b in bs:
                     self.add_object(b)
-                    colliders[b.collider.group].append(b.collider)
+                    b.collider.update_occupied_squares(colliders)
             elif isinstance(obj, Bullet):
                 if obj.destroyed and (self.server or not obj.particle_clouds):
                     del self.objects[k]
@@ -130,8 +159,14 @@ class Level:
         for wall in self.walls:
             wall.draw(screen, camera, image_handler)
 
+        if self.scoreboard:
+            self.scoreboard.draw(screen, camera, image_handler)
+
         for obj in list(self.objects.values()):
             obj.draw(screen, camera, image_handler)
+
+        for w in self.walls:
+            w.draw_front(screen, camera, image_handler)
 
     def debug_draw(self, screen, camera, image_handler):
         for wall in self.walls:

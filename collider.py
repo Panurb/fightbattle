@@ -23,6 +23,7 @@ class Group(enum.IntEnum):
     SWORDS = 9
     HITBOXES = 10
     PLATFORMS = 11
+    GOALS = 12
 
 
 COLLIDES_WITH = {Group.NONE: [],
@@ -36,17 +37,18 @@ COLLIDES_WITH = {Group.NONE: [],
                  Group.DEBRIS: [Group.WALLS, Group.PLATFORMS],
                  Group.SWORDS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
                  Group.HITBOXES: [],
-                 Group.PLATFORMS: []}
+                 Group.PLATFORMS: [],
+                 Group.GOALS: []}
 
 COLLISION_MATRIX = [[(j in gs) for j in COLLIDES_WITH.keys()] for i, gs in COLLIDES_WITH.items()]
 
 
-@njit
+#@njit
 def axis_half_width(w, h, u):
     return abs(np.dot(w, u)) + abs(np.dot(h, u))
 
 
-@njit
+#@njit
 def axis_overlap(r1, p1, r2, p2, u):
     overlap = 0.0
     r = np.dot(p1 - p2, u)
@@ -60,7 +62,7 @@ def axis_overlap(r1, p1, r2, p2, u):
     return overlap
 
 
-@njit
+#@njit
 def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     overlaps = np.zeros(4)
 
@@ -81,7 +83,7 @@ def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     return overlaps[i] * axes[i, :]
 
 
-@njit
+#@njit
 def overlap_rectangle_circle(w1, h1, p1, r2, p2):
     overlaps = np.zeros(2)
     near_corner = True
@@ -127,11 +129,12 @@ class Collider:
     def __init__(self, position, group=Group.NONE):
         self.parent = None
         self.position = np.array(position, dtype=float)
-        self.friction = 0.5
-        self.type = None
         self.collisions = []
         self.group = group
         self.occupied_squares = []
+
+    def set_position(self, position):
+        self.position[:] = position
 
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
@@ -164,9 +167,6 @@ class Collider:
             rect = pygame.rect.Rect(x, y, GRID_SIZE * camera.zoom, GRID_SIZE * camera.zoom)
             pygame.draw.rect(screen, pygame.Color('white'), rect, 1)
 
-    def radius(self):
-        pass
-
     def overlap(self, other):
         pass
 
@@ -175,6 +175,69 @@ class Collider:
 
     def update_occupied_squares(self, colliders):
         pass
+
+    def clear_occupied_squares(self, colliders):
+        for i, j in self.occupied_squares:
+            colliders[i][j].remove(self)
+        self.occupied_squares.clear()
+
+
+class ColliderGroup:
+    def __init__(self, position, group=Group.NONE):
+        self.parent = None
+        self.position = np.array(position, dtype=float)
+        self.friction = 0.5
+        self.type = None
+        self.collisions = []
+        self.group = group
+        self.occupied_squares = []
+
+        self.colliders = []
+
+    def set_position(self, position):
+        delta_pos = position - self.position
+        self.position[:] = position
+        for c in self.colliders:
+            c.set_position(c.position + delta_pos)
+
+    def add_collider(self, collider):
+        self.colliders.append(collider)
+        collider.parent = self.parent
+        # FIXME: why half?
+        collider.position += 0.5 * self.position
+
+    def update_collisions(self, colliders, groups=None):
+        self.collisions.clear()
+
+        for c in self.colliders:
+            c.update_collisions(colliders, groups)
+            self.collisions += c.collisions
+
+    def rotate(self, angle):
+        for c in self.colliders:
+            c.rotate(angle)
+
+    def draw(self, screen, camera, image_handler):
+        for c in self.colliders:
+            c.draw(screen, camera, image_handler)
+
+    def overlap(self, other):
+        return sum(c.overlap(other) for c in self.colliders)
+
+    def point_inside(self, point):
+        for c in self.colliders:
+            if c.point_inside(point):
+                return True
+
+        return False
+
+    def update_occupied_squares(self, colliders):
+        for c in self.colliders:
+            c.update_occupied_squares(colliders)
+
+    def clear_occupied_squares(self, colliders):
+        for c in self.colliders:
+            c.clear_occupied_squares(colliders)
 
 
 class Rectangle(Collider):
@@ -234,13 +297,11 @@ class Rectangle(Collider):
         half_width = axis_half_width(self.half_width, self.half_height, basis(0))
         half_height = axis_half_width(self.half_width, self.half_height, basis(1))
 
-        squares = []
+        self.occupied_squares.clear()
 
         for i in range(int((pos[0] - half_width) / GRID_SIZE), int((pos[0] + half_width) / GRID_SIZE) + 1):
             for j in range(int((pos[1] - half_height) / GRID_SIZE), int((pos[1] + half_height) / GRID_SIZE) + 1):
-                squares.append((i, j))
-
-        self.occupied_squares = squares
+                self.occupied_squares.append((i, j))
 
         for i, j in self.occupied_squares:
             colliders[i][j].append(self)
@@ -251,6 +312,7 @@ class Circle(Collider):
         super().__init__(position, group)
         self.radius = radius
         self.half_height = radius * basis(1)
+        self.half_width = radius * basis(0)
 
     def overlap(self, other):
         overlap = np.zeros(2)
@@ -275,6 +337,7 @@ class Circle(Collider):
         return norm2(self.position - point) <= self.radius**2
 
     def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
         center = camera.world_to_screen(self.position)
         pygame.draw.circle(screen, image_handler.debug_color, center, int(self.radius * camera.zoom), 1)
 

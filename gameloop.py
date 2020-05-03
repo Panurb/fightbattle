@@ -11,6 +11,8 @@ from level import Level
 from menu import State, PlayerMenu, MainMenu, OptionsMenu
 from player import Player
 from network import Network
+from prop import Ball
+from wall import Basket
 from weapon import Bullet
 
 
@@ -19,11 +21,9 @@ class GameLoop:
         self.option_handler = option_handler
         self.state = State.MENU
 
-        self.level = Level()
+        self.level = None
         self.players = dict()
         self.colliders = []
-
-        self.scores = [0] * len(self.players)
 
         self.time_scale = 1.0
 
@@ -43,7 +43,7 @@ class GameLoop:
 
         self.controller_id = 0
 
-    def reset_level(self):
+    def load_level(self):
         self.level = Level('lvl')
 
         self.colliders.clear()
@@ -56,27 +56,48 @@ class GameLoop:
         for obj in self.level.objects.values():
             obj.collider.update_occupied_squares(self.colliders)
 
-        self.scores = [0] * len(self.players)
+    def reset_game(self):
+        for w in self.level.walls:
+            if type(w) is Basket:
+                self.level.scoreboard.scores[w.team] = w.score
+
+        for o in self.level.objects.values():
+            o.collider.clear_occupied_squares(self.colliders)
+
+        self.level.reset()
+
+        for o in self.level.objects.values():
+            o.collider.update_occupied_squares(self.colliders)
+
+        for p in self.players.values():
+            p.set_spawn(self.level, self.players)
+            p.reset(self.colliders)
 
     def add_player(self, controller_id, network_id=-1):
         if network_id == -1:
             network_id = controller_id
         player = Player([0, 0], controller_id, network_id)
         self.players[network_id] = player
-        #player.collider.update_occupied_squares(self.colliders)
 
     def update(self, time_step):
         if self.state is State.PLAY:
+            alive = 0
             for player in self.players.values():
-                if player.destroyed and player.timer >= self.respawn_time:
-                    player.set_spawn(self.level, self.players)
-                    player.reset(self.colliders)
+                if player.active:
+                    alive += 1
 
                 player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
+            if len(self.players) > 1 >= alive:
+                self.reset_game()
+
             self.level.update(self.time_scale * time_step, self.colliders)
 
-            self.camera.update(self.time_scale * time_step, self.players)
+            for o in self.level.objects.values():
+                if type(o) is Ball and o.scored and o.speed < 0.1:
+                    self.reset_game()
+
+            self.camera.update(self.time_scale * time_step, self.players, self.level)
         elif self.state is State.MENU:
             self.state = self.menu.target_state
             self.menu.target_state = State.MENU
@@ -104,7 +125,7 @@ class GameLoop:
                     return
 
             self.state = State.PLAY
-            self.reset_level()
+            self.load_level()
             for p in self.players.values():
                 p.set_spawn(self.level, self.players)
                 p.reset(self.colliders)
@@ -228,7 +249,7 @@ class GameLoop:
                 player.input(input_handler)
 
             if input_handler.keys_pressed[pygame.K_r]:
-                self.reset_level()
+                self.reset_game()
         elif self.state is State.MENU:
             self.menu.input(input_handler)
             for i in range(len(input_handler.controllers)):

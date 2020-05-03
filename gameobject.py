@@ -59,7 +59,7 @@ class GameObject:
 
         self.position += delta_pos
         if self.collider:
-            self.collider.position += delta_pos
+            self.collider.set_position(self.collider.position + delta_pos)
 
     def add_collider(self, collider):
         self.collider = collider
@@ -197,20 +197,25 @@ class PhysicsObject(GameObject):
             return
 
         for collision in self.collider.collisions:
-            obj = collision.collider.parent
-            if not obj.collision_enabled:
+            collider = collision.collider
+            if not collider.parent.collision_enabled:
                 continue
 
-            if obj.collider.group is Group.PLATFORMS:
+            if collider.group is Group.PLATFORMS:
                 # TODO: optimize
                 if self.collider.group in [Group.GUNS, Group.SWORDS, Group.SHIELDS] and self.parent is not None:
                     self.collider.collisions.remove(collision)
                     continue
 
-                if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
-                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2 + 1.0:
+                if collider.half_height[1] > 0:
+                    if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
+                            < collider.position[1] + collider.half_height[1]:
+                        self.collider.collisions.remove(collision)
+                        continue
+                elif self.collider.position[1] + self.collider.half_height[1] - delta_pos[1] \
+                        > collider.position[1] + collider.half_height[1]:
                     self.collider.collisions.remove(collision)
-                    break
+                    continue
 
             if collision.overlap[1] > 0:
                 self.on_ground = True
@@ -223,8 +228,8 @@ class PhysicsObject(GameObject):
             self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
             self.velocity *= self.bounce
 
-            if isinstance(obj, PhysicsObject):
-                obj.velocity[:] = -self.velocity
+            if isinstance(collider.parent, PhysicsObject):
+                collider.parent.velocity[:] = -self.velocity
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step

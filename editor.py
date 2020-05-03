@@ -10,6 +10,7 @@ import optionhandler
 from camera import Camera
 from level import Level, PlayerSpawn
 from prop import Crate, Ball
+from wall import Basket, Scoreboard
 from weapon import Weapon, Revolver, Shotgun
 
 
@@ -77,7 +78,8 @@ class Editor:
 
     def input(self):
         if self.input_handler.mouse_pressed[0]:
-            for obj in self.level.walls + self.level.player_spawns + list(self.level.objects.values()):
+            for obj in self.level.walls + self.level.player_spawns + list(self.level.objects.values()) + \
+                       [self.level.scoreboard]:
                 if obj.collider.point_inside(self.input_handler.mouse_position):
                     self.grabbed_object = obj
                     self.grab_offset = self.grabbed_object.position - self.input_handler.mouse_position
@@ -147,18 +149,25 @@ class Editor:
             else:
                 self.type_index += 1
 
+        pos = np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])
+
         if self.input_handler.keys_pressed[pygame.K_p]:
-            pos = np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])
             self.level.player_spawns.append(PlayerSpawn(pos))
 
         if self.input_handler.keys_pressed[pygame.K_c]:
-            self.level.add_object(Crate(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
+            self.level.add_object(Crate(pos))
 
         if self.input_handler.keys_pressed[pygame.K_b]:
-            self.level.add_object(Ball(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
+            self.level.add_object(Ball(pos))
 
         if self.input_handler.keys_pressed[pygame.K_g]:
-            self.level.add_object(Shotgun(np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])))
+            self.level.add_object(Shotgun(pos))
+
+        if self.input_handler.keys_pressed[pygame.K_t]:
+            self.level.walls.append(Basket(pos))
+
+        if self.input_handler.keys_pressed[pygame.K_i]:
+            self.level.scoreboard = Scoreboard(pos)
 
     def draw_grid(self, size):
         x_min = math.floor(self.camera.position[0] - self.camera.half_width[0] / self.camera.zoom)
@@ -166,7 +175,7 @@ class Editor:
         y_min = math.floor(self.camera.position[1] - self.camera.half_height[1] / self.camera.zoom)
         y_max = math.ceil(self.camera.position[1] + self.camera.half_height[1] / self.camera.zoom)
 
-        for x in np.linspace(x_min, x_max, abs(x_max - x_min) // size + 1):
+        for x in np.linspace(x_min, x_max, int(abs(x_max - x_min) / size) + 1):
             if x % 5 == 0:
                 width = 3
             else:
@@ -174,7 +183,7 @@ class Editor:
             pygame.draw.line(self.screen, self.grid_color, self.camera.world_to_screen([x, y_min]),
                              self.camera.world_to_screen([x, y_max]), width)
 
-        for y in np.linspace(y_min, y_max, abs(y_max - y_min) // size + 1):
+        for y in np.linspace(y_min, y_max, int(abs(y_max - y_min) / size) + 1):
             if y % 5 == 0:
                 width = 3
             else:
