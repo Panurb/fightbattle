@@ -203,8 +203,8 @@ class PlayerMenu(Menu):
         self.position = np.array(position, dtype=float)
         self.controller_id = None
 
-        self.buttons.append(Slider('Head', ['default']))
-        self.buttons.append(Slider('Body', ['suit', 'speedo']))
+        self.buttons.append(Slider('Head', ['bald', 'goggles', 'clown']))
+        self.buttons.append(Slider('Body', ['camo', 'suit', 'speedo', 'sporty']))
         self.buttons.append(Slider('Team', ['solo']))
         self.buttons.append(Button('Ready up', State.PLAY))
 

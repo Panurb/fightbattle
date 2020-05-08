@@ -15,12 +15,12 @@ class Camera:
     def update(self, time_step, players, level):
         cam_goal = sum(p.position for p in players.values()) / len(players)
 
-        cam_goal[0] -= min(cam_goal[0] - self.half_width[0] / self.zoom - (level.position[0] - 0.5 * level.width), 0)
-        cam_goal[0] -= max(cam_goal[0] + self.half_width[0] / self.zoom - (level.position[0] + 0.5 * level.width), 0)
+        #cam_goal[0] = max(cam_goal[0], self.half_width[0] / self.zoom)
+        #cam_goal[0] = min(cam_goal[0], level.width - self.half_width[0] / self.zoom)
 
         if level.height > 2 * self.half_height[1] / self.zoom:
-            cam_goal[1] -= min(cam_goal[1] - self.half_height[1] / self.zoom - (level.position[1] - 0.5 * level.height), 0)
-            cam_goal[1] -= max(cam_goal[1] + self.half_height[1] / self.zoom - (level.position[1] + 0.5 * level.height), 0)
+            cam_goal[1] = max(cam_goal[1], self.half_height[1] / self.zoom)
+            cam_goal[1] = min(cam_goal[1], level.height - self.half_height[1] / self.zoom)
         else:
             cam_goal[1] = level.position[1]
 
@@ -28,7 +28,7 @@ class Camera:
 
         if len(players) > 1:
             dist2 = max(norm2(p.position - cam_goal) for p in players.values())
-            zoom_goal = min(500 / (np.sqrt(dist2) + 1e-6), self.max_zoom)
+            zoom_goal = max(min(500 / (np.sqrt(dist2) + 1e-6), self.max_zoom), level.width)
             self.zoom += time_step * (zoom_goal - self.zoom)
 
         self.shake = sum(p.camera_shake for p in players.values())

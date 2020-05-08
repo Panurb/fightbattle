@@ -64,13 +64,14 @@ class Level:
         for p in data[0]:
             self.player_spawns.append(PlayerSpawn(p))
 
-        i = 0
+        # FIXME: hardcoded index
+        i = 1
         for d in data[1]:
             w = d[0]([d[1], d[2]], *d[3:])
             self.walls.append(w)
             if d[0] is Basket:
                 w.team = i
-                i += 1
+                i -= 1
 
         for o in data[2]:
             self.id_count += 1
@@ -129,14 +130,14 @@ class Level:
         self.id_count += 1
 
     def update(self, time_step, colliders):
-        for k in list(self.objects.keys()):
-            obj = self.objects[k]
+        for k, obj in list(self.objects.items()):
             obj.update(self.gravity, time_step, colliders)
 
             if type(obj) is Crate and obj.destroyed:
                 if obj.loot_list:
                     loot = np.random.choice(obj.loot_list)(obj.position)
                     loot.velocity[:] = -obj.velocity
+                    loot.angular_velocity = 0.5 * np.sign(obj.velocity[0])
                     self.add_object(loot)
                     loot.collider.update_occupied_squares(colliders)
                     obj.loot_list.clear()

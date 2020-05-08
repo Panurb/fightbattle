@@ -5,10 +5,9 @@ import pickle
 import pygame
 
 from collider import Group
-from gameobject import Destroyable
 from level import Level
 from player import Player
-from weapon import Gun, Bullet
+from weapon import Gun
 
 
 class Server:
@@ -23,30 +22,23 @@ class Server:
             str(e)
 
         self.sock.listen(2)
-        print("Waiting for a connection, Server Started")
+        print("Server started, waiting for a connection")
 
         self.players = dict()
         self.level = Level('lvl', True)
 
-        self.colliders = dict()
-        for g in Group:
-            self.colliders[g] = []
+        self.colliders = [[[] for _ in range(int(self.level.height + 1))] for _ in range(int(self.level.width + 1))]
 
         for wall in self.level.walls:
-            self.colliders[wall.collider.group].append(wall.collider)
+            wall.collider.update_occupied_squares(self.colliders)
 
         for obj in self.level.objects.values():
-            self.colliders[obj.collider.group].append(obj.collider)
-
-        self.respawn_time = 50.0
+            obj.collider.update_occupied_squares(self.colliders)
 
     def add_player(self, network_id):
         player = Player([0, 0], -1, network_id)
         player.set_spawn(self.level, self.players)
         self.players[network_id] = player
-        self.colliders[player.collider.group].append(player.collider)
-        self.colliders[player.head.collider.group].append(player.head.collider)
-        self.colliders[player.body.collider.group].append(player.body.collider)
 
     def start(self):
         start_new_thread(self.physics_thread, ())
@@ -76,9 +68,6 @@ class Server:
                 player.apply_data(data[0])
                 player.health = old_health
 
-                if player.health <= 0 and player.timer >= self.respawn_time:
-                    player.reset(self.colliders)
-
                 if len(data) == 2:
                     obj = self.level.objects[data[1][0]]
                     obj.apply_data(data[1])
@@ -88,7 +77,7 @@ class Server:
                         bs = obj.attack()
                         for b in bs:
                             self.level.add_object(b)
-                            self.colliders[b.collider.group].append(b.collider)
+                            b.collider.update_occupied_squares(self.colliders)
 
                 reply = [[v.get_data() for v in self.players.values()],
                          [o.get_data() for o in self.level.objects.values()]]

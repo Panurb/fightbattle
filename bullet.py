@@ -41,6 +41,8 @@ class Bullet(PhysicsObject):
                 obj = c.collider.parent
                 #if obj not in [self.parent.body, self.parent.head]:
                 if isinstance(obj, Destroyable):
+                    if obj.parent:
+                        obj.parent.velocity += 0.1 * self.velocity
                     particle_type = obj.damage(self.dmg, colliders)
                     self.destroy(particle_type)
                 else:
@@ -106,6 +108,8 @@ class Arrow(Bullet):
             obj = c.collider.parent
             #if obj not in [self.parent.body, self.parent.head]:
             if isinstance(obj, Destroyable):
+                if obj.parent:
+                    obj.parent.velocity += 0.1 * self.velocity
                 particle_type = obj.damage(int(self.speed * self.dmg), colliders)
                 self.destroy(particle_type)
             else:

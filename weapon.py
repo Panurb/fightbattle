@@ -226,6 +226,7 @@ class Bow(Gun):
         self.arrow = GameObject(self.position, 'arrow', size=1.2)
         self.arrow.image_position = 0.5 * basis(0)
         self.attack_charge = 0.0
+        self.rest_angle = -0.5 * np.pi
 
     def get_data(self):
         return super().get_data() + (self.attack_charge, )

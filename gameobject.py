@@ -110,6 +110,7 @@ class PhysicsObject(GameObject):
         self.speed = norm(self.velocity)
         self.acceleration = np.zeros(2)
 
+        self.rest_angle = 0.0
         self.angular_velocity = 0.0
         self.angular_acceleration = 0.0
 
@@ -138,7 +139,7 @@ class PhysicsObject(GameObject):
 
     def set_position(self, position):
         super().set_position(position)
-        self.velocity[:] = np.zeros(2)
+        #self.velocity[:] = np.zeros(2)
 
     def rotate(self, delta_angle):
         super().rotate(delta_angle)
@@ -171,22 +172,18 @@ class PhysicsObject(GameObject):
             self.velocity *= min(self.speed, MAX_SPEED) / self.speed
 
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
-        self.position += delta_pos
+        self.set_position(self.position + delta_pos)
         acc_old = self.acceleration.copy()
         self.acceleration = self.get_acceleration(gravity)
 
         delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
-        self.angle += delta_angle
+        if delta_angle:
+            self.rotate(delta_angle)
         ang_acc_old = float(self.angular_acceleration)
         self.angular_acceleration = 0.0
 
         if self.collider is None:
             return
-
-        self.collider.position += delta_pos
-
-        if delta_angle:
-            self.collider.rotate(delta_angle)
 
         if any(np.abs(delta_pos) > 0.01) or abs(delta_angle) > 1e-3:
             self.collider.update_occupied_squares(colliders)
@@ -219,10 +216,13 @@ class PhysicsObject(GameObject):
 
             if collision.overlap[1] > 0:
                 self.on_ground = True
+                if not self.parent:
+                    self.rotate(-self.angle + self.direction * self.rest_angle)
+                    self.angular_velocity = 0.0
+            elif collision.overlap[0] != 0:
+                self.angular_velocity *= -1
 
-            self.position += collision.overlap
-
-            self.collider.position += collision.overlap
+            self.set_position(self.position + collision.overlap)
 
             n = collision.overlap
             self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)

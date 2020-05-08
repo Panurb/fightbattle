@@ -32,7 +32,7 @@ class Wall(GameObject):
                 else:
                     l = 1
 
-                self.image_position[0] = 0.5
+                self.image_position[0] = 0.0
                 self.image_position[1] = y + 0.52
                 self.image_path = f'wall_vertical_0_{l}'
                 GameObject.draw(self, screen, camera, image_handler)
@@ -91,8 +91,8 @@ class Basket(GameObject):
         self.add_collider(ColliderGroup(self.position))
         self.collider.add_collider(Circle([-0.3, 0.0], 0.1, Group.WALLS))
         self.collider.add_collider(Circle([1.3, 0.0], 0.1, Group.WALLS))
-        self.collider.add_collider(Circle([0.5, -0.2], 0.1, Group.GOALS))
-        self.collider.add_collider(Rectangle([0.5, -0.5], 1.4, -0.5, Group.WALLS))
+        self.collider.add_collider(Circle([0.5, -0.5], 0.2, Group.GOALS))
+        self.collider.add_collider(Rectangle([0.5, -0.9], 1.4, -0.5, Group.WALLS))
         self.team = team
         self.score = 0
 

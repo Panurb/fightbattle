@@ -21,7 +21,7 @@ class GameLoop:
         self.option_handler = option_handler
         self.state = State.MENU
 
-        self.level = None
+        self.level = Level()
         self.players = dict()
         self.colliders = []
 
@@ -62,7 +62,8 @@ class GameLoop:
                 self.level.scoreboard.scores[w.team] = w.score
 
         for o in self.level.objects.values():
-            o.collider.clear_occupied_squares(self.colliders)
+            if o.collider:
+                o.collider.clear_occupied_squares(self.colliders)
 
         self.level.reset()
 
@@ -109,6 +110,7 @@ class GameLoop:
                 if pm.controller_id is not None:
                     # FIXME: hardcoded index
                     self.players[pm.controller_id].body_type = pm.buttons[1].get_value()
+                    self.players[pm.controller_id].head_type = pm.buttons[0].get_value()
 
             for pm in self.player_menus:
                 if pm.controller_id is None:
@@ -148,15 +150,14 @@ class GameLoop:
                 self.level.clear()
                 self.level.apply_data(data[1])
 
-                for g in Group:
-                    if g not in [Group.NONE, Group.PLAYERS, Group.HITBOXES]:
-                        self.colliders[g] = []
+                self.colliders = [[[] for _ in range(int(self.level.height + 1))]
+                                  for _ in range(int(self.level.width + 1))]
 
                 for wall in self.level.walls:
-                    self.colliders[wall.collider.group].append(wall.collider)
+                    wall.collider.update_occupied_squares(self.colliders)
 
                 for obj in self.level.objects.values():
-                    self.colliders[obj.collider.group].append(obj.collider)
+                    obj.collider.update_occupied_squares(self.colliders)
 
                 start_new_thread(self.network_thread, ())
 
@@ -167,7 +168,7 @@ class GameLoop:
             if obj is not None:
                 obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
-            self.camera.update(time_step, self.players)
+            self.camera.update(time_step, self.players, self.level)
 
             for i in list(self.level.objects):
                 obj = self.level.objects[i]
@@ -229,6 +230,7 @@ class GameLoop:
             ids = [o[0] for o in data[1]]
             for i in list(self.level.objects):
                 obj = self.level.objects[i]
+                obj.collider.update_occupied_squares(self.colliders)
                 if i not in ids:
                     if isinstance(obj, Destroyable):
                         obj.destroy(self.colliders)
@@ -286,7 +288,7 @@ class GameLoop:
             screen.fill((150, 150, 150))
             self.level.draw(screen, self.camera, image_handler)
 
-            for player in list(self.players.values()):
+            for player in self.players.values():
                 player.draw(screen, self.camera, image_handler)
 
             if self.option_handler.debug_draw:
