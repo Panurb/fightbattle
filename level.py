@@ -6,7 +6,7 @@ from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
 from prop import Crate, Ball
 from wall import Wall, Platform, Basket, Scoreboard
-from weapon import Gun, Bullet
+from weapon import Gun, Bullet, Grenade
 
 
 class Level:
@@ -142,8 +142,11 @@ class Level:
                     loot.collider.update_occupied_squares(colliders)
                     obj.loot_list.clear()
 
+            if type(obj) is Grenade and obj.attacked:
+                obj.attack()
+
             if isinstance(obj, Destroyable):
-                if obj.destroyed and (self.server or not obj.debris):
+                if obj.destroyed and (self.server or (not obj.active)):
                     del self.objects[k]
                     continue
             elif isinstance(obj, Gun) and obj.attacked:
@@ -153,6 +156,7 @@ class Level:
                     b.collider.update_occupied_squares(colliders)
             elif isinstance(obj, Bullet):
                 if obj.destroyed and (self.server or not obj.particle_clouds):
+                    obj.collider.clear_occupied_squares(colliders)
                     del self.objects[k]
                     continue
 

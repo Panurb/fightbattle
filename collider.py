@@ -4,8 +4,7 @@ import enum
 import pygame
 from numba import njit, prange
 
-from helpers import norm2, perp, basis
-
+from helpers import norm2, perp, basis, polar_angle
 
 GRID_SIZE = 1
 
@@ -132,9 +131,14 @@ class Collider:
         self.collisions = []
         self.group = group
         self.occupied_squares = []
+        self.half_width = np.zeros(2)
+        self.half_height = np.zeros(2)
 
     def set_position(self, position):
         self.position[:] = position
+
+    def axis_half_width(self, axis):
+        return axis_half_width(self.half_width, self.half_height, axis)
 
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
@@ -174,12 +178,26 @@ class Collider:
         pass
 
     def update_occupied_squares(self, colliders):
-        pass
+        self.clear_occupied_squares(colliders)
+
+        pos = self.position
+        w = axis_half_width(self.half_width, self.half_height, basis(0))
+        h = axis_half_width(self.half_width, self.half_height, basis(1))
+
+        for i in range(int((pos[0] - w) / GRID_SIZE), min(int((pos[0] + w) / GRID_SIZE) + 1, len(colliders))):
+            for j in range(int((pos[1] - h) / GRID_SIZE), min(int((pos[1] + h) / GRID_SIZE) + 1, len(colliders[i]))):
+                self.occupied_squares.append((i, j))
+
+        for i, j in self.occupied_squares:
+            colliders[i][j].append(self)
 
     def clear_occupied_squares(self, colliders):
         for i, j in self.occupied_squares:
             colliders[i][j].remove(self)
         self.occupied_squares.clear()
+
+    def draw_shadow(self, screen, camera, light):
+        pass
 
 
 class ColliderGroup:
@@ -239,6 +257,9 @@ class ColliderGroup:
         for c in self.colliders:
             c.clear_occupied_squares(colliders)
 
+    def draw_shadow(self, screen, camera, light):
+        pass
+
 
 class Rectangle(Collider):
     def __init__(self, position, width, height, group=Group.NONE):
@@ -288,23 +309,10 @@ class Rectangle(Collider):
 
         pygame.draw.polygon(screen, image_handler.debug_color, points, 1)
 
-    def update_occupied_squares(self, colliders):
-        for i, j in self.occupied_squares:
-            colliders[i][j].remove(self)
+    def draw_shadow(self, screen, camera, light):
+        points = [c + 0.5 * (c - light) / norm(c - light) for c in self.corners()]
 
-        pos = self.position
-
-        half_width = axis_half_width(self.half_width, self.half_height, basis(0))
-        half_height = axis_half_width(self.half_width, self.half_height, basis(1))
-
-        self.occupied_squares.clear()
-
-        for i in range(int((pos[0] - half_width) / GRID_SIZE), int((pos[0] + half_width) / GRID_SIZE) + 1):
-            for j in range(int((pos[1] - half_height) / GRID_SIZE), int((pos[1] + half_height) / GRID_SIZE) + 1):
-                self.occupied_squares.append((i, j))
-
-        for i, j in self.occupied_squares:
-            colliders[i][j].append(self)
+        camera.draw_polygon(screen, points, (50, 50, 50), 0)
 
 
 class Circle(Collider):
@@ -341,25 +349,6 @@ class Circle(Collider):
         center = camera.world_to_screen(self.position)
         pygame.draw.circle(screen, image_handler.debug_color, center, int(self.radius * camera.zoom), 1)
 
-    def update_occupied_squares(self, colliders):
-        for i, j in self.occupied_squares:
-            colliders[i][j].remove(self)
-
-        pos = self.position
-
-        squares = []
-
-        for i in range(int(pos[0] - 0.5 * self.radius), int(pos[0] + 0.5 * self.radius + 1)):
-            for j in range(int(pos[1] - 0.5 * self.radius), int(pos[1] + 0.5 * self.radius + 1)):
-                squares.append((i, j))
-
-        r = 0.5 * self.radius
-
-        for i in range(int((pos[0] - r) / GRID_SIZE), int((pos[0] + r) / GRID_SIZE) + 1):
-            for j in range(int((pos[1] - r) / GRID_SIZE), int((pos[1] + r) / GRID_SIZE) + 1):
-                squares.append((i, j))
-
-        self.occupied_squares = squares
-
-        for i, j in self.occupied_squares:
-            colliders[i][j].append(self)
+    def draw_shadow(self, screen, camera, light):
+        r = self.position - light
+        camera.draw_circle(screen, self.position + 0.5 * r / norm(r), max(self.radius, self.radius / norm(r)), (50, 50, 50), 0)

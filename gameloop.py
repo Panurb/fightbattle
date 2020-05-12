@@ -43,18 +43,23 @@ class GameLoop:
 
         self.controller_id = 0
 
+        self.light = np.zeros(2) if option_handler.shadows else None
+
     def load_level(self):
         self.level = Level('lvl')
 
         self.colliders.clear()
 
-        self.colliders = [[[] for _ in range(int(self.level.height + 1))] for _ in range(int(self.level.width + 1))]
+        self.colliders = [[[] for _ in range(int(self.level.height))] for _ in range(int(self.level.width))]
 
         for wall in self.level.walls:
             wall.collider.update_occupied_squares(self.colliders)
 
         for obj in self.level.objects.values():
             obj.collider.update_occupied_squares(self.colliders)
+
+        if self.light is not None:
+            self.light = np.array([0.5 * self.level.width, self.level.height])
 
     def reset_game(self):
         for w in self.level.walls:
@@ -94,12 +99,13 @@ class GameLoop:
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
-            for o in self.level.objects.values():
+            for o in list(self.level.objects.values()):
                 if type(o) is Ball and o.scored and o.speed < 0.1:
                     self.reset_game()
 
             self.camera.update(self.time_scale * time_step, self.players, self.level)
         elif self.state is State.MENU:
+            self.menu.update(time_step)
             self.state = self.menu.target_state
             self.menu.target_state = State.MENU
         elif self.state is State.PLAYER_SELECT:
@@ -183,8 +189,15 @@ class GameLoop:
         elif self.state is State.OPTIONS:
             self.state = self.options_menu.target_state
             self.options_menu.target_state = State.OPTIONS
-            #res = [int(x) for x in self.options_menu.buttons[1].get_value().split('x')]
-            #self.option_handler.resolution = res
+            if self.options_menu.resolution_changed:
+                if self.options_menu.buttons[0].get_value() == 'windowed':
+                    pygame.display.set_mode(self.options_menu.buttons[1].get_value())
+                else:
+                    pygame.display.set_mode(self.options_menu.buttons[1].get_value(), pygame.FULLSCREEN)
+
+                self.camera.set_resolution(self.options_menu.buttons[1].get_value())
+
+                self.options_menu.resolution_changed = False
 
     def network_thread(self):
         while True:
@@ -271,6 +284,11 @@ class GameLoop:
                         if pm.controller_id == i:
                             self.add_player(i)
                             break
+
+            if all(pm.target_state is State.PLAYER_SELECT for pm in self.player_menus):
+                for i, controller in enumerate(input_handler.controllers):
+                    if controller.button_down['B']:
+                        self.state = State.MENU
         elif self.state is State.LAN:
             if self.network is not None:
                 player = self.players[self.network_id]
@@ -286,6 +304,13 @@ class GameLoop:
     def draw(self, screen, image_handler):
         if self.state in [State.PLAY, State.LAN]:
             screen.fill((150, 150, 150))
+            if self.light is not None:
+                for w in self.level.walls:
+                    w.draw_shadow(screen, self.camera, self.light)
+
+                for o in self.level.objects.values():
+                    o.draw_shadow(screen, self.camera, self.light)
+
             self.level.draw(screen, self.camera, image_handler)
 
             for player in self.players.values():
@@ -321,3 +346,13 @@ class GameLoop:
                 p.play_sounds(sound_handler)
 
             self.level.play_sounds(sound_handler)
+        elif self.state is State.OPTIONS:
+            sound_handler.set_volume(self.options_menu.buttons[2].get_value() / 100)
+            sound_handler.set_music_volume(self.options_menu.buttons[3].get_value() / 100)
+            self.menu.play_sounds(sound_handler)
+            self.options_menu.play_sounds(sound_handler)
+        else:
+            self.menu.play_sounds(sound_handler)
+            self.options_menu.play_sounds(sound_handler)
+            for pm in self.player_menus:
+                pm.play_sounds(sound_handler)

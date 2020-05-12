@@ -34,8 +34,11 @@ class Controller:
         self.right_stick[1] = -self.joystick.get_axis(3)
 
         for stick in [self.left_stick, self.right_stick]:
-            if norm(stick) < self.stick_deadzone:
+            n = norm(stick)
+            if n < self.stick_deadzone:
                 stick[:] = np.zeros(2)
+            elif n > 0.9:
+                stick[:] /= n
 
         trigger = self.joystick.get_axis(2)
         if abs(trigger) < self.trigger_deadzone:
@@ -72,8 +75,11 @@ class DualShock4(Controller):
         self.right_stick[1] = -self.joystick.get_axis(3)
 
         for stick in [self.left_stick, self.right_stick]:
-            if norm(stick) < self.stick_deadzone:
+            n = norm(stick)
+            if n < self.stick_deadzone:
                 stick[:] = np.zeros(2)
+            elif n > 0.9:
+                stick[:] /= n
 
         self.left_trigger = (self.joystick.get_axis(5) + 1) / 2
         if abs(self.left_trigger) < self.trigger_deadzone:

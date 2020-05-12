@@ -131,6 +131,9 @@ class Editor:
             self.camera.zoom /= 1.5
 
         if self.input_handler.keys_pressed[pygame.K_s]:
+            for i, o in enumerate(self.level.objects.values()):
+                o.id = i
+
             with open('data/levels/lvl.pickle', 'wb') as f:
                 pickle.dump(self.level.get_data(), f)
 

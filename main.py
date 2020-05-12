@@ -1,5 +1,9 @@
+from timeit import default_timer as timer
+
+import numpy as np
 import pygame
 
+import helpers
 import gameloop
 import imagehandler
 import inputhandler
@@ -14,7 +18,7 @@ class Main:
         pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.mixer.init()
 
-        #pygame.mixer.set_num_channels(16)
+        pygame.mixer.set_num_channels(16)
 
         pygame.init()
         pygame.display.set_caption('FIGHTBATTLE')

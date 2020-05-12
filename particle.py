@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import pygame
 
-from helpers import polar_angle, polar_to_cartesian, norm2, random_unit
+from helpers import polar_angle, polar_to_cartesian, norm2, random_unit, basis
 
 
 class Cloud:
@@ -92,7 +92,7 @@ class Cloud:
                     pygame.draw.circle(surface, color + (255 - color) * self.shine, [int(0.8 * size[0]), size[1] // 2],
                                        size[1] // 5)
 
-                surface = pygame.transform.rotate(surface, np.rad2deg(polar_angle(self.velocity[i, :])))
+                surface = pygame.transform.rotate(surface, np.degrees(polar_angle(self.velocity[i, :])))
                 pos = camera.world_to_screen(p)
                 screen.blit(surface, [pos[0] - 0.5 * size[0], pos[1] - 0.5 * size[1]])
 
@@ -110,9 +110,9 @@ class MuzzleFlash(Cloud):
 
 
 class Explosion(Cloud):
-    def __init__(self, position, base_velocity=(0, 0)):
-        super().__init__(position, np.zeros(2), 10, 5.0, 5.0, base_velocity=base_velocity, gravity_scale=0.0,
-                         start_color=(255, 255, 200), end_color=(255, 255, 200))
+    def __init__(self, position):
+        super().__init__(position, np.zeros(2), 10, 8.0, 5.0, gravity_scale=0.0, start_color=(255, 255, 255),
+                         end_color=(50, 50, 50), shading=0.2)
 
 
 class Sparks(Cloud):

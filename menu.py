@@ -27,6 +27,7 @@ class Menu:
         self.selection = 0
         self.selection_moved = dict()
         self.slider_moved = dict()
+        self.sounds = []
 
     def update_buttons(self):
         for i, b in enumerate(self.buttons):
@@ -38,17 +39,22 @@ class Menu:
         if controller_id == 0:
             for i, b in enumerate(self.buttons):
                 if b.collider.point_inside(input_handler.mouse_position):
+                    if self.selection is not i:
+                        self.sounds.append('menu')
                     self.selection = i
                     self.selection_moved[controller_id] = True
 
                     if type(b) is Button:
                         if input_handler.mouse_pressed[0]:
                             self.target_state = self.buttons[self.selection].target_state
+                            self.sounds.append('select')
                     elif type(b) is Slider:
                         if input_handler.mouse_pressed[0]:
                             b.move_right()
+                            self.sounds.append('menu')
                         elif input_handler.mouse_pressed[2]:
                             b.move_left()
+                            self.sounds.append('menu')
 
                     break
             else:
@@ -59,10 +65,12 @@ class Menu:
 
             if controller.left_stick[1] < -0.5:
                 if not self.selection_moved[controller_id]:
+                    self.sounds.append('menu')
                     self.selection = (self.selection + 1) % len(self.buttons)
                     self.selection_moved[controller_id] = True
             elif controller.left_stick[1] > 0.5:
                 if not self.selection_moved[controller_id]:
+                    self.sounds.append('menu')
                     self.selection = (self.selection - 1) % len(self.buttons)
                     self.selection_moved[controller_id] = True
             else:
@@ -73,19 +81,23 @@ class Menu:
                     if not self.slider_moved[controller_id]:
                         self.buttons[self.selection].move_left()
                         self.slider_moved[controller_id] = True
+                        self.sounds.append('menu')
                 elif controller.left_stick[0] > 0.5:
                     if not self.slider_moved[controller_id]:
                         self.buttons[self.selection].move_right()
                         self.slider_moved[controller_id] = True
+                        self.sounds.append('menu')
                 else:
                     self.slider_moved[controller_id] = False
 
             if controller.button_pressed['A']:
                 if type(self.buttons[self.selection]) is Button:
                     self.target_state = self.buttons[self.selection].target_state
+                    self.sounds.append('select')
 
             if controller.button_pressed['B']:
                 self.target_state = State.MENU
+                self.sounds.append('cancel')
 
         for i, b in enumerate(self.buttons):
             b.selected = True if i == self.selection else False
@@ -93,6 +105,12 @@ class Menu:
     def draw(self, screen, camera, image_handler):
         for b in self.buttons:
             b.draw(screen, camera, image_handler)
+
+    def play_sounds(self, sound_handler):
+        for sound in self.sounds:
+            sound_handler.sounds[sound].play()
+
+        self.sounds.clear()
 
 
 class Button(GameObject):
@@ -107,15 +125,7 @@ class Button(GameObject):
 
     def draw(self, screen, camera, image_handler):
         color = self.color_selected if self.selected else self.color
-        font = pygame.font.Font(None, int(0.75 * camera.zoom))
-        text = font.render(self.text, True, color)
-        pos = camera.world_to_screen(self.position)
-
-        w = text.get_width() // 2
-
-        pos[0] -= w
-        pos[1] -= 8
-        screen.blit(text, pos)
+        camera.draw_text(screen, self.text, self.position, 0.75, color=color, chromatic_aberration=self.selected)
 
 
 class Slider(GameObject):
@@ -145,35 +155,18 @@ class Slider(GameObject):
         else:
             self.selection = max(self.selection - 1, 0)
 
-    def draw_text(self, text, y_offset, screen, camera):
-        color = self.color_selected if self.selected else self.color
-        font = pygame.font.Font(None, int(0.75 * camera.zoom))
-        text = font.render(text, True, color)
-        pos = camera.world_to_screen(self.position)
-        pos[0] -= text.get_width() // 2
-        pos[1] += y_offset - text.get_height() // 2
-        screen.blit(text, pos)
-
-        return text.get_width() // 2, text.get_height() // 2
-
     def draw(self, screen, camera, image_handler):
-        self.draw_text(self.text, -32, screen, camera)
-        val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
+        color = self.color_selected if self.selected else self.color
+        camera.draw_text(screen, self.text, self.position + 0.63 * basis(1), 0.75, color=color,
+                         chromatic_aberration=self.selected)
 
-        w, h = self.draw_text(val_str, 0, screen, camera)
+        val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
+        camera.draw_text(screen, val_str, self.position, 0.75, color=color,
+                         chromatic_aberration=self.selected)
 
         if self.selected:
-            a = np.array([0, 0.5])
-            b = np.array([0, -0.5])
-            c = np.array([np.sqrt(3) / 2, 0])
-
-            points = [camera.world_to_screen(-camera.zoom / 100 * p + self.position) for p in [a, b, c]]
-            points = [[p[0] - w - camera.zoom // 2, p[1]] for p in points]
-            pygame.draw.polygon(screen, self.color_selected, points)
-
-            points = [camera.world_to_screen(camera.zoom / 100 * p + self.position) for p in [a, b, c]]
-            points = [[p[0] + w + camera.zoom // 2, p[1]] for p in points]
-            pygame.draw.polygon(screen, self.color_selected, points)
+            camera.draw_triangle(screen, self.position - 1.5 * basis(0), 0.75, chromatic_aberration=True)
+            camera.draw_triangle(screen, self.position + 1.5 * basis(0), 0.75, np.pi, chromatic_aberration=True)
 
 
 class MainMenu(Menu):
@@ -184,8 +177,19 @@ class MainMenu(Menu):
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('QUIT', State.QUIT))
         self.update_buttons()
-        title_font = pygame.font.Font('data/fonts/CollegiateBlackFLF.ttf', 160)
-        self.title = title_font.render('FIGHTBATTLE', True, (255, 255, 255))
+        self.timer = 40.0
+        self.chromatic_aberration = False
+
+    def update(self, time_step):
+        self.timer -= time_step
+
+        if self.timer <= 0:
+            if self.chromatic_aberration:
+                self.timer = 40 * np.random.random()
+            else:
+                self.timer = 5
+                self.sounds.append('static')
+            self.chromatic_aberration = not self.chromatic_aberration
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
@@ -193,7 +197,8 @@ class MainMenu(Menu):
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
-        screen.blit(self.title, [screen.get_width() // 2 - self.title.get_width() // 2, 100])
+        camera.draw_text(screen, 'FIGHTBATTLE', np.array([0, 3.5]), 3.2, 'CollegiateBlackFLF.ttf',
+                         chromatic_aberration=self.chromatic_aberration)
 
 
 class PlayerMenu(Menu):
@@ -214,6 +219,7 @@ class PlayerMenu(Menu):
         if self.controller_id is None:
             if input_handler.controllers[controller_id].button_pressed['START']:
                 self.controller_id = controller_id
+                self.sounds.append('select')
 
             if self.buttons[0].collider.point_inside(input_handler.mouse_position):
                 if input_handler.mouse_pressed[1]:
@@ -229,16 +235,10 @@ class PlayerMenu(Menu):
                 super().input(input_handler, self.controller_id)
 
     def draw(self, screen, camera, image_handler):
-        font = pygame.font.Font(None, int(0.75 * camera.zoom))
-
         if self.controller_id is None:
-            text = font.render('Press START to join', True, (255, 255, 255))
-            pos = camera.world_to_screen(self.buttons[0].position)
-            screen.blit(text, [pos[0] - text.get_width() // 2, pos[1] - text.get_height() // 2])
+            camera.draw_text(screen, 'Press START to join', self.buttons[0].position, 0.75, chromatic_aberration=True)
         elif self.target_state is State.PLAY:
-            text = font.render('READY', True, (255, 255, 255))
-            pos = camera.world_to_screen(self.buttons[0].position)
-            screen.blit(text, [pos[0] - text.get_width() // 2, pos[1] - text.get_height() // 2])
+            camera.draw_text(screen, 'READY', self.buttons[0].position, 0.75, chromatic_aberration=True)
         else:
             super().draw(screen, camera, image_handler)
 
@@ -250,20 +250,18 @@ class OptionsMenu(Menu):
         self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
         self.buttons.append(Slider('Resolution', [(1280, 720), (1600, 900), (1920, 1080)], False))
         self.buttons.append(Slider('Sound volume', range(0, 110, 10), False, 10))
-        self.buttons.append(Slider('Music volume', range(0, 110, 10), False, 10))
+        self.buttons.append(Slider('Music volume', range(0, 110, 10), False, 0))
         self.update_buttons()
+        self.resolution_changed = False
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
             controller = input_handler.controllers[i]
             if controller.button_pressed['A']:
-                if self.buttons[0].get_value() == 'windowed':
-                    pygame.display.set_mode(self.buttons[1].get_value())
-                else:
-                    pygame.display.set_mode(self.buttons[1].get_value(), pygame.FULLSCREEN)
-
+                self.resolution_changed = True
             if controller.button_pressed['B']:
                 self.target_state = State.MENU
+                self.sounds.append('cancel')
                 return
 
             super().input(input_handler, i)

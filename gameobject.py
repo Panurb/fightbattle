@@ -1,11 +1,9 @@
-import itertools
-
 import numpy as np
 from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Rectangle
-from helpers import norm2, rotate, normalized, polar_angle, basis, random_unit
+from helpers import norm2, rotate, normalized, basis, random_unit
 from particle import Sparks
 
 MAX_SPEED = 5.0
@@ -73,34 +71,23 @@ class GameObject:
 
         image = image_handler.images[self.image_path]
 
-        scale = 1.05 * camera.zoom * self.size / 100
-
-        if self.direction == -1:
-            image = pygame.transform.flip(image, True, False)
-
-        image = pygame.transform.rotozoom(image, np.degrees(self.angle), scale)
-
-        rect = image.get_rect()
-        rect.center = camera.world_to_screen(self.position + rotate(self.image_position, self.angle))
-
-        screen.blit(image, rect)
+        pos = self.position + rotate(self.image_position, self.angle)
+        camera.draw_image(screen, image, pos, self.size, self.direction, self.angle)
 
     def debug_draw(self, screen, camera, image_handler):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
         if self.collider:
             self.collider.draw(screen, camera, image_handler)
 
-        '''
-        font = pygame.font.Font(None, 20)
-        fps_str = font.render(str(self.id), True, (255, 255, 255))
-        screen.blit(fps_str, camera.world_to_screen(self.position))
-        '''
-
     def play_sounds(self, sound_handler):
         for sound in self.sounds:
             sound_handler.sounds[sound].play()
 
         self.sounds.clear()
+
+    def draw_shadow(self, screen, camera, light):
+        if self.collider:
+            self.collider.draw_shadow(screen, camera, light)
 
 
 class PhysicsObject(GameObject):
@@ -176,6 +163,9 @@ class PhysicsObject(GameObject):
         acc_old = self.acceleration.copy()
         self.acceleration = self.get_acceleration(gravity)
 
+        if self.rest_angle is None:
+            self.angular_velocity = -self.gravity_scale * self.velocity[0]
+
         delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
         if delta_angle:
             self.rotate(delta_angle)
@@ -205,7 +195,7 @@ class PhysicsObject(GameObject):
                     continue
 
                 if collider.half_height[1] > 0:
-                    if self.collider.position[1] - self.collider.half_height[1] - delta_pos[1] \
+                    if self.collider.position[1] - self.collider.axis_half_width(basis(1)) - delta_pos[1] \
                             < collider.position[1] + collider.half_height[1]:
                         self.collider.collisions.remove(collision)
                         continue
@@ -217,7 +207,8 @@ class PhysicsObject(GameObject):
             if collision.overlap[1] > 0:
                 self.on_ground = True
                 if not self.parent:
-                    self.rotate(-self.angle + self.direction * self.rest_angle)
+                    if self.rest_angle is not None:
+                        self.rotate(-self.angle + self.direction * self.rest_angle)
                     self.angular_velocity = 0.0
             elif collision.overlap[0] != 0:
                 self.angular_velocity *= -1
@@ -279,30 +270,25 @@ class Destroyable(PhysicsObject):
 
         self.destroyed = True
 
-        for _ in range(3):
-            r = np.abs(np.random.normal(0.5, 0.2))
-            v = r * random_unit()
-            d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size)
-            d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
-            self.debris.append(d)
+        self.collider.clear_occupied_squares(colliders)
+        self.collider = None
+
+        if self.debris_path:
+            for _ in range(3):
+                r = np.abs(np.random.normal(0.5, 0.2))
+                v = r * random_unit()
+                d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size)
+                d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
+                self.debris.append(d)
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
         if self.destroyed:
-            if self.collider and self.collider.group is not Group.NONE:
-                for i, j in self.collider.occupied_squares:
-                    colliders[i][j].remove(self.collider)
-                self.collider = None
-
             for d in self.debris:
                 d.update(gravity, time_step, colliders)
                 if d.on_ground and d.speed < norm(gravity) * time_step:
                     self.debris.remove(d)
-
-            for p in self.particle_clouds:
-                if not p.active:
-                    self.particle_clouds.remove(p)
 
         self.update_active()
 
@@ -384,12 +370,18 @@ class AnimatedObject(GameObject):
         self.loop = False
         self.animation_angle = 0.0
 
+    def current_animation(self):
+        return self.animations[self.animation]
+
     def add_animation(self, xs, ys, angles, name, image=''):
         if not image:
             image = self.image_path
         self.animations[name] = Animation(xs, ys, angles, image)
 
     def loop_animation(self, name, time=0):
+        if self.animation == name:
+            return
+
         self.animation = name
         self.animations[self.animation].time = time
         self.loop = True
@@ -414,4 +406,4 @@ class AnimatedObject(GameObject):
         self.angle = self.direction * angle + self.animation_angle
 
         if not self.loop and anim.time >= anim.times[-1]:
-            self.loop_animation('idle')
+            anim.time = anim.times[-1]

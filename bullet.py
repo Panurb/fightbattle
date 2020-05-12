@@ -35,7 +35,7 @@ class Bullet(PhysicsObject):
             self.destroy()
 
         if not self.destroyed:
-            self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
+            self.collider.update_collisions(colliders, {Group.HITBOXES, Group.PROPS})
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
@@ -65,6 +65,9 @@ class Bullet(PhysicsObject):
                 p.draw(screen, camera, image_handler)
         else:
             super().draw(screen, camera, image_handler)
+
+    def draw_shadow(self, screen, camera, light):
+        pass
 
 
 class Pellet(Bullet):
@@ -102,7 +105,7 @@ class Arrow(Bullet):
         if np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
-        self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS])
+        self.collider.update_collisions(colliders, {Group.HITBOXES, Group.PROPS})
 
         for c in self.collider.collisions:
             obj = c.collider.parent

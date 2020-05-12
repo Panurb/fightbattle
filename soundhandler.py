@@ -31,7 +31,7 @@ class SoundHandler:
             sound.set_volume(0.5 * vol)
 
     def set_music_volume(self, vol):
-        pygame.mixer.music.set_volume(vol)
+        pygame.mixer.music.set_volume(0.5 * vol)
 
     def set_music(self, track):
         if self.current_track != track:

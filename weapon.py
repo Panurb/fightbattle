@@ -13,18 +13,25 @@ from particle import MuzzleFlash, Explosion, Sparks, BloodSplatter
 class Weapon(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, bump_sound='gun')
+        self.hand_position = np.zeros(2)
         self.attacked = False
         self.hit = False
+        self.attack_delay = 5.0
+        self.timer = 0.0
+
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+        self.timer = max(0.0, self.timer - time_step)
 
     def attack(self):
         self.attacked = False
+        self.timer = self.attack_delay
 
 
 class Gun(Weapon):
     def __init__(self, position):
         super().__init__(position)
         self.barrel_position = np.array([1.0, 0.3])
-        self.hand_position = np.zeros(2)
         self.grip_position = None
         self.bullet_speed = 3.0
 
@@ -117,6 +124,7 @@ class Sword(PhysicsObject):
         self.hit = False
         self.timer = 0.0
         self.parent = None
+        self.rest_angle = 0.5 * np.pi
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -155,18 +163,23 @@ class Shield(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, image_path='shield', size=0.85, bump_sound='gun')
         self.add_collider(Rectangle([0.0, 0.0], 0.25, 2.0, Group.SHIELDS))
-        self.rotate_90()
+        self.rest_angle = 0.5 * np.pi
 
 
 class Grenade(Destroyable):
     def __init__(self, position):
-        super().__init__(position, size=1.1, image_path='grenade', health=1, bump_sound='gun')
+        super().__init__(position, bump_sound='gun', health=1)
+        self.image_path = 'grenade'
+        self.size = 1.1
         self.add_collider(Circle([0, 0], 0.25, Group.PROPS))
-        self.explosion_collider = Circle([0, 0], 5.0)
-        self.timer = 50.0
+        self.timer = 0.0
         self.primed = False
         self.pin = PhysicsObject(self.position, image_path='grenade_pin')
+        self.pin.rest_angle = None
         self.pin.add_collider(Circle([0, 0], 0.25, Group.DEBRIS))
+        self.rest_angle = None
+        self.destroyed = False
+        self.attacked = False
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -176,32 +189,48 @@ class Grenade(Destroyable):
             self.timer -= time_step
 
             if self.timer <= 0.0:
-                if not self.destroyed:
-                    self.explosion_collider.position = self.position
-                    self.explosion_collider.update_collisions(colliders, [Group.PLAYERS, Group.PROPS])
-                    for c in self.explosion_collider.collisions:
-                        obj = c.collider.parent
-                        r = -self.position + obj.position
-                        r_norm = norm(r)
-                        obj.damage(int(abs(30 * (5 - r_norm))), obj.position, 0.1 * r / (r_norm + 0.1), colliders)
-
-                self.destroy([0, 0], colliders)
+                self.destroy(colliders)
         else:
-
             self.pin.set_position(self.position + 0.15 * rotate(basis(0), self.angle))
             self.pin.rotate(self.angle - self.pin.angle)
 
-    def destroy(self, velocity, colliders):
+    def destroy(self, colliders):
         if not self.destroyed:
-            self.particle_clouds.append(Explosion(self.position))
+            self.destroyed = True
 
-        super().destroy(velocity, colliders)
+            explosion_collider = Circle(self.position, 3.0)
+            explosion_collider.update_occupied_squares(colliders)
+            explosion_collider.update_collisions(colliders, {Group.HITBOXES, Group.PROPS})
+
+            for c in explosion_collider.collisions:
+                obj = c.collider.parent
+                if obj is self:
+                    continue
+
+                r = obj.position - self.position
+                r_norm = norm(r)
+
+                if obj.parent:
+                    obj.parent.velocity += 0.5 * r / r_norm
+                else:
+                    obj.velocity += 0.5 * r / r_norm
+
+                if isinstance(obj, Destroyable):
+                    obj.damage(int(abs(30 * (5 - r_norm))), colliders)
+
+            self.particle_clouds.append(Explosion(self.position))
+            self.sounds.append('grenade')
+
+            self.collider.clear_occupied_squares(colliders)
+            self.collider = None
 
     def attack(self):
         if not self.primed:
             self.pin.velocity[0] = self.velocity[0] - self.direction * 0.25
             self.pin.velocity[1] = 0.5
             self.primed = True
+            self.timer = 50.0
+            self.sounds.append('sword')
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)

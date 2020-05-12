@@ -6,3 +6,4 @@ class OptionHandler:
         self.volume = 1
         self.music_volume = 0
         self.debug_draw = False
+        self.shadows = False
