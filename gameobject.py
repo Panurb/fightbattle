@@ -3,8 +3,8 @@ from numpy.linalg import norm
 import pygame
 
 from collider import Circle, Group, Rectangle
-from helpers import norm2, rotate, normalized, basis, random_unit
-from particle import Sparks
+from helpers import norm2, rotate, normalized, basis, random_unit, polar_angle
+from particle import Sparks, Dust
 
 MAX_SPEED = 5.0
 
@@ -24,7 +24,7 @@ class GameObject:
         self.image_position = np.zeros(2)
         self.parent = None
 
-        self.sounds = []
+        self.sounds = set()
 
         self.id = None
 
@@ -85,9 +85,12 @@ class GameObject:
 
         self.sounds.clear()
 
-    def draw_shadow(self, screen, camera, light):
-        if self.collider:
-            self.collider.draw_shadow(screen, camera, light)
+    def draw_shadow(self, screen, camera, image_handler, light):
+        r = self.position - light
+        pos = self.position + 0.5 * r / norm(r) + rotate(self.image_position, self.angle)
+        image = image_handler.images[f'shadow_{self.image_path}']
+
+        camera.draw_image(screen, image, pos, self.size, self.direction, self.angle)
 
 
 class PhysicsObject(GameObject):
@@ -114,6 +117,11 @@ class PhysicsObject(GameObject):
         self.bump_sound = bump_sound
 
         self.parent = None
+        self.group = None
+
+    def add_collider(self, collider):
+        super().add_collider(collider)
+        self.group = collider.group
 
     def get_data(self):
         return super().get_data() + (self.velocity[0], self.velocity[1], self.sounds)
@@ -122,11 +130,9 @@ class PhysicsObject(GameObject):
         super().apply_data(data)
         self.velocity[0] = data[6]
         self.velocity[1] = data[7]
-        self.sounds[:] = data[8]
-
-    def set_position(self, position):
-        super().set_position(position)
-        #self.velocity[:] = np.zeros(2)
+        self.sounds.clear()
+        for s in data[8]:
+            self.sounds.add(s)
 
     def rotate(self, delta_angle):
         super().rotate(delta_angle)
@@ -172,7 +178,7 @@ class PhysicsObject(GameObject):
         ang_acc_old = float(self.angular_acceleration)
         self.angular_acceleration = 0.0
 
-        if self.collider is None:
+        if self.collider is None or not self.collision_enabled:
             return
 
         if any(np.abs(delta_pos) > 0.01) or abs(delta_angle) > 1e-3:
@@ -180,29 +186,35 @@ class PhysicsObject(GameObject):
 
         self.collider.update_collisions(colliders)
 
-        if not self.collision_enabled:
-            return
-
         for collision in self.collider.collisions:
             collider = collision.collider
             if not collider.parent.collision_enabled:
                 continue
 
             if collider.group is Group.PLATFORMS:
-                # TODO: optimize
-                if self.collider.group in [Group.GUNS, Group.SWORDS, Group.SHIELDS] and self.parent is not None:
+                if self.parent and self.collider.group in {Group.GUNS, Group.SWORDS, Group.SHIELDS}:
                     self.collider.collisions.remove(collision)
                     continue
 
                 if collider.half_height[1] > 0:
-                    if self.collider.position[1] - self.collider.axis_half_width(basis(1)) - delta_pos[1] \
+                    if self.collider.position[1] - delta_pos[1] - self.collider.axis_half_width(basis(1)) \
                             < collider.position[1] + collider.half_height[1]:
                         self.collider.collisions.remove(collision)
                         continue
-                elif self.collider.position[1] + self.collider.half_height[1] - delta_pos[1] \
+                elif self.collider.position[1] - delta_pos[1] + self.collider.axis_half_width(basis(1)) \
                         > collider.position[1] + collider.half_height[1]:
                     self.collider.collisions.remove(collision)
                     continue
+
+            if self.collider.group is Group.THROWN:
+                if collider.parent is self.parent:
+                    self.collider.collisions.remove(collision)
+                    continue
+
+                try:
+                    collider.parent.parent.throw_object()
+                except AttributeError:
+                    pass
 
             if collision.overlap[1] > 0:
                 self.on_ground = True
@@ -213,14 +225,22 @@ class PhysicsObject(GameObject):
             elif collision.overlap[0] != 0:
                 self.angular_velocity *= -1
 
+            n = min(int(self.speed * 5), 10)
+            if n > 1:
+                self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
+
             self.set_position(self.position + collision.overlap)
 
             n = collision.overlap
             self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
             self.velocity *= self.bounce
 
-            if isinstance(collider.parent, PhysicsObject):
+            if not self.parent and isinstance(collider.parent, PhysicsObject):
                 collider.parent.velocity[:] = -self.velocity
+
+        if self.collider.group is Group.THROWN and self.collider.collisions:
+            self.parent = None
+            self.collider.group = self.group
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
@@ -229,12 +249,26 @@ class PhysicsObject(GameObject):
             self.velocity[0] = 0.0
 
         if self.parent is None and self.collider.collisions and self.speed > 0.1:
-            self.sounds.append(self.bump_sound)
+            self.sounds.add(self.bump_sound)
+
+    def draw_shadow(self, screen, camera, image_handler, light):
+        '''
+        if self.on_ground:
+            angle = polar_angle(self.position - self.collider.half_width - light)
+            left = self.collider.half_height[1] * np.cos(angle)
+
+            angle = polar_angle(self.position + self.collider.half_width - light)
+            right = self.collider.half_height[1] * np.cos(angle)
+
+            camera.draw_ellipse(screen, self.position + 0.5 * (left + right) * basis(0) - self.collider.half_height,
+                                2 * self.collider.half_width[0] + right - left, 0.25, (80, 80, 80))
+        '''
+        super().draw_shadow(screen, camera,image_handler, light)
 
     def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
         for p in self.particle_clouds:
             p.draw(screen, camera, image_handler)
-        super().draw(screen, camera, image_handler)
 
 
 class Destroyable(PhysicsObject):
@@ -312,6 +346,10 @@ class Destroyable(PhysicsObject):
         else:
             super().draw(screen, camera, image_handler)
 
+    def draw_shadow(self, screen, camera, image_handler, light):
+        if not self.destroyed:
+            super().draw_shadow(screen, camera, image_handler, light)
+
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)
         text = image_handler.font.render(str(self.health), True, image_handler.debug_color)
@@ -369,6 +407,7 @@ class AnimatedObject(GameObject):
         self.animation_direction = 1
         self.loop = False
         self.animation_angle = 0.0
+        self.relative_position = np.zeros(2)
 
     def current_animation(self):
         return self.animations[self.animation]
@@ -401,6 +440,7 @@ class AnimatedObject(GameObject):
         pos[0] *= self.direction
 
         pos = rotate(pos, self.animation_angle)
+        self.relative_position = pos
 
         self.set_position(self.position + pos)
         self.angle = self.direction * angle + self.animation_angle

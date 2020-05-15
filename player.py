@@ -6,7 +6,7 @@ from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, Animat
 from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized, rotate, polar_angle, random_unit
 from particle import BloodSplatter
-from weapon import Shotgun, Shield, Bow, Sword, Revolver, Weapon, Grenade
+from weapon import Shotgun, Shield, Bow, Sword, Weapon, Grenade
 
 
 class Player(Destroyable):
@@ -29,7 +29,7 @@ class Player(Destroyable):
         self.front_hip = self.position + np.array([-0.1, -0.5])
         self.back_foot = Foot(self.position - np.array([0.35, 1.4]))
         self.front_foot = Foot(self.position - np.array([0.55, 1.4]))
-        self.leg_length = 0.8
+        self.leg_length = 0.95
 
         self.max_speed = 0.5
 
@@ -149,10 +149,13 @@ class Player(Destroyable):
         self.front_foot.flip_horizontally()
 
     def update(self, gravity, time_step, colliders):
-        if norm2(self.camera_shake) < 0.1:
+        if self.health <= 0:
+            self.destroy(colliders)
+
+        if norm(self.camera_shake) < time_step:
             self.camera_shake = np.zeros(2)
         else:
-            self.camera_shake = -0.5 * self.camera_shake
+            self.camera_shake *= -0.5
 
         for b in self.particle_clouds:
             b.update(gravity, time_step)
@@ -196,13 +199,13 @@ class Player(Destroyable):
             if collision.overlap[1] > 0:
                 if self.velocity[1] < -0.1:
                     self.goal_crouched = -0.5 * self.velocity[1] / time_step
-                    self.sounds.append('bump')
-                    self.sounds.append('walk')
+                    self.sounds.add('bump')
+                    self.sounds.add('walk')
                 self.on_ground = True
                 self.velocity[1] = 0.0
             elif collision.overlap[1] < 0:
                 if self.velocity[1] > 0.1:
-                    self.sounds.append('bump')
+                    self.sounds.add('bump')
                 self.velocity[1] *= -1
 
             self.position += collision.overlap
@@ -227,7 +230,7 @@ class Player(Destroyable):
 
         self.crouched += (self.goal_crouched - self.crouched) * self.crouch_speed * time_step
 
-        self.body.angle = -0.5 * self.velocity[0]
+        self.body.rotate(-0.5 * self.velocity[0] - 0.5 * self.direction * self.crouched - self.body.angle)
 
         self.update_joints()
 
@@ -252,8 +255,6 @@ class Player(Destroyable):
             self.back_hand.set_position(self.object.get_grip_position())
 
         if self.object:
-            #self.grab_object()
-
             self.object.set_position(self.object.position + time_step * self.velocity)
             if self.object.collider:
                 self.object.collider.update_occupied_squares(colliders)
@@ -303,17 +304,18 @@ class Player(Destroyable):
             self.hand.collider.update_collisions(colliders, {Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS})
 
     def update_joints(self):
-        w = normalized(self.collider.half_width)
-        h = normalized(self.collider.half_height)
+        w = normalized(self.body.collider.half_width) * self.direction
+        h = normalized(self.body.collider.half_height)
 
-        offset = -0.5 * self.body.angle * w if not self.destroyed else 0.0
+        foot_offset = 0.3 * ((self.front_foot.relative_position[1])
+                             + (self.back_foot.relative_position[1])) * basis(1)
 
-        self.body.set_position(self.position + offset - 0.5 * self.crouched * h)
+        self.body.set_position(self.position - 0.5 * self.crouched * basis(1) + foot_offset)
 
-        self.shoulder = self.position + offset + (0.15 - 0.75 * self.crouched) * h - 0.2 * self.direction * w
+        self.shoulder = self.body.position + 0.15 * (1 - self.crouched) * h - 0.2 * w
 
-        self.back_hip = self.position + self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
-        self.front_hip = self.position - self.direction * 0.1 * w - 0.5 * (1 + self.crouched) * h
+        self.back_hip = self.body.position - foot_offset + 0.1 * w - 0.45 * h
+        self.front_hip = self.body.position - foot_offset - 0.1 * w - 0.45 * h
 
         if self.destroyed:
             angle_goal = self.body.angle
@@ -322,7 +324,9 @@ class Player(Destroyable):
 
         angle_goal = max(self.body.angle - 0.25, min(self.body.angle + 0.25, angle_goal))
         self.head.angle += 0.1 * (angle_goal - self.head.angle)
-        self.head.set_position(self.position + 3 * offset - 0.35 * (self.head.angle - self.body.angle) * w + (1 - self.crouched) * h)
+        self.head.set_position(self.body.position
+                               - (1 - self.crouched) * 0.35 * (self.head.angle - self.body.angle) * w * self.direction
+                               + 0.2 * self.crouched * w + (1 - 0.5 * self.crouched) * h)
 
     def update_ragdoll(self, gravity, time_step, colliders):
         self.timer += time_step
@@ -330,13 +334,13 @@ class Player(Destroyable):
         PhysicsObject.update(self, gravity, time_step, colliders)
 
         if self.collider.collisions and self.speed > 0.1:
-            self.sounds.append('bump')
+            self.sounds.add('bump')
         self.head.update_active()
         if not self.head.active or not self.head.destroyed:
             if self.on_ground and self.speed < 0.1:
                 self.active = False
 
-        self.body.angle = self.angle
+        self.body.rotate(self.angle - self.body.angle)
         self.head.update(gravity, time_step, colliders)
 
         self.update_limb(gravity, time_step, colliders, self.hand, self.shoulder, self.arm_length)
@@ -388,8 +392,10 @@ class Player(Destroyable):
         screen.blit(image, rect)
 
     def animate(self, time_step):
-        self.back_foot.set_position(self.position - np.array([0.35 * self.direction, 1.4]))
-        self.front_foot.set_position(self.position - np.array([0.55 * self.direction, 1.4]))
+        self.back_foot.set_position(self.position - np.array([0.35 * self.direction + 0.5 * self.velocity[0]
+                                                              + 0.1 * self.direction * self.crouched, 1.4]))
+        self.front_foot.set_position(self.position - np.array([0.55 * self.direction + 0.5 * self.velocity[0]
+                                                               + 0.1 * self.direction * self.crouched, 1.4]))
         self.back_foot.animate(time_step)
         self.front_foot.animate(time_step)
 
@@ -412,15 +418,15 @@ class Player(Destroyable):
 
                 anim = self.back_foot.current_animation()
                 if anim.time - self.back_foot.animation_direction * time_step < 3.5 < anim.time:
-                    self.sounds.append('walk')
+                    self.sounds.add('walk')
                 elif anim.time - self.back_foot.animation_direction * time_step > 3.5 > anim.time:
-                    self.sounds.append('walk')
+                    self.sounds.add('walk')
 
                 anim = self.front_foot.current_animation()
                 if anim.time - self.front_foot.animation_direction * time_step < 4.5 < anim.time:
-                    self.sounds.append('walk')
+                    self.sounds.add('walk')
                 elif anim.time - self.front_foot.animation_direction * time_step > 4.5 > anim.time:
-                    self.sounds.append('walk')
+                    self.sounds.add('walk')
             else:
                 self.back_foot.loop_animation('idle')
                 self.front_foot.loop_animation('idle')
@@ -440,6 +446,8 @@ class Player(Destroyable):
                 else:
                     self.hand.image_path = 'hand'
                 self.back_hand.image_path = 'fist_front'
+            elif type(self.object) is Grenade:
+                self.hand.image_path = 'fist'
             elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
             elif self.object.collider.group is Group.SWORDS:
@@ -447,7 +455,7 @@ class Player(Destroyable):
             else:
                 self.hand.image_path = 'hand'
 
-            if self.hand.animation in ['sword', 'pistol', 'shotgun']:
+            if self.hand.animation in ['sword', 'revolver', 'shotgun']:
                 angle = np.arctan(self.hand_goal[1] / self.hand_goal[0])
                 self.hand.animation_angle = angle
 
@@ -508,6 +516,10 @@ class Player(Destroyable):
         for b in self.particle_clouds:
             b.draw(screen, camera, image_handler)
 
+    def draw_shadow(self, screen, camera, image_handler, light):
+        self.head.draw_shadow(screen, camera, image_handler, light)
+        self.body.draw_shadow(screen, camera, image_handler, light)
+
     def debug_draw(self, screen, camera, image_handler):
         self.collider.draw(screen, camera, image_handler)
 
@@ -531,11 +543,13 @@ class Player(Destroyable):
         if controller.button_pressed['A']:
             if self.on_ground:
                 self.velocity[1] = self.jump_speed
-                self.sounds.append('jump')
+                self.sounds.add('jump')
         elif controller.button_pressed['B']:
             if self.throw_charge:
                 self.throw_charge = 0.0
                 self.lt_pressed = True
+        elif controller.button_pressed['Y']:
+            self.health = 0
 
         self.goal_velocity[0] = (5 - 2 * self.crouched) / 5 * self.max_speed * controller.left_stick[0]
 
@@ -556,7 +570,7 @@ class Player(Destroyable):
                         # FIXME
                         if self.object.timer == 0.0:
                             if self.attack_charge == 0:
-                                self.sounds.append('bow_pull')
+                                self.sounds.add('bow_pull')
                             self.attack_charge = min(1.0, self.attack_charge + self.charge_speed)
                             self.object.attack_charge = self.attack_charge
                     else:
@@ -589,7 +603,7 @@ class Player(Destroyable):
             self.throw_charge = 0.0
 
     def damage(self, amount, colliders):
-        self.sounds.append('hit')
+        self.sounds.add('hit')
 
         self.health -= amount
 
@@ -632,7 +646,8 @@ class Player(Destroyable):
         self.object.angular_velocity = -0.5 * self.direction * velocity
 
         self.object.gravity_scale = 1.0
-        self.object.parent = None
+        if self.object.collider:
+            self.object.collider.group = Group.THROWN
         self.object = None
 
         self.grab_timer = self.grab_delay
@@ -655,6 +670,7 @@ class Player(Destroyable):
                 if self.object.parent:
                     self.object.parent.throw_object()
                 self.object.parent = self
+                self.object.angular_velocity = 0.0
                 break
 
     def attack(self):
@@ -664,23 +680,7 @@ class Player(Destroyable):
         if self.object.timer == 0:
             self.object.attacked = True
             if type(self.object) not in {Sword, Bow, Grenade}:
-                self.camera_shake = 20 * random_unit()
-
-    def play_sounds(self, sound_handler):
-        '''
-        if not self.destroyed:
-            if self.on_ground and abs(self.velocity[0]) > 0.1:
-                if not self.walking:
-                    self.channel.play(sound_handler.sounds['walk'], -1)
-                    self.walking = True
-            else:
-                self.channel.stop()
-                self.walking = False
-        else:
-            self.channel.stop()
-        '''
-
-        super().play_sounds(sound_handler)
+                self.camera_shake = 40 * random_unit()
 
 
 class Head(Destroyable):
@@ -728,11 +728,13 @@ class Body(Destroyable):
         self.reset()
 
     def reset(self):
-        self.add_collider(Rectangle([0, -0.5], 0.8, 2, Group.HITBOXES))
+        if not self.collider:
+            self.add_collider(Rectangle([0, -0.5], 0.8, 2, Group.HITBOXES))
         self.destroyed = False
         self.health = 100
         self.collision_enabled = True
         self.blood.clear()
+        self.rotate(-self.angle)
 
     def damage(self, amount, colliders):
         self.parent.damage(amount, colliders)

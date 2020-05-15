@@ -6,7 +6,7 @@ from numpy.linalg import norm
 from bullet import Pellet, Bullet, Arrow
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
-from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit
+from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit, norm2
 from particle import MuzzleFlash, Explosion, Sparks, BloodSplatter
 
 
@@ -86,7 +86,7 @@ class Revolver(Gun):
 
     def attack(self):
         bs = super().attack()
-        self.sounds.append('revolver')
+        self.sounds.add('revolver')
         v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
         bs.append(Bullet(self.get_barrel_position(), v, self.parent))
         return bs
@@ -105,7 +105,7 @@ class Shotgun(Gun):
 
     def attack(self):
         bs = super().attack()
-        self.sounds.append('shotgun')
+        self.sounds.add('shotgun')
         theta = self.angle - 0.1
         for _ in range(3):
             theta += 0.1
@@ -131,7 +131,7 @@ class Sword(PhysicsObject):
 
         if self.collider.collisions:
             if self.parent is not None and self.timer > 0:
-                self.sounds.append('sword')
+                self.sounds.add('sword')
                 self.parent.camera_shake = 10 * random_unit()
                 self.particle_clouds.append(Sparks(self.position + self.collider.half_height, np.zeros(2)))
             self.hit = True
@@ -156,7 +156,7 @@ class Sword(PhysicsObject):
     def attack(self):
         self.hit = False
         self.timer = 5.0
-        self.sounds.append('sword_swing')
+        self.sounds.add('sword_swing')
 
 
 class Shield(PhysicsObject):
@@ -180,9 +180,15 @@ class Grenade(Destroyable):
         self.rest_angle = None
         self.destroyed = False
         self.attacked = False
+        self.camera_shake = np.zeros(2)
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
+
+        if norm(self.camera_shake) < time_step:
+            self.camera_shake = np.zeros(2)
+        else:
+            self.camera_shake *= -0.5
 
         if self.primed:
             self.pin.update(gravity, time_step, colliders)
@@ -219,10 +225,12 @@ class Grenade(Destroyable):
                     obj.damage(int(abs(30 * (5 - r_norm))), colliders)
 
             self.particle_clouds.append(Explosion(self.position))
-            self.sounds.append('grenade')
+            self.sounds.add('grenade')
 
             self.collider.clear_occupied_squares(colliders)
             self.collider = None
+
+            self.camera_shake = 100 * random_unit()
 
     def attack(self):
         if not self.primed:
@@ -230,7 +238,7 @@ class Grenade(Destroyable):
             self.pin.velocity[1] = 0.5
             self.primed = True
             self.timer = 50.0
-            self.sounds.append('sword')
+            self.sounds.add('sword')
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
@@ -286,7 +294,7 @@ class Bow(Gun):
     def attack(self):
         if self.timer == 0.0:
             self.attacked = False
-            self.sounds.append('bow_release')
+            self.sounds.add('bow_release')
             v = self.direction * self.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
             bs = [Arrow(self.get_barrel_position(), v, self.parent)]
             self.timer = 10.0

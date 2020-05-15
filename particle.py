@@ -118,3 +118,9 @@ class Explosion(Cloud):
 class Sparks(Cloud):
     def __init__(self, position, velocity):
         super().__init__(position, velocity, 3, 5.0, 0.4)
+
+
+class Dust(Cloud):
+    def __init__(self, position, velocity, number):
+        super().__init__(position, 0.2 * velocity, number, 5.0, 0.7, gravity_scale=0.5, start_color=(200, 200, 200),
+                         end_color=(200, 200, 200), shading=0.2)

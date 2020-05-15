@@ -165,8 +165,10 @@ class Slider(GameObject):
                          chromatic_aberration=self.selected)
 
         if self.selected:
-            camera.draw_triangle(screen, self.position - 1.5 * basis(0), 0.75, chromatic_aberration=True)
-            camera.draw_triangle(screen, self.position + 1.5 * basis(0), 0.75, np.pi, chromatic_aberration=True)
+            if self.cyclic or self.selection > 0:
+                camera.draw_triangle(screen, self.position - 1.5 * basis(0), 0.75, chromatic_aberration=True)
+            if self.cyclic or self.selection < len(self.values) - 1:
+                camera.draw_triangle(screen, self.position + 1.5 * basis(0), 0.75, np.pi, chromatic_aberration=True)
 
 
 class MainMenu(Menu):
@@ -246,19 +248,29 @@ class PlayerMenu(Menu):
 class OptionsMenu(Menu):
     def __init__(self):
         super().__init__()
+        self.position[1] = 3
         self.target_state = State.OPTIONS
         self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
         self.buttons.append(Slider('Resolution', [(1280, 720), (1600, 900), (1920, 1080)], False))
-        self.buttons.append(Slider('Sound volume', range(0, 110, 10), False, 10))
-        self.buttons.append(Slider('Music volume', range(0, 110, 10), False, 0))
+        self.buttons.append(Slider('SFX volume', range(0, 110, 10), False))
+        self.buttons.append(Slider('Music volume', range(0, 110, 10), False))
+        self.buttons.append(Slider('Shadows', ['OFF', 'ON']))
         self.update_buttons()
-        self.resolution_changed = False
+        self.options_changed = False
+
+    def set_values(self, option_handler):
+        self.buttons[0].selection = 1 if option_handler.fullscreen else 0
+        self.buttons[1].selection = self.buttons[1].values.index(option_handler.resolution)
+        self.buttons[2].selection = self.buttons[2].values.index(option_handler.sfx_volume)
+        self.buttons[3].selection = self.buttons[3].values.index(option_handler.music_volume)
+        self.buttons[4].selection = 1 if option_handler.shadows else 0
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
             controller = input_handler.controllers[i]
             if controller.button_pressed['A']:
-                self.resolution_changed = True
+                self.options_changed = True
+                self.sounds.append('select')
             if controller.button_pressed['B']:
                 self.target_state = State.MENU
                 self.sounds.append('cancel')

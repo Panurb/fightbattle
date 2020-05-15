@@ -4,6 +4,9 @@ import numpy as np
 import pygame
 
 
+SHADOW_COLOR = (80, 80, 80)
+
+
 class ImageHandler:
     def __init__(self):
         self.camera = np.zeros(2)
@@ -12,9 +15,6 @@ class ImageHandler:
         self.load_images()
         self.debug_color = (255, 0, 255)
         self.font = pygame.font.Font(None, 30)
-
-    def get_font(self, name, size):
-        return pygame.font.Font(f'data/fonts/{name}.ttf', size)
 
     def load_images(self):
         path = os.path.join('data', 'images')
@@ -30,7 +30,13 @@ class ImageHandler:
                     try:
                         image = pygame.image.load(os.path.join(r, file))
                         image = image.convert_alpha()
-                        self.images[file.replace('.png', '') + suffix] = image
+                        name = file.replace('.png', '') + suffix
+                        self.images[name] = image
+
+                        image = image.copy()
+                        image.fill((0, 0, 0), special_flags=pygame.BLEND_MULT)
+                        image.fill(SHADOW_COLOR, special_flags=pygame.BLEND_MAX)
+                        self.images[f'shadow_{name}'] = image
                     except pygame.error as message:
                         raise SystemExit(message)
 
@@ -47,4 +53,10 @@ class ImageHandler:
         for i in range(nx):
             for j in range(ny):
                 rect = pygame.Rect(i * tile_width, j * tile_height, tile_width, tile_height)
+                tile = image.subsurface(rect)
                 self.images[f'{name}_{i}_{j}'] = image.subsurface(rect)
+
+                tile = tile.copy()
+                tile.fill((0, 0, 0), special_flags=pygame.BLEND_MULT)
+                tile.fill(SHADOW_COLOR, special_flags=pygame.BLEND_MAX)
+                self.images[f'shadow_{name}_{i}_{j}'] = tile

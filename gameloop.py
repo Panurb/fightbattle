@@ -4,7 +4,6 @@ import numpy as np
 import pygame
 
 from camera import Camera
-from collider import Group, GRID_SIZE
 from gameobject import Destroyable
 from helpers import basis
 from level import Level
@@ -27,15 +26,14 @@ class GameLoop:
 
         self.time_scale = 1.0
 
-        self.camera = Camera([0, 0], option_handler.resolution)
+        self.camera = Camera([0, 0], self.option_handler.resolution)
 
         self.respawn_time = 50.0
 
         self.menu = MainMenu()
-        self.player_menus = []
-        for i in range(4):
-            self.player_menus.append(PlayerMenu((6 * i - 9) * basis(0)))
+        self.player_menus = [PlayerMenu((6 * i - 9) * basis(0)) for i in range(4)]
         self.options_menu = OptionsMenu()
+        self.options_menu.set_values(self.option_handler)
 
         self.network = None
         self.network_id = -1
@@ -43,10 +41,11 @@ class GameLoop:
 
         self.controller_id = 0
 
-        self.light = np.zeros(2) if option_handler.shadows else None
-
     def load_level(self):
         self.level = Level('lvl')
+        size = [int(self.camera.zoom * self.level.width), int(self.camera.zoom * self.level.height)]
+        self.level.background = pygame.Surface(size)
+        self.level.background.fill((150, 150, 150))
 
         self.colliders.clear()
 
@@ -57,9 +56,6 @@ class GameLoop:
 
         for obj in self.level.objects.values():
             obj.collider.update_occupied_squares(self.colliders)
-
-        if self.light is not None:
-            self.light = np.array([0.5 * self.level.width, self.level.height])
 
     def reset_game(self):
         for w in self.level.walls:
@@ -108,6 +104,10 @@ class GameLoop:
             self.menu.update(time_step)
             self.state = self.menu.target_state
             self.menu.target_state = State.MENU
+
+            if self.state is State.OPTIONS:
+                self.option_handler.load()
+                self.options_menu.set_values(self.option_handler)
         elif self.state is State.PLAYER_SELECT:
             if not self.players:
                 return
@@ -189,15 +189,24 @@ class GameLoop:
         elif self.state is State.OPTIONS:
             self.state = self.options_menu.target_state
             self.options_menu.target_state = State.OPTIONS
-            if self.options_menu.resolution_changed:
+
+            if self.options_menu.options_changed:
                 if self.options_menu.buttons[0].get_value() == 'windowed':
                     pygame.display.set_mode(self.options_menu.buttons[1].get_value())
+                    self.option_handler.fullscreen = False
                 else:
                     pygame.display.set_mode(self.options_menu.buttons[1].get_value(), pygame.FULLSCREEN)
+                    self.option_handler.fullscreen = True
 
                 self.camera.set_resolution(self.options_menu.buttons[1].get_value())
 
-                self.options_menu.resolution_changed = False
+                self.option_handler.resolution = self.options_menu.buttons[1].get_value()
+
+                self.option_handler.shadows = self.options_menu.buttons[4].get_value() == 'ON'
+
+                self.option_handler.save()
+
+                self.options_menu.options_changed = False
 
     def network_thread(self):
         while True:
@@ -303,13 +312,13 @@ class GameLoop:
 
     def draw(self, screen, image_handler):
         if self.state in [State.PLAY, State.LAN]:
-            screen.fill((150, 150, 150))
-            if self.light is not None:
-                for w in self.level.walls:
-                    w.draw_shadow(screen, self.camera, self.light)
+            screen.fill((0, 0, 0))
+            screen.blit(self.level.background, self.camera.world_to_screen(np.array([0, self.level.height])))
 
-                for o in self.level.objects.values():
-                    o.draw_shadow(screen, self.camera, self.light)
+            if self.option_handler.shadows:
+                self.level.draw_shadow(screen, self.camera, image_handler)
+                for p in self.players.values():
+                    p.draw_shadow(screen, self.camera, image_handler, self.level.light)
 
             self.level.draw(screen, self.camera, image_handler)
 
@@ -347,8 +356,13 @@ class GameLoop:
 
             self.level.play_sounds(sound_handler)
         elif self.state is State.OPTIONS:
-            sound_handler.set_volume(self.options_menu.buttons[2].get_value() / 100)
-            sound_handler.set_music_volume(self.options_menu.buttons[3].get_value() / 100)
+            sound_handler.set_volume(self.options_menu.buttons[2].get_value())
+            sound_handler.set_music_volume(self.options_menu.buttons[3].get_value())
+
+            self.option_handler.sfx_volume = self.options_menu.buttons[2].get_value()
+            self.option_handler.music_volume = self.options_menu.buttons[3].get_value()
+            self.option_handler.save()
+
             self.menu.play_sounds(sound_handler)
             self.options_menu.play_sounds(sound_handler)
         else:

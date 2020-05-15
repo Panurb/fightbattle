@@ -4,6 +4,7 @@ import numpy as np
 
 from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
+from helpers import basis
 from prop import Crate, Ball
 from wall import Wall, Platform, Basket, Scoreboard
 from weapon import Gun, Bullet, Grenade
@@ -17,7 +18,7 @@ class Level:
         self.walls = []
         self.objects = dict()
         self.scoreboard = None
-        self.background = []
+        self.background = None
 
         self.gravity = np.array([0, -0.1])
         self.id_count = 0
@@ -27,6 +28,8 @@ class Level:
         self.width = 0.0
         self.height = 0.0
         self.position = np.zeros(2)
+
+        self.light = np.zeros(2)
 
         if self.name:
             with open(f'data/levels/{self.name}.pickle', 'rb') as f:
@@ -93,6 +96,8 @@ class Level:
 
         self.scoreboard = Scoreboard([0, 0])
         self.scoreboard.apply_data(data[-1])
+
+        self.light = np.array([0.5 * self.width, self.height])
 
     def update_shape(self):
         x_min = np.inf
@@ -167,11 +172,26 @@ class Level:
         if self.scoreboard:
             self.scoreboard.draw(screen, camera, image_handler)
 
-        for obj in list(self.objects.values()):
+        for obj in self.objects.values():
+            if type(obj) is Bullet and obj.destroyed:
+                image = image_handler.images['blood']
+                pos = obj.position * camera.zoom
+                pos[1] -= 0.5 * self.height * camera.zoom
+                pos[1] *= -1
+                pos[1] += 0.5 * self.height * camera.zoom
+                self.background.blit(image, pos)
+
             obj.draw(screen, camera, image_handler)
 
         for w in self.walls:
             w.draw_front(screen, camera, image_handler)
+
+    def draw_shadow(self, screen, camera, image_handler):
+        for w in self.walls:
+            w.draw_shadow(screen, camera, image_handler, self.light)
+
+        for o in self.objects.values():
+            o.draw_shadow(screen, camera, image_handler, self.light)
 
     def debug_draw(self, screen, camera, image_handler):
         for wall in self.walls:
@@ -181,7 +201,7 @@ class Level:
             obj.debug_draw(screen, camera, image_handler)
 
     def play_sounds(self, sound_handler):
-        for o in list(self.objects.values()):
+        for o in self.objects.values():
             o.play_sounds(sound_handler)
 
     def clear_sounds(self):

@@ -25,7 +25,7 @@ class Bullet(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if self.collider.collisions:
-            self.destroy(Sparks)
+            self.destroy()
         elif np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
@@ -47,7 +47,7 @@ class Bullet(PhysicsObject):
                     self.destroy(particle_type)
                 else:
                     obj.velocity += self.velocity
-                    self.destroy(Sparks)
+                    self.destroy()
 
                 return
 
@@ -57,7 +57,7 @@ class Bullet(PhysicsObject):
             if particle_type is not None:
                 self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity))
             self.active = False
-            self.sounds.append('gun')
+            self.sounds.add('gun')
 
     def draw(self, screen, camera, image_handler):
         if self.destroyed:
@@ -66,7 +66,7 @@ class Bullet(PhysicsObject):
         else:
             super().draw(screen, camera, image_handler)
 
-    def draw_shadow(self, screen, camera, light):
+    def draw_shadow(self, screen, camera, image_handler, light):
         pass
 
 

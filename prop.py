@@ -7,7 +7,7 @@ class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        self.loot_list = [Revolver, Shotgun, Shield, Sword, Grenade, Bow]
+        self.loot_list = [Revolver, Shotgun, Grenade]
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -19,7 +19,7 @@ class Crate(Destroyable):
 
     def destroy(self, colliders):
         if not self.destroyed:
-            self.sounds.append('crate_break')
+            self.sounds.add('crate_break')
             self.gravity_scale = 0.0
 
         super().destroy(colliders)
@@ -40,7 +40,7 @@ class Ball(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if not self.parent and self.collider.collisions and self.speed > 0.1:
-            self.sounds.append('ball')
+            self.sounds.add('ball')
 
         if not self.scored:
             self.collider.update_collisions(colliders, [Group.GOALS])

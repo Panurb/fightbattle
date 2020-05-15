@@ -2,6 +2,7 @@ import numpy as np
 import pygame
 
 from helpers import basis, norm2, rotate
+from weapon import Grenade
 
 
 class Camera:
@@ -41,6 +42,8 @@ class Camera:
 
         self.shake = sum(p.camera_shake for p in players.values())
 
+        self.shake += sum(o.camera_shake for o in level.objects.values() if type(o) is Grenade)
+
     def set_zoom(self, zoom):
         self.half_width *= zoom / self.zoom
         self.half_height *= zoom / self.zoom
@@ -58,7 +61,7 @@ class Camera:
 
         return pos
 
-    def draw_image(self, screen, image, position, size, direction, angle):
+    def draw_image(self, screen, image, position, size=1, direction=1, angle=0.0):
         scale = 1.05 * self.zoom * size / 100
 
         if direction == -1:
@@ -71,7 +74,7 @@ class Camera:
 
         screen.blit(image, rect)
 
-    def draw_text(self, screen, string, position, size, font='', color=(255, 255, 255), chromatic_aberration=False):
+    def draw_text(self, screen, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=False):
         if not font:
             font = pygame.font.Font(None, int(size * self.zoom))
         else:
@@ -101,16 +104,26 @@ class Camera:
             pygame.draw.polygon(screen, (255, 0, 0), points)
 
             points = [self.world_to_screen(-self.zoom / 100 * p + position + offset) for p in [a, b, c]]
-            pygame.draw.polygon(screen, (0, 255, 0), points)
+            pygame.draw.polygon(screen, (0, 255, 255), points)
 
         points = [self.world_to_screen(-self.zoom / 100 * p + position) for p in [a, b, c]]
         pygame.draw.polygon(screen, color, points)
 
-    def draw_polygon(self, screen, points, color=(255, 255, 255), width=1):
+    def draw_rectangle(self, screen, position, width, height, color, linewidth=0):
+        rect = self.world_to_screen(position - 0.5 * np.array([width, -height])) \
+               + [width * self.zoom, height * self.zoom]
+        pygame.draw.rect(screen, color, rect, linewidth)
+
+    def draw_polygon(self, screen, points, color=(255, 255, 255), width=0):
         points = [self.world_to_screen(p) for p in points]
         pygame.draw.polygon(screen, color, points, width)
 
-    def draw_circle(self, screen, position, radius, color=(255, 255, 255), width=1):
+    def draw_circle(self, screen, position, radius, color=(255, 255, 255), width=0):
         pos = self.world_to_screen(position)
         r = int(self.zoom * radius)
         pygame.draw.circle(screen, color, pos, r, width)
+
+    def draw_ellipse(self, screen, position, width, height, color=(255, 255, 255), linewidth=0):
+        rect = self.world_to_screen(position - 0.5 * np.array([width, -height])) \
+               + [width * self.zoom, height * self.zoom]
+        pygame.draw.ellipse(screen, color, rect, linewidth)

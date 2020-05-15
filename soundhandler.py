@@ -14,7 +14,6 @@ def load_sound(path):
 
 class SoundHandler:
     def __init__(self):
-        self.volume = 1
         self.sounds = {}
         self.current_track = ''
         path = os.path.join('data', 'sfx')
@@ -26,12 +25,11 @@ class SoundHandler:
         self.set_music_volume(1.0)
 
     def set_volume(self, vol):
-        self.volume = vol
         for sound in self.sounds.values():
-            sound.set_volume(0.5 * vol)
+            sound.set_volume(0.5 * vol / 100)
 
     def set_music_volume(self, vol):
-        pygame.mixer.music.set_volume(0.5 * vol)
+        pygame.mixer.music.set_volume(0.5 * vol / 100)
 
     def set_music(self, track):
         if self.current_track != track:

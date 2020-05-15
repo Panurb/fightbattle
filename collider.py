@@ -23,21 +23,23 @@ class Group(enum.IntEnum):
     HITBOXES = 10
     PLATFORMS = 11
     GOALS = 12
+    THROWN = 13
 
 
-COLLIDES_WITH = {Group.NONE: [],
-                 Group.PLAYERS: [Group.WALLS, Group.PLATFORMS],
-                 Group.WALLS: [],
-                 Group.GUNS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
-                 Group.HANDS: [Group.WALLS],
-                 Group.PROPS: [Group.WALLS, Group.PROPS, Group.PLATFORMS],
-                 Group.BULLETS: [Group.WALLS, Group.SHIELDS],
-                 Group.SHIELDS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
-                 Group.DEBRIS: [Group.WALLS, Group.PLATFORMS],
-                 Group.SWORDS: [Group.WALLS, Group.SHIELDS, Group.PLATFORMS],
-                 Group.HITBOXES: [],
-                 Group.PLATFORMS: [],
-                 Group.GOALS: []}
+COLLIDES_WITH = {Group.NONE: set(),
+                 Group.PLAYERS: {Group.WALLS, Group.PLATFORMS},
+                 Group.WALLS: set(),
+                 Group.GUNS: {Group.WALLS, Group.SHIELDS, Group.PLATFORMS},
+                 Group.HANDS: {Group.WALLS},
+                 Group.PROPS: {Group.WALLS, Group.PROPS, Group.PLATFORMS},
+                 Group.BULLETS: {Group.WALLS, Group.SHIELDS},
+                 Group.SHIELDS: {Group.WALLS, Group.PLATFORMS},
+                 Group.DEBRIS: {Group.WALLS, Group.PLATFORMS},
+                 Group.SWORDS: {Group.WALLS, Group.SHIELDS, Group.PLATFORMS},
+                 Group.HITBOXES: set(),
+                 Group.PLATFORMS: set(),
+                 Group.GOALS: set(),
+                 Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.GUNS}}
 
 COLLISION_MATRIX = [[(j in gs) for j in COLLIDES_WITH.keys()] for i, gs in COLLIDES_WITH.items()]
 
@@ -152,7 +154,7 @@ class Collider:
                 if groups:
                     if c.group not in groups:
                         continue
-                elif not COLLISION_MATRIX[self.group][c.group]:
+                elif c.group not in COLLIDES_WITH[self.group]:
                     continue
 
                 cs.add(c)
@@ -196,7 +198,7 @@ class Collider:
             colliders[i][j].remove(self)
         self.occupied_squares.clear()
 
-    def draw_shadow(self, screen, camera, light):
+    def draw_shadow(self, screen, camera, image_handler, light):
         pass
 
 
@@ -257,7 +259,7 @@ class ColliderGroup:
         for c in self.colliders:
             c.clear_occupied_squares(colliders)
 
-    def draw_shadow(self, screen, camera, light):
+    def draw_shadow(self, screen, camera, image_handler, light):
         pass
 
 
@@ -266,6 +268,8 @@ class Rectangle(Collider):
         super().__init__(position, group)
         self.half_width = np.array([0.5 * width, 0.0])
         self.half_height = np.array([0.0, 0.5 * height])
+        self.width = width
+        self.height = height
 
     def corners(self):
         ur = self.position + self.half_width + self.half_height
@@ -309,10 +313,10 @@ class Rectangle(Collider):
 
         pygame.draw.polygon(screen, image_handler.debug_color, points, 1)
 
-    def draw_shadow(self, screen, camera, light):
+    def draw_shadow(self, screen, camera, image_handler, light):
         points = [c + 0.5 * (c - light) / norm(c - light) for c in self.corners()]
 
-        camera.draw_polygon(screen, points, (50, 50, 50), 0)
+        camera.draw_polygon(screen, points, (80, 80, 80), 0)
 
 
 class Circle(Collider):
@@ -351,4 +355,5 @@ class Circle(Collider):
 
     def draw_shadow(self, screen, camera, light):
         r = self.position - light
-        camera.draw_circle(screen, self.position + 0.5 * r / norm(r), max(self.radius, self.radius / norm(r)), (50, 50, 50), 0)
+        camera.draw_circle(screen, self.position + 0.5 * r / norm(r), max(self.radius, self.radius / norm(r)),
+                           (80, 80, 80), 0)
