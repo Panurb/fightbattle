@@ -307,8 +307,11 @@ class Player(Destroyable):
         w = normalized(self.body.collider.half_width) * self.direction
         h = normalized(self.body.collider.half_height)
 
-        foot_offset = 0.3 * ((self.front_foot.relative_position[1])
-                             + (self.back_foot.relative_position[1])) * basis(1)
+        if self.on_ground:
+            foot_offset = 0.3 * ((self.front_foot.relative_position[1])
+                                 + (self.back_foot.relative_position[1])) * basis(1)
+        else:
+            foot_offset = 0.0
 
         self.body.set_position(self.position - 0.5 * self.crouched * basis(1) + foot_offset)
 
@@ -758,6 +761,7 @@ class Body(Destroyable):
 class Hand(PhysicsObject, AnimatedObject):
     def __init__(self, position):
         super().__init__(position, image_path='fist', size=1.2)
+        self.dust = False
         self.gravity_scale = 0.0
         self.add_collider(Circle([0, 0], 0.2, Group.HANDS))
 

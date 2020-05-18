@@ -44,12 +44,12 @@ COLLIDES_WITH = {Group.NONE: set(),
 COLLISION_MATRIX = [[(j in gs) for j in COLLIDES_WITH.keys()] for i, gs in COLLIDES_WITH.items()]
 
 
-#@njit
+@njit(cache=True)
 def axis_half_width(w, h, u):
     return abs(np.dot(w, u)) + abs(np.dot(h, u))
 
 
-#@njit
+@njit(cache=True)
 def axis_overlap(r1, p1, r2, p2, u):
     overlap = 0.0
     r = np.dot(p1 - p2, u)
@@ -63,7 +63,7 @@ def axis_overlap(r1, p1, r2, p2, u):
     return overlap
 
 
-#@njit
+@njit(cache=True)
 def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     overlaps = np.zeros(4)
 
@@ -84,7 +84,7 @@ def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
     return overlaps[i] * axes[i, :]
 
 
-#@njit
+@njit(cache=True)
 def overlap_rectangle_circle(w1, h1, p1, r2, p2):
     overlaps = np.zeros(2)
     near_corner = True

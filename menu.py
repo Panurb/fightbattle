@@ -258,6 +258,12 @@ class OptionsMenu(Menu):
         self.update_buttons()
         self.options_changed = False
 
+        self.button_back = Button('(B) back', self.target_state)
+        self.button_back.set_position(np.array([-10, -5]))
+
+        self.button_apply = Button('(A) apply', self.target_state)
+        self.button_apply.set_position(np.array([10, -5]))
+
     def set_values(self, option_handler):
         self.buttons[0].selection = 1 if option_handler.fullscreen else 0
         self.buttons[1].selection = self.buttons[1].values.index(option_handler.resolution)
@@ -277,3 +283,8 @@ class OptionsMenu(Menu):
                 return
 
             super().input(input_handler, i)
+
+    def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
+        self.button_back.draw(screen, camera, image_handler)
+        self.button_apply.draw(screen, camera, image_handler)

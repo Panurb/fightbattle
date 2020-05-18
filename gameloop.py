@@ -313,7 +313,6 @@ class GameLoop:
     def draw(self, screen, image_handler):
         if self.state in [State.PLAY, State.LAN]:
             screen.fill((0, 0, 0))
-            screen.blit(self.level.background, self.camera.world_to_screen(np.array([0, self.level.height])))
 
             if self.option_handler.shadows:
                 self.level.draw_shadow(screen, self.camera, image_handler)

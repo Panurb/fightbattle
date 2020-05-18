@@ -1,6 +1,7 @@
 import pickle
 
 import numpy as np
+import pygame
 
 from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
@@ -141,7 +142,7 @@ class Level:
             if type(obj) is Crate and obj.destroyed:
                 if obj.loot_list:
                     loot = np.random.choice(obj.loot_list)(obj.position)
-                    loot.velocity[:] = -obj.velocity
+                    loot.velocity[:] = obj.velocity
                     loot.angular_velocity = 0.5 * np.sign(obj.velocity[0])
                     self.add_object(loot)
                     loot.collider.update_occupied_squares(colliders)
@@ -166,6 +167,11 @@ class Level:
                     continue
 
     def draw(self, screen, camera, image_handler):
+        #image = pygame.transform.scale(self.background, 0.0, 2 * camera.zoom / 100)
+        #rect = image.get_rect()
+        #rect.center = self.world_to_screen(position)
+        screen.blit(self.background, camera.world_to_screen(np.array([0, self.height])))
+
         for wall in self.walls:
             wall.draw(screen, camera, image_handler)
 

@@ -119,6 +119,8 @@ class PhysicsObject(GameObject):
         self.parent = None
         self.group = None
 
+        self.dust = True
+
     def add_collider(self, collider):
         super().add_collider(collider)
         self.group = collider.group
@@ -225,9 +227,10 @@ class PhysicsObject(GameObject):
             elif collision.overlap[0] != 0:
                 self.angular_velocity *= -1
 
-            n = min(int(self.speed * 5), 10)
-            if n > 1:
-                self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
+            if self.dust:
+                n = min(int(self.speed * 5), 10)
+                if n > 1:
+                    self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
 
             self.set_position(self.position + collision.overlap)
 
