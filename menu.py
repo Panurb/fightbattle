@@ -125,7 +125,7 @@ class Button(GameObject):
 
     def draw(self, screen, camera, image_handler):
         color = self.color_selected if self.selected else self.color
-        camera.draw_text(screen, self.text, self.position, 0.75, color=color, chromatic_aberration=self.selected)
+        camera.draw_text(self.text, self.position, 0.75, color=color, chromatic_aberration=self.selected)
 
 
 class Slider(GameObject):
@@ -157,18 +157,18 @@ class Slider(GameObject):
 
     def draw(self, screen, camera, image_handler):
         color = self.color_selected if self.selected else self.color
-        camera.draw_text(screen, self.text, self.position + 0.63 * basis(1), 0.75, color=color,
+        camera.draw_text(self.text, self.position + 0.63 * basis(1), 0.75, color=color,
                          chromatic_aberration=self.selected)
 
         val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
-        camera.draw_text(screen, val_str, self.position, 0.75, color=color,
+        camera.draw_text(val_str, self.position, 0.75, color=color,
                          chromatic_aberration=self.selected)
 
         if self.selected:
             if self.cyclic or self.selection > 0:
-                camera.draw_triangle(screen, self.position - 1.5 * basis(0), 0.75, chromatic_aberration=True)
+                camera.draw_triangle(self.position - 1.5 * basis(0), 0.75, chromatic_aberration=True)
             if self.cyclic or self.selection < len(self.values) - 1:
-                camera.draw_triangle(screen, self.position + 1.5 * basis(0), 0.75, np.pi, chromatic_aberration=True)
+                camera.draw_triangle(self.position + 1.5 * basis(0), 0.75, np.pi, chromatic_aberration=True)
 
 
 class MainMenu(Menu):
@@ -199,7 +199,7 @@ class MainMenu(Menu):
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
-        camera.draw_text(screen, 'FIGHTBATTLE', np.array([0, 3.5]), 3.2, 'CollegiateBlackFLF.ttf',
+        camera.draw_text('FIGHTBATTLE', np.array([0, 3.5]), 3.2, 'CollegiateBlackFLF.ttf',
                          chromatic_aberration=self.chromatic_aberration)
 
 
@@ -238,9 +238,9 @@ class PlayerMenu(Menu):
 
     def draw(self, screen, camera, image_handler):
         if self.controller_id is None:
-            camera.draw_text(screen, 'Press START to join', self.buttons[0].position, 0.75, chromatic_aberration=True)
+            camera.draw_text('Press START to join', self.buttons[0].position, 0.75, chromatic_aberration=True)
         elif self.target_state is State.PLAY:
-            camera.draw_text(screen, 'READY', self.buttons[0].position, 0.75, chromatic_aberration=True)
+            camera.draw_text('READY', self.buttons[0].position, 0.75, chromatic_aberration=True)
         else:
             super().draw(screen, camera, image_handler)
 

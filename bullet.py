@@ -53,6 +53,8 @@ class Bullet(PhysicsObject):
 
     def destroy(self, particle_type=None):
         if not self.destroyed:
+            self.sprite.delete()
+            self.sprite = None
             self.destroyed = True
             if particle_type is not None:
                 self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity))

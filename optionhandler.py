@@ -10,7 +10,7 @@ class OptionHandler:
         self.fullscreen = False
         self.sfx_volume = 100
         self.music_volume = 0
-        self.shadows = True
+        self.shadows = False
 
         self.debug_draw = False
 

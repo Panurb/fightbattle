@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.linalg import norm
 import pygame
+import pyglet
 
 
 class Controller:

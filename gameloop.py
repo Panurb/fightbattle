@@ -2,6 +2,7 @@ from _thread import *
 
 import numpy as np
 import pygame
+import pyglet
 
 from camera import Camera
 from gameobject import Destroyable
@@ -312,8 +313,6 @@ class GameLoop:
 
     def draw(self, screen, image_handler):
         if self.state in [State.PLAY, State.LAN]:
-            screen.fill((0, 0, 0))
-
             if self.option_handler.shadows:
                 self.level.draw_shadow(screen, self.camera, image_handler)
                 for p in self.players.values():
@@ -327,10 +326,10 @@ class GameLoop:
             if self.option_handler.debug_draw:
                 self.debug_draw(screen, image_handler)
         elif self.state is State.MENU:
-            screen.fill((50, 50, 50))
+            #screen.fill((50, 50, 50))
             self.menu.draw(screen, self.camera, image_handler)
         elif self.state is State.PLAYER_SELECT:
-            screen.fill((50, 50, 50))
+            #screen.fill((50, 50, 50))
             for pm in self.player_menus:
                 pm.draw(screen, self.camera, image_handler)
                 if pm.controller_id is not None:
@@ -339,7 +338,7 @@ class GameLoop:
                     self.players[pm.controller_id].animate(0.0)
                     self.players[pm.controller_id].draw(screen, self.camera, image_handler)
         elif self.state is State.OPTIONS:
-            screen.fill((50, 50, 50))
+            #screen.fill((50, 50, 50))
             self.options_menu.draw(screen, self.camera, image_handler)
 
     def debug_draw(self, screen, image_handler):

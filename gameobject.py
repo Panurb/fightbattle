@@ -1,4 +1,5 @@
 import numpy as np
+import pyglet
 from numpy.linalg import norm
 import pygame
 
@@ -19,6 +20,7 @@ class GameObject:
         self.direction = 1
         self.angle = 0.0
 
+        self.sprite = None
         self.image_path = image_path
         self.size = size
         self.image_position = np.zeros(2)
@@ -69,10 +71,16 @@ class GameObject:
             self.debug_draw(screen, camera, image_handler)
             return
 
-        image = image_handler.images[self.image_path]
+        if self.sprite is None:
+            self.sprite = pyglet.sprite.Sprite(img=image_handler.images[self.image_path], batch=screen)
+
+        if self.direction == -1:
+            self.sprite.image = image_handler.images[f'{self.image_path}_flipped']
+        else:
+            self.sprite.image = image_handler.images[self.image_path]
 
         pos = self.position + rotate(self.image_position, self.angle)
-        camera.draw_image(screen, image, pos, self.size, self.direction, self.angle)
+        camera.draw_image(screen, self.sprite, pos, self.size, self.direction, self.angle)
 
     def debug_draw(self, screen, camera, image_handler):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
@@ -271,7 +279,7 @@ class PhysicsObject(GameObject):
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
         for p in self.particle_clouds:
-            p.draw(screen, camera, image_handler)
+            p.draw(screen, camera)
 
 
 class Destroyable(PhysicsObject):
@@ -305,6 +313,9 @@ class Destroyable(PhysicsObject):
         if self.destroyed:
             return
 
+        self.sprite.delete()
+        self.sprite = None
+
         self.destroyed = True
 
         self.collider.clear_occupied_squares(colliders)
@@ -325,6 +336,7 @@ class Destroyable(PhysicsObject):
             for d in self.debris:
                 d.update(gravity, time_step, colliders)
                 if d.on_ground and d.speed < norm(gravity) * time_step:
+                    d.sprite.delete()
                     self.debris.remove(d)
 
         self.update_active()

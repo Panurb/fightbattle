@@ -170,13 +170,13 @@ class Level:
         #image = pygame.transform.scale(self.background, 0.0, 2 * camera.zoom / 100)
         #rect = image.get_rect()
         #rect.center = self.world_to_screen(position)
-        screen.blit(self.background, camera.world_to_screen(np.array([0, self.height])))
+        #screen.blit(self.background, camera.world_to_screen(np.array([0, self.height])))
 
         for wall in self.walls:
             wall.draw(screen, camera, image_handler)
 
-        if self.scoreboard:
-            self.scoreboard.draw(screen, camera, image_handler)
+        #if self.scoreboard:
+        #    self.scoreboard.draw(screen, camera, image_handler)
 
         for obj in self.objects.values():
             if type(obj) is Bullet and obj.destroyed:
@@ -185,7 +185,7 @@ class Level:
                 pos[1] -= 0.5 * self.height * camera.zoom
                 pos[1] *= -1
                 pos[1] += 0.5 * self.height * camera.zoom
-                self.background.blit(image, pos)
+                #self.background.blit(image, pos)
 
             obj.draw(screen, camera, image_handler)
 

@@ -1,17 +1,16 @@
-from timeit import default_timer as timer
-
 import numpy as np
 import pygame
+import pyglet
 
-import helpers
-import gameloop
-import imagehandler
-import inputhandler
-import menu
-import optionhandler
-import soundhandler
+from gameloop import GameLoop
+from imagehandler import ImageHandler
+from inputhandler import InputHandler
+from menu import State
+from optionhandler import OptionHandler
+from soundhandler import SoundHandler
 
 
+'''
 class Main:
     def __init__(self):
         # init mixer first to prevent audio delay
@@ -72,5 +71,58 @@ def main():
     main_window.main_loop()
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
+'''
+
+pygame.init()
+
+option_handler = OptionHandler()
+image_handler = ImageHandler()
+input_handler = InputHandler()
+loop = GameLoop(option_handler)
+
+width, height = option_handler.resolution
+window = pyglet.window.Window(width, height, vsync=False)
+
+fps_display = pyglet.window.FPSDisplay(window=window)
+
+batch = pyglet.graphics.Batch()
+background = pyglet.graphics.OrderedGroup(0)
+foreground = pyglet.graphics.OrderedGroup(1)
+particles = pyglet.graphics.OrderedGroup(2)
+
+
+@window.event
+def on_key_press(symbol, modifiers):
+    input_handler.keys_pressed[symbol] = True
+    input_handler.keys_down[symbol] = True
+
+
+def on_key_release(symbol, modifiers):
+    input_handler.keys_released[symbol] = True
+    input_handler.keys_down[symbol] = False
+
+
+@window.event
+def on_mouse_motion(x, y, dx, dy):
+    input_handler.mouse_position[:] = loop.camera.screen_to_world([x, y])
+    input_handler.mouse_change[0] = dx / loop.camera.zoom
+    input_handler.mouse_change[1] = dy / loop.camera.zoom
+
+
+@window.event
+def on_draw():
+    window.clear()
+    loop.draw(batch, image_handler)
+    batch.draw()
+    fps_display.draw()
+
+
+def update(dt):
+    loop.input(input_handler)
+    loop.update(15.0 * dt)
+
+
+pyglet.clock.schedule_interval(update, 1.0 / option_handler.fps)
+pyglet.app.run()

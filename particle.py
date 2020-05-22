@@ -26,6 +26,7 @@ class Cloud:
 
         self.add_particles(velocity, number)
         self.active = True
+        self.vertex_list = []
 
     def add_particles(self, velocity, number):
         if np.any(velocity):
@@ -56,45 +57,46 @@ class Cloud:
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera):
         if not self.active:
             return
 
-        size = int(camera.zoom * (1 - self.time / self.lifetime) * self.size)
-        if size == 0:
-            return
+        color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
+        height = (1 - self.time / self.lifetime) * self.size
+        width = (1 + self.stretch * norm2(self.velocity)) * height
 
-        if self.image_path:
-            scale = size / 100
-
-            img = image_handler.images[self.image_path]
-            image = pygame.transform.rotozoom(img, 0.0, scale)
-
-            for p in self.position:
-                rect = image.get_rect()
-                rect.center = camera.world_to_screen(p)
-
-                screen.blit(image, rect)
-        else:
-            color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
-            size = [(1 + self.stretch * norm2(self.velocity)) * size, size]
+        if not self.vertex_list:
             for i, p in enumerate(self.position):
-                surface = pygame.Surface(size)
-                surface.set_colorkey(pygame.Color('black'))
+                angle = np.degrees(polar_angle(self.velocity[i, :]))
 
                 if self.shading:
-                    pygame.draw.ellipse(surface, (1 - self.shading) * color, [0, 0] + size)
-                    pygame.draw.ellipse(surface, color, [size[0] // 4, 0, 0.8 * size[0], 0.8 * size[1]])
+                    camera.draw_ellipse(self.position[i, :], width, height,
+                                        color=(1 - self.shading) * color, angle=angle, batch=batch, layer=2)
+                    camera.draw_ellipse(self.position[i, :] + 0.25 * width * basis(0), 0.8 * width, 0.8 * height,
+                                        color=color, angle=angle, batch=batch, layer=2)
                 else:
-                    pygame.draw.ellipse(surface, color, [0, 0] + size)
+                    camera.draw_ellipse(self.position[i, :], width, height, color=color, angle=angle,
+                                        batch=batch, layer=2)
 
                 if self.shine:
-                    pygame.draw.circle(surface, color + (255 - color) * self.shine, [int(0.8 * size[0]), size[1] // 2],
-                                       size[1] // 5)
+                    camera.draw_circle(self.position[i, :] + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
+                                       color=color + (255 - color) * self.shine, batch=batch, layer=2)
+        else:
+            for i, p in enumerate(self.position):
+                angle = np.degrees(polar_angle(self.velocity[i, :]))
 
-                surface = pygame.transform.rotate(surface, np.degrees(polar_angle(self.velocity[i, :])))
-                pos = camera.world_to_screen(p)
-                screen.blit(surface, [pos[0] - 0.5 * size[0], pos[1] - 0.5 * size[1]])
+                if self.shading:
+                    camera.draw_ellipse(self.position[i, :], width, height,
+                                        color=(1 - self.shading) * color, angle=angle, batch=batch, layer=2)
+                    camera.draw_ellipse(self.position[i, :] + 0.25 * width * basis(0), 0.8 * width, 0.8 * height,
+                                        color=color, angle=angle, batch=batch, layer=2)
+                else:
+                    camera.draw_ellipse(self.position[i, :], width, height, color=color, angle=angle,
+                                        batch=batch, layer=2)
+
+                if self.shine:
+                    camera.draw_circle(self.position[i, :] + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
+                                       color=color + (255 - color) * self.shine, batch=batch, layer=2)
 
 
 class BloodSplatter(Cloud):

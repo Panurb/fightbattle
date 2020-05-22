@@ -1,5 +1,6 @@
 import numpy as np
 import pygame
+import pyglet
 
 from gameobject import GameObject
 from collider import Rectangle, Group, ColliderGroup, Circle
@@ -13,34 +14,35 @@ class Wall(GameObject):
         self.size = 1.0
         self.vertical = False
 
-        self.image_position = 0.5 * basis(0) + 0.04 * basis(1)
+        self.image_position = -0.7 * basis(1)
         if width == 1:
             self.vertical = True
-            self.image_position = np.array([0.0, 0.52])
+            self.image_position = np.array([-0.5, -0.2])
+
+        self.sprites = []
 
     def get_data(self):
         return (type(self), self.position[0], self.position[1],
                 2 * self.collider.half_width[0], 2 * self.collider.half_height[1])
 
     def draw(self, screen, camera, image_handler):
-        if not self.image_path:
-            return
-
         if self.vertical:
             h = self.collider.half_height[1]
             ny = int(2 * h)
 
             for j, y in enumerate(np.linspace(-h, h, ny, False)):
                 if j == 0:
-                    l = 2
-                elif j == ny - 1:
                     l = 0
+                elif j == ny - 1:
+                    l = 2
                 else:
                     l = 1
 
                 pos = self.position + self.image_position + y * basis(1)
-                image = image_handler.images[f'{self.image_path}_vertical_0_{l}']
-                camera.draw_image(screen, image, pos, 1, 1, 0.0)
+                if len(self.sprites) < j + 1:
+                    image = image_handler.images[f'{self.image_path}_vertical_0_{l}']
+                    self.sprites.append(pyglet.sprite.Sprite(img=image, batch=screen))
+                camera.draw_image(screen, self.sprites[j], pos, 1, 1, 0.0)
         else:
             w = self.collider.half_width[0]
             nx = int(2 * w)
@@ -54,8 +56,10 @@ class Wall(GameObject):
                     k = 1
 
                 pos = self.position + self.image_position + x * basis(0)
-                image = image_handler.images[f'{self.image_path}_{k}_{0}']
-                camera.draw_image(screen, image, pos, 1, 1, 0.0)
+                if len(self.sprites) < i + 1:
+                    image = image_handler.images[f'{self.image_path}_{k}_{0}']
+                    self.sprites.append(pyglet.sprite.Sprite(img=image, batch=screen))
+                camera.draw_image(screen, self.sprites[i], pos, 1, 1, 0.0)
 
     def draw_front(self, screen, camera, image_handler):
         pass
@@ -111,8 +115,6 @@ class Scoreboard(GameObject):
         self.scores = [0, 0]
 
     def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-
         camera.draw_polygon(screen, self.collider.corners(), (10, 10, 10))
         camera.draw_rectangle(screen, self.position, self.collider.width, self.collider.height, (80, 80, 80), 5)
 

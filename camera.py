@@ -1,7 +1,8 @@
 import numpy as np
 import pygame
+import pyglet
 
-from helpers import basis, norm2, rotate
+from helpers import basis, norm2, rotate, polar_to_cartesian
 from weapon import Grenade
 
 
@@ -14,6 +15,7 @@ class Camera:
         self.half_height = 0.5 * resolution[1] * basis(1)
         self.shake = np.zeros(2)
         self.velocity = np.zeros(2)
+        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(3)]
 
     def set_resolution(self, resolution):
         self.max_zoom = resolution[1] / 720 * 50.0
@@ -50,49 +52,48 @@ class Camera:
         self.zoom = zoom
 
     def world_to_screen(self, position):
-        pos = (position - self.position) * self.zoom + self.half_width - self.half_height + self.shake
-        pos[1] *= -1
+        pos = (position - self.position) * self.zoom + self.half_width + self.half_height + self.shake
 
         return [int(pos[0]), int(pos[1])]
 
     def screen_to_world(self, position):
-        pos = np.array([position[0], -position[1]], dtype=float)
-        pos = (pos - self.half_width + self.half_height - self.shake) / self.zoom + self.position
+        pos = np.array([position[0], position[1]], dtype=float)
+        pos = (pos - self.half_width - self.half_height - self.shake) / self.zoom + self.position
 
         return pos
 
-    def draw_image(self, screen, image, position, size=1, direction=1, angle=0.0):
-        scale = 1.05 * self.zoom * size / 100
+    def draw_image(self, batch, sprite, position, size=1, direction=1, angle=0.0):
+        x, y = self.world_to_screen(position)
+        sprite.x = x
+        sprite.y = y
+        sprite.scale = 1.05 * self.zoom * size / 100
+        sprite.rotation = -np.rad2deg(angle)
 
-        if direction == -1:
-            image = pygame.transform.flip(image, True, False)
+    def draw_text(self, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=False):
+        if font is not None:
+            pyglet.font.add_file(f'data/fonts/{font}')
+            font = font.split('.')[0]
 
-        image = pygame.transform.rotozoom(image, np.degrees(angle), scale)
+        x, y = self.world_to_screen(position)
 
-        rect = image.get_rect()
-        rect.center = self.world_to_screen(position)
-
-        screen.blit(image, rect)
-
-    def draw_text(self, screen, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=False):
-        if not font:
-            font = pygame.font.Font(None, int(size * self.zoom))
-        else:
-            font = pygame.font.Font(f'data/fonts/{font}', int(size * self.zoom))
-
-        pos = self.world_to_screen(position)
+        label = pyglet.text.Label(string, font_name=font, font_size=int(0.75 * size * self.zoom), x=x, y=y,
+                                  anchor_x='center', anchor_y='center', color=color + (255,))
 
         if chromatic_aberration:
-            text = font.render(string, True, (255, 0, 0))
-            screen.blit(text, [pos[0] - text.get_width() // 2 - size, pos[1] - text.get_height() // 2])
+            label.x -= size
+            label.color = (255, 0, 0, 255)
+            label.draw()
 
-            text = font.render(string, True, (0, 255, 255))
-            screen.blit(text, [pos[0] - text.get_width() // 2 + size + 1, pos[1] - text.get_height() // 2])
+            label.x += 2 * size
+            label.color = (0, 255, 255, 255)
+            label.draw()
 
-        text = font.render(string, True, color)
-        screen.blit(text, [pos[0] - text.get_width() // 2, pos[1] - text.get_height() // 2])
+            label.x -= size
+            label.color = color + (255,)
 
-    def draw_triangle(self, screen, position, size, angle=0, color=(255, 255, 255), chromatic_aberration=False):
+        label.draw()
+
+    def draw_triangle(self, position, size, angle=0, color=(255, 255, 255), chromatic_aberration=False, batch=None):
         a = size * rotate(np.array([0, 0.5]), angle)
         b = size * rotate(np.array([0, -0.5]), angle)
         c = size * rotate(np.array([np.sqrt(3) / 2, 0]), angle)
@@ -100,30 +101,37 @@ class Camera:
         if chromatic_aberration:
             offset = 0.05 * size * basis(0)
 
-            points = [self.world_to_screen(-self.zoom / 100 * p + position - offset) for p in [a, b, c]]
-            pygame.draw.polygon(screen, (255, 0, 0), points)
+            points = [-self.zoom / 100 * p + position - offset for p in [a, b, c]]
+            self.draw_polygon(points, color=(255, 0, 0), batch=batch)
 
-            points = [self.world_to_screen(-self.zoom / 100 * p + position + offset) for p in [a, b, c]]
-            pygame.draw.polygon(screen, (0, 255, 255), points)
+            points = [-self.zoom / 100 * p + position + offset for p in [a, b, c]]
+            self.draw_polygon(points, color=(0, 255, 255), batch=batch)
 
-        points = [self.world_to_screen(-self.zoom / 100 * p + position) for p in [a, b, c]]
-        pygame.draw.polygon(screen, color, points)
+        points = [-self.zoom / 100 * p + position for p in [a, b, c]]
+        self.draw_polygon(points, color=color, batch=batch)
 
-    def draw_rectangle(self, screen, position, width, height, color, linewidth=0):
-        rect = self.world_to_screen(position - 0.5 * np.array([width, -height])) \
-               + [width * self.zoom, height * self.zoom]
-        pygame.draw.rect(screen, color, rect, linewidth)
+    def draw_rectangle(self, batch, position, width, height, color, linewidth=0, layer=1):
+        x, y = self.world_to_screen(position)
+        w = int(0.5 * width * self.zoom)
+        h = int(0.5 * height * self.zoom)
+        vertices = [x - w, y - h, x + w, y - h, x + w, y + h, x - w, y + h]
+        batch.add(4, pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices))
 
-    def draw_polygon(self, screen, points, color=(255, 255, 255), width=0):
-        points = [self.world_to_screen(p) for p in points]
-        pygame.draw.polygon(screen, color, points, width)
+    def draw_polygon(self, points, color=(255, 255, 255), width=0, batch=None, layer=1):
+        vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]
+        colors = [int(c) for c in color] * len(points)
 
-    def draw_circle(self, screen, position, radius, color=(255, 255, 255), width=0):
-        pos = self.world_to_screen(position)
-        r = int(self.zoom * radius)
-        pygame.draw.circle(screen, color, pos, r, width)
+        if batch:
+            return batch.add(len(points), pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices), ('c3B', colors))
+        else:
+            pyglet.graphics.draw(len(points), pyglet.gl.GL_POLYGON, ('v2i', vertices), ('c3B', colors))
 
-    def draw_ellipse(self, screen, position, width, height, color=(255, 255, 255), linewidth=0):
-        rect = self.world_to_screen(position - 0.5 * np.array([width, -height])) \
-               + [width * self.zoom, height * self.zoom]
-        pygame.draw.ellipse(screen, color, rect, linewidth)
+    def draw_circle(self, position, radius, color=(255, 255, 255), width=0, batch=None):
+        points = [np.array([radius * np.cos(theta) + position[0], radius * np.sin(theta) + position[1]])
+                  for theta in np.linspace(0, 2 * np.pi, 20)]
+        self.draw_polygon(batch, points, color, width)
+
+    def draw_ellipse(self, position, width, height, color=(255, 255, 255), linewidth=0, angle=0.0, batch=None):
+        points = [np.array([width * np.cos(theta + angle) + position[0], height * np.sin(theta + angle) + position[1]])
+                  for theta in np.linspace(0, 2 * np.pi, 20)]
+        self.draw_polygon(points, color, width, batch=batch)

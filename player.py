@@ -359,7 +359,7 @@ class Player(Destroyable):
         limb.set_position(joint + r)
 
     def draw_limb(self, start, end, length, screen, camera, image_handler, image_path, image_joint, direction=1):
-        scale = 0.8 * camera.zoom * self.size / 100
+        scale = 0.8
 
         r = end - start
         r_norm = norm(r)
@@ -369,18 +369,12 @@ class Player(Destroyable):
             joint -= 0.5 * direction * self.direction * length * perp(r) / r_norm
 
         image = image_handler.images[f'{image_joint}_{self.body_type}']
-        image = pygame.transform.rotozoom(image, 0.0, 1.2 * scale)
-        rect = image.get_rect()
-        rect.center = camera.world_to_screen(joint)
-        screen.blit(image, rect)
+        camera.draw_image(screen, image, joint, 1.0)
 
         image = image_handler.images[f'{image_path}_{self.body_type}']
         pos = 0.5 * (start + joint)
         angle = polar_angle(joint - start)
-        image = pygame.transform.rotozoom(image, np.degrees(angle), scale)
-        rect = image.get_rect()
-        rect.center = camera.world_to_screen(pos)
-        screen.blit(image, rect)
+        camera.draw_image(screen, image, pos, 0.8, angle=angle)
 
         if f'lower_{image_path}_{self.body_type}' in image_handler.images:
             image = image_handler.images[f'lower_{image_path}_{self.body_type}']
@@ -389,10 +383,7 @@ class Player(Destroyable):
 
         pos = 0.5 * (joint + end)
         angle = polar_angle(end - joint)
-        image = pygame.transform.rotozoom(image, np.degrees(angle), scale)
-        rect = image.get_rect()
-        rect.center = camera.world_to_screen(pos)
-        screen.blit(image, rect)
+        camera.draw_image(screen, image, pos, 0.8, angle=angle)
 
     def animate(self, time_step):
         self.back_foot.set_position(self.position - np.array([0.35 * self.direction + 0.5 * self.velocity[0]
