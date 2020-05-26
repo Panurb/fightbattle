@@ -25,10 +25,12 @@ class Wall(GameObject):
         return (type(self), self.position[0], self.position[1],
                 2 * self.collider.half_width[0], 2 * self.collider.half_height[1])
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         if self.vertical:
             h = self.collider.half_height[1]
             ny = int(2 * h)
+            if not self.sprites:
+                self.sprites = ny * [None]
 
             for j, y in enumerate(np.linspace(-h, h, ny, False)):
                 if j == 0:
@@ -40,12 +42,14 @@ class Wall(GameObject):
 
                 pos = self.position + self.image_position + y * basis(1)
                 if len(self.sprites) < j + 1:
-                    image = image_handler.images[f'{self.image_path}_vertical_0_{l}']
-                    self.sprites.append(pyglet.sprite.Sprite(img=image, batch=screen))
-                camera.draw_image(screen, self.sprites[j], pos, 1, 1, 0.0)
+                    self.sprites.append(None)
+                self.sprites[j] = camera.draw_image(image_handler, f'{self.image_path}_vertical_0_{l}', pos, 1, 1, 0.0,
+                                                    batch=batch, layer=0, sprite=self.sprites[j])
         else:
             w = self.collider.half_width[0]
             nx = int(2 * w)
+            if not self.sprites:
+                self.sprites = nx * [None]
 
             for i, x in enumerate(np.linspace(-w, w, nx, False)):
                 if i == 0:
@@ -56,10 +60,8 @@ class Wall(GameObject):
                     k = 1
 
                 pos = self.position + self.image_position + x * basis(0)
-                if len(self.sprites) < i + 1:
-                    image = image_handler.images[f'{self.image_path}_{k}_{0}']
-                    self.sprites.append(pyglet.sprite.Sprite(img=image, batch=screen))
-                camera.draw_image(screen, self.sprites[i], pos, 1, 1, 0.0)
+                self.sprites[i] = camera.draw_image(image_handler, f'{self.image_path}_{k}_{0}', pos, 1, 1, 0.0,
+                                                    batch=batch, layer=0, sprite=self.sprites[i])
 
     def draw_front(self, screen, camera, image_handler):
         pass
@@ -94,10 +96,9 @@ class Basket(GameObject):
     def get_data(self):
         return type(self), self.position[0], self.position[1], self.team
 
-    def draw_front(self, screen, camera, image_handler):
-        image = image_handler.images['basket_front']
+    def draw_front(self, batch, camera, image_handler):
         pos = self.position + np.array([0.4, -0.7])
-        camera.draw_image(screen, image, pos)
+        camera.draw_image(image_handler, 'basket_front', pos)
 
     def draw_shadow(self, screen, camera, image_handler, light):
         super().draw_shadow(screen, camera, image_handler, light)
@@ -114,12 +115,12 @@ class Scoreboard(GameObject):
         self.add_collider(Rectangle([0, 0], 7, 4))
         self.scores = [0, 0]
 
-    def draw(self, screen, camera, image_handler):
-        camera.draw_polygon(screen, self.collider.corners(), (10, 10, 10))
-        camera.draw_rectangle(screen, self.position, self.collider.width, self.collider.height, (80, 80, 80), 5)
+    def draw(self, batch, camera, image_handler):
+        camera.draw_polygon(batch, self.collider.corners(), (10, 10, 10))
+        camera.draw_rectangle(batch, self.position, self.collider.width, self.collider.height, (80, 80, 80), 5)
 
         text = ' - '.join(map(str, self.scores))
-        camera.draw_text(screen, text, self.position, 3, 'Seven Segment.ttf', (200, 255, 0))
+        camera.draw_text(batch, text, self.position, 3, 'Seven Segment.ttf', (200, 255, 0))
 
     def update(self, gravity, time_step, colliders):
         pass

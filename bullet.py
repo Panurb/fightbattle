@@ -61,12 +61,12 @@ class Bullet(PhysicsObject):
             self.active = False
             self.sounds.add('gun')
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         if self.destroyed:
             for p in self.particle_clouds:
-                p.draw(screen, camera, image_handler)
+                p.draw(batch, camera)
         else:
-            super().draw(screen, camera, image_handler)
+            super().draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler, light):
         pass

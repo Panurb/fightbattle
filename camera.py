@@ -1,3 +1,5 @@
+from itertools import chain
+
 import numpy as np
 import pygame
 import pyglet
@@ -62,12 +64,23 @@ class Camera:
 
         return pos
 
-    def draw_image(self, batch, sprite, position, size=1, direction=1, angle=0.0):
+    def draw_image(self, image_handler, image_path, position, size=1, direction=1, angle=0.0,
+                   batch=None, layer=1, sprite=None):
+        if sprite is None:
+            sprite = pyglet.sprite.Sprite(img=image_handler.images[image_path], batch=batch, group=self.layers[layer])
+
+        if direction == -1:
+            sprite.image = image_handler.images[f'{image_path}_flipped']
+        else:
+            sprite.image = image_handler.images[image_path]
+
         x, y = self.world_to_screen(position)
         sprite.x = x
         sprite.y = y
         sprite.scale = 1.05 * self.zoom * size / 100
         sprite.rotation = -np.rad2deg(angle)
+
+        return sprite
 
     def draw_text(self, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=False):
         if font is not None:
@@ -117,21 +130,34 @@ class Camera:
         vertices = [x - w, y - h, x + w, y - h, x + w, y + h, x - w, y + h]
         batch.add(4, pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices))
 
-    def draw_polygon(self, points, color=(255, 255, 255), width=0, batch=None, layer=1):
+    def draw_polygon(self, points, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
         vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]
         colors = [int(c) for c in color] * len(points)
 
-        if batch:
-            return batch.add(len(points), pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices), ('c3B', colors))
+        if batch is None:
+            pyglet.graphics.draw(len(points), pyglet.gl.GL_TRIANGLES, ('v2i', vertices), ('c3B', colors))
+            return
+
+        # no idea what this does
+        # https://codereview.stackexchange.com/questions/90921/drawing-circles-with-triangles
+        index = list(chain.from_iterable((0, x - 1, x) for x in range(2, len(points))))
+
+        if vertex_list is None:
+            return batch.add_indexed(len(points), pyglet.gl.GL_TRIANGLES, self.layers[layer],
+                                     index, ('v2i', vertices), ('c3B', colors))
         else:
-            pyglet.graphics.draw(len(points), pyglet.gl.GL_POLYGON, ('v2i', vertices), ('c3B', colors))
+            vertex_list.vertices = vertices
+            vertex_list.colors = colors
+            return vertex_list
 
-    def draw_circle(self, position, radius, color=(255, 255, 255), width=0, batch=None):
-        points = [np.array([radius * np.cos(theta) + position[0], radius * np.sin(theta) + position[1]])
-                  for theta in np.linspace(0, 2 * np.pi, 20)]
-        self.draw_polygon(batch, points, color, width)
+    def draw_circle(self, position, radius, color=(255, 255, 255), batch=None, vertex_list=None):
+        points = [position]
+        points += [np.array([radius * np.cos(theta) + position[0], radius * np.sin(theta) + position[1]])
+                   for theta in np.linspace(0, 2 * np.pi, 20)]
+        return self.draw_polygon(batch, points, color, vertex_list=vertex_list)
 
-    def draw_ellipse(self, position, width, height, color=(255, 255, 255), linewidth=0, angle=0.0, batch=None):
-        points = [np.array([width * np.cos(theta + angle) + position[0], height * np.sin(theta + angle) + position[1]])
-                  for theta in np.linspace(0, 2 * np.pi, 20)]
-        self.draw_polygon(points, color, width, batch=batch)
+    def draw_ellipse(self, position, width, height, angle=0.0, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
+        points = [position]
+        points += [np.array([width * np.cos(theta + angle) + position[0], height * np.sin(theta + angle) + position[1]])
+                   for theta in np.linspace(0, 2 * np.pi, 8)]
+        return self.draw_polygon(points, color, batch=batch, layer=layer, vertex_list=vertex_list)

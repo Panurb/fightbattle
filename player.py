@@ -27,19 +27,17 @@ class Player(Destroyable):
 
         self.back_hip = self.position + np.array([0.1, -0.5])
         self.front_hip = self.position + np.array([-0.1, -0.5])
-        self.back_foot = Foot(self.position - np.array([0.35, 1.4]))
-        self.front_foot = Foot(self.position - np.array([0.55, 1.4]))
-        self.leg_length = 0.95
+        self.back_foot = Foot(self.position - np.array([0.35, 1.4]), self)
+        self.front_foot = Foot(self.position - np.array([0.55, 1.4]), self, True)
 
         self.max_speed = 0.5
 
         self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height \
             - 0.1 * self.direction * self.collider.half_width
         self.hand_goal = basis(0)
-        self.arm_length = 1.0
         self.elbow = np.zeros(2)
 
-        self.hand = Hand(self.position)
+        self.hand = Hand(self.position, self)
         self.back_hand = AnimatedObject(self.position, '', 1.2)
 
         self.object = None
@@ -284,7 +282,7 @@ class Player(Destroyable):
 
                 self.object.rotate(self.hand.angle - self.object.angle)
 
-            if norm(self.shoulder - self.object.position) > 1.6 * self.arm_length:
+            if norm(self.shoulder - self.object.position) > 1.6 * self.hand.length:
                 if isinstance(self.object, Weapon):
                     self.object.set_position(self.position)
                     self.object.collider.update_occupied_squares(colliders)
@@ -346,9 +344,9 @@ class Player(Destroyable):
         self.body.rotate(self.angle - self.body.angle)
         self.head.update(gravity, time_step, colliders)
 
-        self.update_limb(gravity, time_step, colliders, self.hand, self.shoulder, self.arm_length)
-        self.update_limb(gravity, time_step, colliders, self.back_foot, self.back_hip, self.leg_length)
-        self.update_limb(gravity, time_step, colliders, self.front_foot, self.front_hip, self.leg_length)
+        self.update_limb(gravity, time_step, colliders, self.hand, self.shoulder, self.hand.length)
+        self.update_limb(gravity, time_step, colliders, self.back_foot, self.back_hip, self.back_foot.length)
+        self.update_limb(gravity, time_step, colliders, self.front_foot, self.front_hip, self.front_foot.length)
 
     def update_limb(self, gravity, time_step, colliders, limb, joint, length):
         limb.update(gravity, time_step, colliders)
@@ -357,33 +355,6 @@ class Player(Destroyable):
         if r_norm > length:
             r *= length / r_norm
         limb.set_position(joint + r)
-
-    def draw_limb(self, start, end, length, screen, camera, image_handler, image_path, image_joint, direction=1):
-        scale = 0.8
-
-        r = end - start
-        r_norm = norm(r)
-        length = np.sqrt(max(length - r_norm ** 2, 0))
-        joint = start + 0.5 * r
-        if r_norm != 0:
-            joint -= 0.5 * direction * self.direction * length * perp(r) / r_norm
-
-        image = image_handler.images[f'{image_joint}_{self.body_type}']
-        camera.draw_image(screen, image, joint, 1.0)
-
-        image = image_handler.images[f'{image_path}_{self.body_type}']
-        pos = 0.5 * (start + joint)
-        angle = polar_angle(joint - start)
-        camera.draw_image(screen, image, pos, 0.8, angle=angle)
-
-        if f'lower_{image_path}_{self.body_type}' in image_handler.images:
-            image = image_handler.images[f'lower_{image_path}_{self.body_type}']
-        else:
-            image = image_handler.images[f'{image_path}_{self.body_type}']
-
-        pos = 0.5 * (joint + end)
-        angle = polar_angle(end - joint)
-        camera.draw_image(screen, image, pos, 0.8, angle=angle)
 
     def animate(self, time_step):
         self.back_foot.set_position(self.position - np.array([0.35 * self.direction + 0.5 * self.velocity[0]
@@ -460,55 +431,49 @@ class Player(Destroyable):
             self.hand.loop_animation('idle')
             self.back_hand.image_path = ''
 
-    def draw(self, screen, camera, image_handler):
-        self.back_foot.image_path = f'foot_{self.body_type}'
-        self.back_foot.draw(screen, camera, image_handler)
-        self.draw_limb(self.back_hip, self.back_foot.position, self.leg_length, screen, camera, image_handler,
-                       'leg', 'knee', -1)
+    def draw(self, batch, camera, image_handler):
+        self.back_foot.draw(batch, camera, image_handler)
 
         if not self.destroyed and self.back_hand.image_path:
             self.draw_limb(self.shoulder + 0.25 * self.direction * basis(0), self.back_hand.position, 1.0,
-                           screen, camera, image_handler, 'arm', 'elbow')
+                           batch, camera, image_handler, 'arm', 'elbow')
 
-        self.body.draw(screen, camera, image_handler)
+        self.body.draw(batch, camera, image_handler)
 
-        self.front_foot.image_path = f'foot_{self.body_type}'
-        self.front_foot.draw(screen, camera, image_handler)
-        self.draw_limb(self.front_hip, self.front_foot.position, self.leg_length, screen, camera, image_handler,
-                       'leg', 'knee', -1)
+        self.front_foot.draw(batch, camera, image_handler)
 
-        self.head.draw(screen, camera, image_handler)
+        self.head.draw(batch, camera, image_handler)
 
         if self.object and self.object.collider:
             if self.object.collider.group is Group.SHIELDS:
-                self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera, image_handler, 'arm',
-                               'elbow')
-                self.object.draw(screen, camera, image_handler)
+                #self.draw_limb(self.shoulder, self.hand.position, self.arm_length, batch, camera, image_handler, 'arm',
+                #               'elbow')
+                self.object.draw(batch, camera, image_handler)
             elif self.back_hand.image_path:
                 pos = self.object.get_hand_position()
-                self.draw_limb(self.shoulder, pos, self.arm_length, screen, camera, image_handler, 'arm', 'elbow')
+                #self.draw_limb(self.shoulder, pos, self.arm_length, batch, camera, image_handler, 'arm', 'elbow')
 
                 if type(self.object) is Bow and self.attack_charge:
-                    self.object.arrow.draw(screen, camera, image_handler)
+                    self.object.arrow.draw(batch, camera, image_handler)
 
-                self.object.draw(screen, camera, image_handler)
+                self.object.draw(batch, camera, image_handler)
 
                 self.back_hand.angle = self.object.angle
-                self.back_hand.draw(screen, camera, image_handler)
+                self.back_hand.draw(batch, camera, image_handler)
 
-                self.hand.draw(screen, camera, image_handler)
+                self.hand.draw(batch, camera, image_handler)
             else:
-                self.object.draw(screen, camera, image_handler)
-                self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera, image_handler,
-                               'arm', 'elbow')
-                self.hand.draw(screen, camera, image_handler)
+                self.object.draw(batch, camera, image_handler)
+                #self.draw_limb(self.shoulder, self.hand.position, self.arm_length, batch, camera, image_handler,
+                #               'arm', 'elbow')
+                self.hand.draw(batch, camera, image_handler)
         else:
-            self.draw_limb(self.shoulder, self.hand.position, self.arm_length, screen, camera, image_handler,
-                           'arm', 'elbow')
-            self.hand.draw(screen, camera, image_handler)
+            #self.draw_limb(self.shoulder, self.hand.position, self.arm_length, batch, camera, image_handler,
+            #               'arm', 'elbow')
+            self.hand.draw(batch, camera, image_handler)
 
         for b in self.particle_clouds:
-            b.draw(screen, camera, image_handler)
+            b.draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler, light):
         self.head.draw_shadow(screen, camera, image_handler, light)
@@ -555,7 +520,7 @@ class Player(Destroyable):
         stick_norm = norm(controller.right_stick)
         if stick_norm != 0:
             if not isinstance(self.object, Weapon) or type(self.object) in {Bow, Grenade} or self.object.timer == 0:
-                self.hand_goal = self.arm_length * controller.right_stick / stick_norm
+                self.hand_goal = self.hand.length * controller.right_stick / stick_norm
 
         if controller.right_trigger > 0.5:
             if self.object:
@@ -706,13 +671,13 @@ class Head(Destroyable):
         super().destroy(colliders)
         self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4], 5))
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         self.image_path = f'{self.parent.head_type}'
-        super().draw(screen, camera, image_handler)
+        super().draw(batch, camera, image_handler)
         for b in self.blood:
             b.set_position(self.position)
             b.angle = self.angle
-            b.draw(screen, camera, image_handler)
+            b.draw(batch, camera, image_handler)
 
 
 class Body(Destroyable):
@@ -740,18 +705,19 @@ class Body(Destroyable):
         self.parent.destroy(colliders)
         super().destroy(colliders)
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         self.image_path = f'body_{self.parent.body_type}'
-        super().draw(screen, camera, image_handler)
+        super().draw(batch, camera, image_handler)
         image = image_handler.images['blood']
         for b in self.blood:
-            camera.draw_image(screen, image, self.position + rotate(b[0], self.angle), 1,
+            camera.draw_image(batch, image, self.position + rotate(b[0], self.angle), 1,
                               self.direction, self.angle + b[1])
 
 
 class Hand(PhysicsObject, AnimatedObject):
-    def __init__(self, position):
+    def __init__(self, position, parent):
         super().__init__(position, image_path='fist', size=1.2)
+        self.parent = parent
         self.dust = False
         self.gravity_scale = 0.0
         self.add_collider(Circle([0, 0], 0.2, Group.HANDS))
@@ -773,10 +739,44 @@ class Hand(PhysicsObject, AnimatedObject):
         angles = np.pi * np.array([0.0, 0.3, 0.5, 0.45, 0.35, 0.2, 0.0])
         self.add_animation(xs, ys, angles, 'revolver', image='hand_trigger')
 
+        self.elbow_sprite = None
+        self.upper_arm_sprite = None
+        self.lower_arm_sprite = None
+        self.length = 1.0
+
+    def draw(self, batch, camera, image_handler):
+        start = self.parent.shoulder
+        end = self.position
+
+        r = end - start
+        r_norm = norm(r)
+
+        length = np.sqrt(max(self.length - r_norm ** 2, 0))
+        joint = start + 0.5 * r
+        if r_norm != 0:
+            joint -= 0.5 * self.parent.direction * length * perp(r) / r_norm
+
+        self.elbow_sprite = camera.draw_image(image_handler, f'elbow_{self.parent.body_type}', joint, batch=batch,
+                                              sprite=self.elbow_sprite)
+
+        pos = 0.5 * (start + joint)
+        angle = polar_angle(joint - start)
+        self.upper_arm_sprite = camera.draw_image(image_handler, f'arm_{self.parent.body_type}', pos, 0.8, angle=angle,
+                                                  batch=batch, sprite=self.upper_arm_sprite)
+
+        pos = 0.5 * (joint + end)
+        angle = polar_angle(end - joint)
+        self.lower_arm_sprite = camera.draw_image(image_handler, f'arm_{self.parent.body_type}', pos, 0.8, angle=angle,
+                                                  batch=batch, sprite=self.lower_arm_sprite)
+
+        super().draw(batch, camera, image_handler)
+
 
 class Foot(PhysicsObject, AnimatedObject):
-    def __init__(self, position):
+    def __init__(self, position, parent, front=False):
         super().__init__(position, image_path='', size=0.8)
+        self.front = front
+        self.parent = parent
         self.image_position = 0.15 * basis(0)
 
         self.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
@@ -796,6 +796,44 @@ class Foot(PhysicsObject, AnimatedObject):
 
         self.loop_animation('idle')
 
+        self.knee_sprite = None
+        self.upper_leg_sprite = None
+        self.lower_leg_sprite = None
+        self.length = 0.95
+
     def reset(self):
         self.gravity_scale = 0.0
         self.active = True
+
+    def draw(self, batch, camera, image_handler):
+        self.image_path = f'foot_{self.parent.body_type}'
+        super().draw(batch, camera, image_handler)
+
+        start = self.parent.front_hip if self.front else self.parent.back_hip
+        end = self.position
+
+        r = end - start
+        r_norm = norm(r)
+
+        length = np.sqrt(max(self.length - r_norm ** 2, 0))
+        joint = start + 0.5 * r
+        if r_norm != 0:
+            joint += 0.5 * self.parent.direction * length * perp(r) / r_norm
+
+        self.knee_sprite = camera.draw_image(image_handler, f'knee_{self.parent.body_type}', joint, batch=batch,
+                                             sprite=self.knee_sprite)
+
+        pos = 0.5 * (start + joint)
+        angle = polar_angle(joint - start)
+        self.upper_leg_sprite = camera.draw_image(image_handler, f'leg_{self.parent.body_type}', pos, 0.8, angle=angle,
+                                                  batch=batch, sprite=self.upper_leg_sprite)
+
+        if f'lower_leg_{self.parent.body_type}' in image_handler.images:
+            image = f'lower_{self.image_path}_{self.parent.body_type}'
+        else:
+            image = f'leg_{self.parent.body_type}'
+
+        pos = 0.5 * (joint + end)
+        angle = polar_angle(end - joint)
+        self.lower_leg_sprite = camera.draw_image(image_handler, image, pos, 0.8, angle=angle, batch=batch,
+                                                  sprite=self.lower_leg_sprite)

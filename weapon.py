@@ -240,9 +240,9 @@ class Grenade(Destroyable):
             self.timer = 50.0
             self.sounds.add('sword')
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-        self.pin.draw(screen, camera, image_handler)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        self.pin.draw(batch, camera, image_handler)
 
 
 class Bow(Gun):
@@ -304,14 +304,14 @@ class Bow(Gun):
 
         return []
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
 
         a = camera.world_to_screen(self.position + self.direction * rotate(self.string_upper, self.angle))
         c = camera.world_to_screen(self.position + self.direction * rotate(self.string_lower, self.angle))
         if self.parent and self.parent.attack_charge:
             b = camera.world_to_screen(self.get_hand_position())
-            pygame.draw.line(screen, self.string_color, a, b, 2)
-            pygame.draw.line(screen, self.string_color, b, c, 2)
+            pygame.draw.line(batch, self.string_color, a, b, 2)
+            pygame.draw.line(batch, self.string_color, b, c, 2)
         else:
-            pygame.draw.line(screen, self.string_color, a, c, 2)
+            pygame.draw.line(batch, self.string_color, a, c, 2)

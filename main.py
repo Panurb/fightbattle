@@ -99,6 +99,7 @@ def on_key_press(symbol, modifiers):
     input_handler.keys_down[symbol] = True
 
 
+@window.event
 def on_key_release(symbol, modifiers):
     input_handler.keys_released[symbol] = True
     input_handler.keys_down[symbol] = False

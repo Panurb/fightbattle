@@ -123,7 +123,7 @@ class Button(GameObject):
         self.color_selected = (255, 255, 255)
         self.selected = False
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         color = self.color_selected if self.selected else self.color
         camera.draw_text(self.text, self.position, 0.75, color=color, chromatic_aberration=self.selected)
 
@@ -155,7 +155,7 @@ class Slider(GameObject):
         else:
             self.selection = max(self.selection - 1, 0)
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         color = self.color_selected if self.selected else self.color
         camera.draw_text(self.text, self.position + 0.63 * basis(1), 0.75, color=color,
                          chromatic_aberration=self.selected)

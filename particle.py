@@ -1,4 +1,5 @@
 import numpy as np
+import pyglet
 from numpy.linalg import norm
 import pygame
 
@@ -6,29 +7,16 @@ from helpers import polar_angle, polar_to_cartesian, norm2, random_unit, basis
 
 
 class Cloud:
-    def __init__(self, position, velocity, number, lifetime, size, gravity_scale=1.0, image_path='',
+    def __init__(self, position, velocity, number, lifetime, size, gravity_scale=1.0,
                  start_color=(255, 255, 255), end_color=(255, 255, 255), base_velocity=(0, 0), shading=0.0, shine=0.0,
                  stretch=0.0):
-        self.position = np.repeat(np.array(position, dtype=float)[np.newaxis], number, axis=0)
-        self.velocity = 0.5 * np.repeat(np.array(base_velocity, dtype=float)[np.newaxis], number, axis=0)
-        self.acceleration = np.zeros_like(self.position)
         self.lifetime = lifetime
-        self.size = size
-        self.gravity_scale = gravity_scale
-        self.image_path = image_path
-        self.start_color = np.array(start_color, dtype=int)
-        self.end_color = np.array(end_color, dtype=int)
-        self.shading = shading
-        self.shine = shine
-        self.stretch = stretch
-
         self.time = 0.0
 
-        self.add_particles(velocity, number)
-        self.active = True
-        self.vertex_list = []
+        self.particles = []
 
-    def add_particles(self, velocity, number):
+        self.active = True
+
         if np.any(velocity):
             angle = polar_angle(velocity)
         else:
@@ -42,13 +30,51 @@ class Cloud:
                 theta = np.random.normal(angle, 0.25)
                 r = np.abs(np.random.normal(v_norm, v_norm))
                 v = polar_to_cartesian(r, theta)
-            self.velocity[i, :] += v
+
+            self.particles.append(Particle(position, base_velocity + v, lifetime=lifetime, size=size,
+                                           gravity_scale=gravity_scale, start_color=start_color,
+                                           end_color=end_color, shading=shading, shine=shine, stretch=stretch))
 
     def update(self, gravity, time_step):
         self.time += time_step
         if self.time >= self.lifetime:
             self.active = False
+            for p in self.particles:
+                for v in p.vertex_list:
+                    if v:
+                        v.delete()
             return
+
+        for p in self.particles:
+            p.update(gravity, time_step)
+
+    def draw(self, batch, camera):
+        if not self.active:
+            return
+
+        for p in self.particles:
+            p.draw(batch, camera)
+
+
+class Particle:
+    def __init__(self, position, velocity, lifetime, size, gravity_scale=1.0,
+                 start_color=(255, 255, 255), end_color=(255, 255, 255), shading=0.0, shine=0.0, stretch=0.0):
+        self.position = position.copy()
+        self.velocity = velocity
+        self.acceleration = np.zeros_like(self.position)
+        self.lifetime = lifetime
+        self.size = size
+        self.gravity_scale = gravity_scale
+        self.start_color = np.array(start_color, dtype=int)
+        self.end_color = np.array(end_color, dtype=int)
+        self.shading = shading
+        self.shine = shine
+        self.stretch = stretch
+        self.vertex_list = [None, None, None]
+        self.time = 0.0
+
+    def update(self, gravity, time_step):
+        self.time = min(self.time + time_step, self.lifetime)
 
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
@@ -58,45 +84,27 @@ class Cloud:
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
 
     def draw(self, batch, camera):
-        if not self.active:
-            return
-
         color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
         height = (1 - self.time / self.lifetime) * self.size
         width = (1 + self.stretch * norm2(self.velocity)) * height
 
-        if not self.vertex_list:
-            for i, p in enumerate(self.position):
-                angle = np.degrees(polar_angle(self.velocity[i, :]))
+        angle = polar_angle(self.velocity)
 
-                if self.shading:
-                    camera.draw_ellipse(self.position[i, :], width, height,
-                                        color=(1 - self.shading) * color, angle=angle, batch=batch, layer=2)
-                    camera.draw_ellipse(self.position[i, :] + 0.25 * width * basis(0), 0.8 * width, 0.8 * height,
-                                        color=color, angle=angle, batch=batch, layer=2)
-                else:
-                    camera.draw_ellipse(self.position[i, :], width, height, color=color, angle=angle,
-                                        batch=batch, layer=2)
+        if self.shading:
+            self.vertex_list[0] = camera.draw_ellipse(self.position, width, height, angle, (1 - self.shading) * color,
+                                                      batch=batch, layer=2, vertex_list=self.vertex_list[0])
 
-                if self.shine:
-                    camera.draw_circle(self.position[i, :] + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
-                                       color=color + (255 - color) * self.shine, batch=batch, layer=2)
+            self.vertex_list[1] = camera.draw_ellipse(self.position + 0.25 * width * basis(0),
+                                                      0.8 * width, 0.8 * height, angle, color,
+                                                      batch=batch, layer=2, vertex_list=self.vertex_list[1])
         else:
-            for i, p in enumerate(self.position):
-                angle = np.degrees(polar_angle(self.velocity[i, :]))
+            self.vertex_list[0] = camera.draw_ellipse(self.position, width, height, angle, color,
+                                                      batch=batch, layer=2, vertex_list=self.vertex_list[0])
 
-                if self.shading:
-                    camera.draw_ellipse(self.position[i, :], width, height,
-                                        color=(1 - self.shading) * color, angle=angle, batch=batch, layer=2)
-                    camera.draw_ellipse(self.position[i, :] + 0.25 * width * basis(0), 0.8 * width, 0.8 * height,
-                                        color=color, angle=angle, batch=batch, layer=2)
-                else:
-                    camera.draw_ellipse(self.position[i, :], width, height, color=color, angle=angle,
-                                        batch=batch, layer=2)
-
-                if self.shine:
-                    camera.draw_circle(self.position[i, :] + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
-                                       color=color + (255 - color) * self.shine, batch=batch, layer=2)
+        if self.shine:
+            self.vertex_list[2] = camera.draw_circle(self.position + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
+                                                     color + (255 - color) * self.shine,
+                                                     batch=batch, layer=2, vertex_list=self.vertex_list[2])
 
 
 class BloodSplatter(Cloud):

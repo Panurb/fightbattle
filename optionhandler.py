@@ -5,7 +5,7 @@ class OptionHandler:
     def __init__(self):
         self.config = ConfigParser()
 
-        self.fps = 60
+        self.fps = 120
         self.resolution = (1280, 720)
         self.fullscreen = False
         self.sfx_volume = 100

@@ -66,21 +66,14 @@ class GameObject:
         collider.parent = self
         collider.position += self.position
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         if not self.image_path:
-            self.debug_draw(screen, camera, image_handler)
+            self.debug_draw(batch, camera, image_handler)
             return
 
-        if self.sprite is None:
-            self.sprite = pyglet.sprite.Sprite(img=image_handler.images[self.image_path], batch=screen)
-
-        if self.direction == -1:
-            self.sprite.image = image_handler.images[f'{self.image_path}_flipped']
-        else:
-            self.sprite.image = image_handler.images[self.image_path]
-
         pos = self.position + rotate(self.image_position, self.angle)
-        camera.draw_image(screen, self.sprite, pos, self.size, self.direction, self.angle)
+        self.sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction, self.angle,
+                                        batch=batch, sprite=self.sprite)
 
     def debug_draw(self, screen, camera, image_handler):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
@@ -276,10 +269,10 @@ class PhysicsObject(GameObject):
         '''
         super().draw_shadow(screen, camera,image_handler, light)
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
         for p in self.particle_clouds:
-            p.draw(screen, camera)
+            p.draw(batch, camera)
 
 
 class Destroyable(PhysicsObject):
@@ -352,14 +345,14 @@ class Destroyable(PhysicsObject):
             if self.particle_clouds:
                 self.active = True
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         if self.destroyed:
             for d in self.debris:
-                d.draw(screen, camera, image_handler)
+                d.draw(batch, camera, image_handler)
             for p in self.particle_clouds:
-                p.draw(screen, camera, image_handler)
+                p.draw(batch, camera)
         else:
-            super().draw(screen, camera, image_handler)
+            super().draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler, light):
         if not self.destroyed:
