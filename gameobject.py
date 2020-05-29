@@ -11,7 +11,7 @@ MAX_SPEED = 5.0
 
 
 class GameObject:
-    def __init__(self, position, image_path='', size=1.0):
+    def __init__(self, position, image_path='', size=1.0, layer=1):
         super().__init__()
 
         self.position = np.array(position, dtype=float)
@@ -29,6 +29,9 @@ class GameObject:
         self.sounds = set()
 
         self.id = None
+
+        self.shadow_sprite = None
+        self.layer = layer
 
     def get_data(self):
         data = (self.id, type(self), self.position[0], self.position[1], self.direction, self.angle)
@@ -73,7 +76,7 @@ class GameObject:
 
         pos = self.position + rotate(self.image_position, self.angle)
         self.sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction, self.angle,
-                                        batch=batch, sprite=self.sprite)
+                                        batch=batch, layer=self.layer, sprite=self.sprite)
 
     def debug_draw(self, screen, camera, image_handler):
         pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
@@ -86,16 +89,19 @@ class GameObject:
 
         self.sounds.clear()
 
-    def draw_shadow(self, screen, camera, image_handler, light):
+    def draw_shadow(self, batch, camera, image_handler, light):
         r = self.position - light
         pos = self.position + 0.5 * r / norm(r) + rotate(self.image_position, self.angle)
-        image = image_handler.images[f'shadow_{self.image_path}']
 
-        camera.draw_image(screen, image, pos, self.size, self.direction, self.angle)
+        self.shadow_sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction,
+                                               self.angle, batch=batch, layer=0, sprite=self.shadow_sprite)
+        self.shadow_sprite.color = (0, 0, 0)
+        self.shadow_sprite.opacity = 128
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0, bump_sound='bump'):
+    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0, bump_sound='bump',
+                 dust=True):
         super().__init__(position, image_path, size)
         self.velocity = np.array(velocity, dtype=float)
         self.speed = norm(self.velocity)
@@ -120,7 +126,7 @@ class PhysicsObject(GameObject):
         self.parent = None
         self.group = None
 
-        self.dust = True
+        self.dust = dust
 
     def add_collider(self, collider):
         super().add_collider(collider)
@@ -318,7 +324,7 @@ class Destroyable(PhysicsObject):
             for _ in range(3):
                 r = np.abs(np.random.normal(0.5, 0.2))
                 v = r * random_unit()
-                d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size)
+                d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size, dust=False)
                 d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
                 self.debris.append(d)
 
@@ -357,6 +363,9 @@ class Destroyable(PhysicsObject):
     def draw_shadow(self, screen, camera, image_handler, light):
         if not self.destroyed:
             super().draw_shadow(screen, camera, image_handler, light)
+        elif self.shadow_sprite:
+            self.shadow_sprite.delete()
+            self.shadow_sprite = None
 
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)

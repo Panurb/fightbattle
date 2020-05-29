@@ -202,6 +202,8 @@ class Grenade(Destroyable):
 
     def destroy(self, colliders):
         if not self.destroyed:
+            self.sprite.delete()
+            self.sprite = None
             self.destroyed = True
 
             explosion_collider = Circle(self.position, 3.0)
@@ -306,6 +308,8 @@ class Bow(Gun):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
+
+        return
 
         a = camera.world_to_screen(self.position + self.direction * rotate(self.string_upper, self.angle))
         c = camera.world_to_screen(self.position + self.direction * rotate(self.string_lower, self.angle))

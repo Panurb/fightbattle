@@ -43,6 +43,8 @@ class Cloud:
                 for v in p.vertex_list:
                     if v:
                         v.delete()
+
+            self.particles.clear()
             return
 
         for p in self.particles:

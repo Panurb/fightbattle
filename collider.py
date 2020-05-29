@@ -313,10 +313,10 @@ class Rectangle(Collider):
 
         pygame.draw.polygon(screen, image_handler.debug_color, points, 1)
 
-    def draw_shadow(self, screen, camera, image_handler, light):
+    def draw_shadow(self, batch, camera, image_handler, light):
         points = [c + 0.5 * (c - light) / norm(c - light) for c in self.corners()]
 
-        camera.draw_polygon(screen, points, (80, 80, 80), 0)
+        camera.draw_polygon(points, (80, 80, 80), layer=0)
 
 
 class Circle(Collider):

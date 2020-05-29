@@ -1,10 +1,11 @@
 import numpy as np
 import pygame
 import pyglet
+from numpy.linalg import norm
 
 from gameobject import GameObject
 from collider import Rectangle, Group, ColliderGroup, Circle
-from helpers import basis
+from helpers import basis, rotate
 
 
 class Wall(GameObject):
@@ -92,21 +93,19 @@ class Basket(GameObject):
         self.collider.add_collider(Rectangle([0.5, -0.9], 1.4, -0.5, Group.WALLS))
         self.team = team
         self.score = 0
+        self.front = GameObject(self.position, 'basket_front', layer=3)
+        self.front.image_position = np.array([0.4, -0.7])
 
     def get_data(self):
         return type(self), self.position[0], self.position[1], self.team
 
-    def draw_front(self, batch, camera, image_handler):
-        pos = self.position + np.array([0.4, -0.7])
-        camera.draw_image(image_handler, 'basket_front', pos)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        self.front.draw(batch, camera, image_handler)
 
-    def draw_shadow(self, screen, camera, image_handler, light):
-        super().draw_shadow(screen, camera, image_handler, light)
-        self.image_path = 'basket_front'
-        self.image_position = np.array([0.4, -0.7])
-        super().draw_shadow(screen, camera, image_handler, light)
-        self.image_path = 'basket'
-        self.image_position = np.array([0.4, -0.15])
+    def draw_shadow(self, batch, camera, image_handler, light):
+        super().draw_shadow(batch, camera, image_handler, light)
+        self.front.draw_shadow(batch, camera, image_handler, light)
 
 
 class Scoreboard(GameObject):

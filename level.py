@@ -1,11 +1,12 @@
 import pickle
 
 import numpy as np
-import pygame
+import pyglet
+from PIL import Image
 
 from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
-from helpers import basis
+from helpers import basis, polar_angle
 from prop import Crate, Ball
 from wall import Wall, Platform, Basket, Scoreboard
 from weapon import Gun, Bullet, Grenade
@@ -166,31 +167,24 @@ class Level:
                     del self.objects[k]
                     continue
 
-    def draw(self, screen, camera, image_handler):
-        #image = pygame.transform.scale(self.background, 0.0, 2 * camera.zoom / 100)
-        #rect = image.get_rect()
-        #rect.center = self.world_to_screen(position)
-        #screen.blit(self.background, camera.world_to_screen(np.array([0, self.height])))
+    def draw(self, batch, camera, image_handler):
+        if self.background is None:
+            self.background = Background(int(self.width * camera.zoom), int(self.height * camera.zoom))
+
+        self.background.draw(batch, camera, image_handler)
 
         for wall in self.walls:
-            wall.draw(screen, camera, image_handler)
+            wall.draw(batch, camera, image_handler)
 
         #if self.scoreboard:
         #    self.scoreboard.draw(screen, camera, image_handler)
 
         for obj in self.objects.values():
-            if type(obj) is Bullet and obj.destroyed:
-                image = image_handler.images['blood']
-                pos = obj.position * camera.zoom
-                pos[1] -= 0.5 * self.height * camera.zoom
-                pos[1] *= -1
-                pos[1] += 0.5 * self.height * camera.zoom
-                #self.background.blit(image, pos)
+            if isinstance(obj, Bullet) and obj.decal:
+                self.background.add_decal(image_handler, obj.decal, obj.position, obj.angle, camera)
+                obj.decal = ''
 
-            obj.draw(screen, camera, image_handler)
-
-        for w in self.walls:
-            w.draw_front(screen, camera, image_handler)
+            obj.draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler):
         for w in self.walls:
@@ -226,3 +220,35 @@ class PlayerSpawn(GameObject):
 
     def apply_data(self, data):
         self.set_position(np.array(data))
+
+
+class Background:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.image = None
+        self.sprite = None
+
+    def draw(self, batch, camera, image_handler):
+        if not self.image:
+            self.image = Image.new('RGBA', (self.width, self.height), (150, 150, 150))
+
+            image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
+            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch)
+
+            for _ in range(20):
+                x = np.random.random() * self.width / camera.zoom
+                y = np.random.random() * self.height / camera.zoom
+                angle = 0.5 * (np.random.random() - 0.5)
+                path = np.random.choice(['warning', 'poster', 'crack'])
+                self.add_decal(image_handler, path, [x, y], angle, camera)
+
+        self.sprite.update(*camera.world_to_screen(np.zeros(2)))
+
+    def add_decal(self, image_handler, path, position, angle, camera):
+        decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)
+        pos = [int(position[0] * camera.zoom - 0.5 * decal.width),
+               int(position[1] * camera.zoom - 0.5 * decal.height)]
+        self.image.paste(decal, pos, decal.convert('RGBA'))
+        image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
+        self.sprite.image = image

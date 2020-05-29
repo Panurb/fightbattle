@@ -8,6 +8,9 @@ from helpers import basis, norm2, rotate, polar_to_cartesian
 from weapon import Grenade
 
 
+UNIT_CIRCLE = [np.zeros(2)] + [np.array([np.cos(theta), np.sin(theta)]) for theta in np.linspace(0, 2 * np.pi, 20)]
+
+
 class Camera:
     def __init__(self, position, resolution):
         self.position = np.array(position, dtype=float)
@@ -17,7 +20,7 @@ class Camera:
         self.half_height = 0.5 * resolution[1] * basis(1)
         self.shake = np.zeros(2)
         self.velocity = np.zeros(2)
-        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(3)]
+        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(4)]
 
     def set_resolution(self, resolution):
         self.max_zoom = resolution[1] / 720 * 50.0
@@ -74,11 +77,8 @@ class Camera:
         else:
             sprite.image = image_handler.images[image_path]
 
-        x, y = self.world_to_screen(position)
-        sprite.x = x
-        sprite.y = y
-        sprite.scale = 1.05 * self.zoom * size / 100
-        sprite.rotation = -np.rad2deg(angle)
+        sprite.update(*self.world_to_screen(position), -np.rad2deg(angle), 1.05 * self.zoom * size / 100)
+        sprite.group = self.layers[layer]
 
         return sprite
 
@@ -89,7 +89,7 @@ class Camera:
 
         x, y = self.world_to_screen(position)
 
-        label = pyglet.text.Label(string, font_name=font, font_size=int(0.75 * size * self.zoom), x=x, y=y,
+        label = pyglet.text.Label(string, font_name=font, font_size=int(0.6 * size * self.zoom), x=x, y=y,
                                   anchor_x='center', anchor_y='center', color=color + (255,))
 
         if chromatic_aberration:
@@ -123,12 +123,12 @@ class Camera:
         points = [-self.zoom / 100 * p + position for p in [a, b, c]]
         self.draw_polygon(points, color=color, batch=batch)
 
-    def draw_rectangle(self, batch, position, width, height, color, linewidth=0, layer=1):
+    def draw_rectangle(self, batch, position, width, height, color=(255, 255, 255), layer=1):
         x, y = self.world_to_screen(position)
         w = int(0.5 * width * self.zoom)
         h = int(0.5 * height * self.zoom)
         vertices = [x - w, y - h, x + w, y - h, x + w, y + h, x - w, y + h]
-        batch.add(4, pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices))
+        return batch.add(4, pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices))
 
     def draw_polygon(self, points, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
         vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]
@@ -150,13 +150,14 @@ class Camera:
             vertex_list.colors = colors
             return vertex_list
 
-    def draw_circle(self, position, radius, color=(255, 255, 255), batch=None, vertex_list=None):
-        points = [position]
-        points += [np.array([radius * np.cos(theta) + position[0], radius * np.sin(theta) + position[1]])
-                   for theta in np.linspace(0, 2 * np.pi, 20)]
-        return self.draw_polygon(batch, points, color, vertex_list=vertex_list)
+    def draw_circle(self, position, radius, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
+        points = [radius * x + position for x in UNIT_CIRCLE]
+        return self.draw_polygon(points, color, batch=batch, layer=layer, vertex_list=vertex_list)
 
     def draw_ellipse(self, position, width, height, angle=0.0, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
+        if width == height:
+            return self.draw_circle(position, width, color, batch, layer, vertex_list)
+
         points = [position]
         points += [np.array([width * np.cos(theta + angle) + position[0], height * np.sin(theta + angle) + position[1]])
                    for theta in np.linspace(0, 2 * np.pi, 8)]

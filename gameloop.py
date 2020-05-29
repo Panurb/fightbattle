@@ -45,8 +45,8 @@ class GameLoop:
     def load_level(self):
         self.level = Level('lvl')
         size = [int(self.camera.zoom * self.level.width), int(self.camera.zoom * self.level.height)]
-        self.level.background = pygame.Surface(size)
-        self.level.background.fill((150, 150, 150))
+        #self.level.background = pygame.Surface(size)
+        #self.level.background.fill((150, 150, 150))
 
         self.colliders.clear()
 

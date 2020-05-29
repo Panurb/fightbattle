@@ -1,5 +1,7 @@
 import os
 
+from PIL import Image, ImageOps
+
 import numpy as np
 import pyglet
 
@@ -12,6 +14,7 @@ class ImageHandler:
         self.camera = np.zeros(2)
         self.scale = 100
         self.images = dict()
+        self.decals = dict()
         self.debug_color = (255, 0, 255)
         pyglet.resource.path = ['data/images', 'data/images/bodies', 'data/images/hands', 'data/images/heads',
                                 'data/images/weapons']
@@ -23,6 +26,15 @@ class ImageHandler:
         path = os.path.join('data', 'images')
 
         for r, d, f in os.walk(path):
+            if 'decals' in r:
+                for file in f:
+                    if '.png' in file:
+                        name = file.replace('.png', '')
+                        img = Image.open(os.path.join(r, file))
+                        self.decals[name] = ImageOps.mirror(img)
+
+                continue
+
             if 'bodies' in r:
                 prefix = f'{r.split(os.sep)[-1]}/'
                 suffix = f'_{r.split(os.sep)[-1]}'
@@ -44,11 +56,6 @@ class ImageHandler:
                     image.anchor_y = image.height // 2
                     self.images[name + '_flipped'] = image
 
-                    #image = image.copy()
-                    #image.fill((0, 0, 0), special_flags=pygame.BLEND_MULT)
-                    #image.fill(SHADOW_COLOR, special_flags=pygame.BLEND_MAX)
-                    #self.images[f'shadow_{name}'] = image
-
         self.image_to_tiles('wall', 3, 1)
         self.image_to_tiles('wall_vertical', 1, 3)
         self.image_to_tiles('platform', 3, 1)
@@ -65,8 +72,3 @@ class ImageHandler:
             for j in range(ny):
                 self.images[f'{name}_{i}_{j}'] = image.get_region(i * tile_width, j * tile_height,
                                                                   tile_width, tile_height)
-
-                #tile = tile.copy()
-                #tile.fill((0, 0, 0), special_flags=pygame.BLEND_MULT)
-                #tile.fill(SHADOW_COLOR, special_flags=pygame.BLEND_MAX)
-                #self.images[f'shadow_{name}_{i}_{j}'] = tile
