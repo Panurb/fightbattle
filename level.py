@@ -41,6 +41,12 @@ class Level:
         for w in self.walls:
             if type(w) is Basket:
                 w.collider.colliders[-1].group = Group.WALLS
+                
+        for o in self.objects.values():
+            if o.sprite:
+                o.sprite.delete()
+            if o.shadow_sprite:
+                o.shadow_sprite.delete()
 
         self.objects.clear()
         if self.name:
@@ -228,15 +234,16 @@ class Background:
         self.height = height
         self.image = None
         self.sprite = None
+        self.layer = 0
 
     def draw(self, batch, camera, image_handler):
         if not self.image:
             self.image = Image.new('RGBA', (self.width, self.height), (150, 150, 150))
 
             image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
-            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch)
+            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[self.layer])
 
-            for _ in range(20):
+            for _ in range(5):
                 x = np.random.random() * self.width / camera.zoom
                 y = np.random.random() * self.height / camera.zoom
                 angle = 0.5 * (np.random.random() - 0.5)

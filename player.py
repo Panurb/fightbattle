@@ -463,7 +463,7 @@ class Player(Destroyable):
             self.hand.draw(batch, camera, image_handler)
 
         for b in self.particle_clouds:
-            b.draw(batch, camera, image_handler)
+            b.draw(batch, camera)
 
     def draw_shadow(self, screen, camera, image_handler, light):
         self.head.draw_shadow(screen, camera, image_handler, light)

@@ -24,7 +24,7 @@ sound_handler = SoundHandler()
 loop = GameLoop(option_handler)
 
 width, height = option_handler.resolution
-window = pyglet.window.Window(width, height, vsync=False)
+window = pyglet.window.Window(width, height, vsync=False, fullscreen=option_handler.fullscreen)
 pyglet.gl.glClearColor(0.2, 0.2, 0.2, 1)
 
 fps_display = pyglet.window.FPSDisplay(window=window)

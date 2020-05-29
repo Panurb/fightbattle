@@ -45,7 +45,7 @@ class Wall(GameObject):
                 if len(self.sprites) < j + 1:
                     self.sprites.append(None)
                 self.sprites[j] = camera.draw_image(image_handler, f'{self.image_path}_vertical_0_{l}', pos, 1, 1, 0.0,
-                                                    batch=batch, layer=0, sprite=self.sprites[j])
+                                                    batch=batch, layer=1, sprite=self.sprites[j])
         else:
             w = self.collider.half_width[0]
             nx = int(2 * w)
@@ -62,7 +62,7 @@ class Wall(GameObject):
 
                 pos = self.position + self.image_position + x * basis(0)
                 self.sprites[i] = camera.draw_image(image_handler, f'{self.image_path}_{k}_{0}', pos, 1, 1, 0.0,
-                                                    batch=batch, layer=0, sprite=self.sprites[i])
+                                                    batch=batch, layer=1, sprite=self.sprites[i])
 
     def draw_front(self, screen, camera, image_handler):
         pass

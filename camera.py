@@ -162,3 +162,18 @@ class Camera:
         points += [np.array([width * np.cos(theta + angle) + position[0], height * np.sin(theta + angle) + position[1]])
                    for theta in np.linspace(0, 2 * np.pi, 8)]
         return self.draw_polygon(points, color, batch=batch, layer=layer, vertex_list=vertex_list)
+        
+    def draw_line(self, start, end, linewidth=1, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
+        vertices = [*self.world_to_screen(start), *self.world_to_screen(end)]
+        colors = [int(c) for c in color] * 2
+        
+        if batch is None:
+            pyglet.graphics.draw(2, pyglet.gl.GL_LINES, ('v2i', vertices), ('c3B', colors))
+            return
+            
+        if vertex_list is None:
+            return batch.add(2, pyglet.gl.GL_LINES, self.layers[layer], ('v2i', vertices), ('c3B', colors))
+        else:
+            vertex_list.vertices = vertices
+            vertex_list.colors = colors
+            return vertex_list

@@ -191,7 +191,8 @@ class Grenade(Destroyable):
             self.camera_shake *= -0.5
 
         if self.primed:
-            self.pin.update(gravity, time_step, colliders)
+            if self.pin:
+                self.pin.update(gravity, time_step, colliders)
             self.timer -= time_step
 
             if self.timer <= 0.0:
@@ -205,6 +206,9 @@ class Grenade(Destroyable):
             self.sprite.delete()
             self.sprite = None
             self.destroyed = True
+            
+            self.pin.sprite.delete()
+            self.pin = None
 
             explosion_collider = Circle(self.position, 3.0)
             explosion_collider.update_occupied_squares(colliders)
@@ -244,7 +248,8 @@ class Grenade(Destroyable):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        self.pin.draw(batch, camera, image_handler)
+        if self.pin:
+            self.pin.draw(batch, camera, image_handler)
 
 
 class Bow(Gun):
@@ -262,10 +267,12 @@ class Bow(Gun):
         self.string_lower = np.array([-0.22, -1.0])
         self.timer = 0.0
         self.string_color = [50, 50, 50]
-        self.arrow = GameObject(self.position, 'arrow', size=1.2)
+        self.arrow = GameObject(self.position, 'arrow', size=1.2, layer=2)
         self.arrow.image_position = 0.5 * basis(0)
         self.attack_charge = 0.0
         self.rest_angle = -0.5 * np.pi
+        self.strings = [None, None]
+        self.layer = 3
 
     def get_data(self):
         return super().get_data() + (self.attack_charge, )
@@ -298,24 +305,31 @@ class Bow(Gun):
             self.attacked = False
             self.sounds.add('bow_release')
             v = self.direction * self.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
-            bs = [Arrow(self.get_barrel_position(), v, self.parent)]
             self.timer = 10.0
             self.attack_charge = 0.0
 
-            return bs
+            return [Arrow(self.get_barrel_position(), v, self.parent)]
 
         return []
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
+        
+        if self.arrow.sprite:
+            if self.attack_charge:
+                self.arrow.sprite.visible = True
+            else:
+                self.arrow.sprite.visible = False
 
-        return
 
-        a = camera.world_to_screen(self.position + self.direction * rotate(self.string_upper, self.angle))
-        c = camera.world_to_screen(self.position + self.direction * rotate(self.string_lower, self.angle))
-        if self.parent and self.parent.attack_charge:
-            b = camera.world_to_screen(self.get_hand_position())
-            pygame.draw.line(batch, self.string_color, a, b, 2)
-            pygame.draw.line(batch, self.string_color, b, c, 2)
+        a = self.position + self.direction * rotate(self.string_upper, self.angle)
+        c = self.position + self.direction * rotate(self.string_lower, self.angle)
+        if self.attack_charge:
+            b = self.get_hand_position()
+            self.strings[0] = camera.draw_line(a, b, batch=batch, layer=self.layer, vertex_list=self.strings[0])
+            self.strings[1] = camera.draw_line(b, c, batch=batch, layer=self.layer, vertex_list=self.strings[1])
         else:
-            pygame.draw.line(batch, self.string_color, a, c, 2)
+            self.strings[0] = camera.draw_line(a, c, batch=batch, layer=self.layer, vertex_list=self.strings[0])
+            if self.strings[1]:
+                self.strings[1].delete()
+                self.strings[1] = None
