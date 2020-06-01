@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.linalg import norm
 import pygame
-import pyglet
+from pyglet.window import key
 
 
 class Controller:
@@ -111,31 +111,29 @@ class Keyboard(Controller):
     def __init__(self, input_handler):
         super().__init__(-1)
 
-        self.buttons = {'A': pygame.K_SPACE,
-                        'B': pygame.K_ESCAPE,
-                        'X': pygame.K_q,
-                        'Y': pygame.K_f,
-                        'LB': pygame.K_c,
-                        'RB': pygame.K_e,
-                        'SELECT': pygame.K_RSHIFT,
-                        'START': pygame.K_RETURN}
+        self.buttons = {'A': key.SPACE,
+                        'B': key.ESCAPE,
+                        'X': key.Q,
+                        'Y': key.F,
+                        'LB': key.C,
+                        'RB': key.E,
+                        'SELECT': key.RSHIFT,
+                        'START': key.RETURN}
 
         self.input_handler = input_handler
 
     def update(self):
-        if self.input_handler.keys_down[pygame.K_a]:
+        self.left_stick[0] = 0
+        if key.A in self.input_handler.keys_down and self.input_handler.keys_down[key.A]:
             self.left_stick[0] = -1
-        elif self.input_handler.keys_down[pygame.K_d]:
+        elif key.D in self.input_handler.keys_down and self.input_handler.keys_down[key.D]:
             self.left_stick[0] = 1
-        else:
-            self.left_stick[0] = 0
 
-        if self.input_handler.keys_down[pygame.K_w]:
+        self.left_stick[1] = 0
+        if key.W in self.input_handler.keys_down and self.input_handler.keys_down[key.W]:
             self.left_stick[1] = 1
-        elif self.input_handler.keys_down[pygame.K_s]:
+        elif key.S in self.input_handler.keys_down and self.input_handler.keys_down[key.S]:
             self.left_stick[1] = -1
-        else:
-            self.left_stick[1] = 0
 
         n = norm(self.input_handler.mouse_position)
         if n != 0:
@@ -155,15 +153,16 @@ class Keyboard(Controller):
             self.button_pressed[b] = False
             self.button_released[b] = False
 
-            self.button_pressed[b] = self.input_handler.keys_pressed[self.buttons[b]]
-            self.button_down[b] = self.input_handler.keys_down[self.buttons[b]]
-            self.button_released[b] = self.input_handler.keys_released[self.buttons[b]]
+            self.button_pressed[b] = self.input_handler.key_pressed(self.buttons[b])
+            self.button_down[b] = self.input_handler.key_down(self.buttons[b])
+            self.button_released[b] = self.input_handler.key_released(self.buttons[b])
 
 
 class InputHandler:
     def __init__(self):
         self.controllers = []
         self.controllers.append(Keyboard(self))
+        '''
         for i in range(pygame.joystick.get_count()):
             name = pygame.joystick.Joystick(i).get_name().lower()
             if 'xbox' in name:
@@ -175,58 +174,44 @@ class InputHandler:
                     self.controllers.append(DualShock4(i))
                 except:
                     pass
+        '''
 
-        self.keys_down = {}
-        self.keys_pressed = {}
-        self.keys_released = {}
-        for i in range(len(pygame.key.get_pressed())):
-            self.keys_down[i] = False
-            self.keys_pressed[i] = False
-            self.keys_released[i] = False
+        self.keys_down = dict()
+        self.keys_pressed = dict()
+        self.keys_released = dict()
+
         self.mouse_position = np.zeros(2)
         self.relative_mouse = np.zeros(2)
-        self.mouse_down = [False] * 6
-        self.mouse_pressed = [False] * 6
-        self.mouse_released = [False] * 6
+        self.mouse_down = [False] * 8
+        self.mouse_pressed = [False] * 8
+        self.mouse_released = [False] * 8
 
         self.mouse_screen = np.zeros(2)
         self.mouse_change = np.zeros(2)
 
         self.quit = False
 
-    def update(self, camera):
+    def key_pressed(self, k):
+        return k in self.keys_pressed and self.keys_pressed[k]
+
+    def key_released(self, k):
+        return k in self.keys_released and self.keys_released[k]
+
+    def key_down(self, k):
+        return k in self.keys_down and self.keys_down[k]
+
+    def update(self):
         for c in self.controllers:
             c.update()
 
-        for key in self.keys_pressed:
-            self.keys_pressed[key] = False
-        self.mouse_pressed = [False] * 8
-        self.mouse_released = [False] * 8
+        for k in self.keys_pressed:
+            if self.keys_pressed[k]:
+                if k in self.keys_down and self.keys_down[k]:
+                    self.keys_pressed[k] = False
+                self.keys_down[k] = True
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or self.keys_down[pygame.K_END]:
-                self.quit = True
-            else:
-                if event.type == pygame.KEYDOWN:
-                    self.keys_pressed[event.key] = True
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    self.mouse_pressed[event.button - 1] = True
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    self.mouse_released[event.button - 1] = True
-
-        #mouse_pos = camera.screen_to_world(pygame.mouse.get_pos())
-        #self.mouse_position[:] = mouse_pos
-
-        #mouse_screen = pygame.mouse.get_pos()
-        #self.mouse_change = (mouse_screen - self.mouse_screen) / camera.zoom
-        #self.mouse_change[1] *= -1
-        #self.mouse_screen[:] = mouse_screen
-
-        for key in self.keys_down:
-            if self.keys_down[key] and not pygame.key.get_pressed()[key]:
-                self.keys_released[key] = True
-            else:
-                self.keys_released[key] = False
-
-        self.keys_down = pygame.key.get_pressed()
-        self.mouse_down = pygame.mouse.get_pressed()
+        for b in range(len(self.mouse_pressed)):
+            if self.mouse_pressed[b]:
+                if self.mouse_down[b]:
+                    self.mouse_pressed[b] = False
+                self.mouse_down[b] = True

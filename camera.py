@@ -20,7 +20,7 @@ class Camera:
         self.half_height = 0.5 * resolution[1] * basis(1)
         self.shake = np.zeros(2)
         self.velocity = np.zeros(2)
-        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(4)]
+        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(8)]
 
     def set_resolution(self, resolution):
         self.max_zoom = resolution[1] / 720 * 50.0
@@ -82,29 +82,39 @@ class Camera:
 
         return sprite
 
-    def draw_text(self, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=False):
-        if font is not None:
-            pyglet.font.add_file(f'data/fonts/{font}')
-            font = font.split('.')[0]
+    def draw_text(self, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=False,
+                  batch=None, layer=1, label=None):
+        if label is None:
+            if font is not None:
+                pyglet.font.add_file(f'data/fonts/{font}')
+                font = font.split('.')[0]
 
+            label = pyglet.text.Label(string, font_name=font, font_size=int(0.6 * size * self.zoom),
+                                      anchor_x='center', anchor_y='center', color=color + (255,),
+                                      batch=batch, group=self.layers[layer])
+
+        label.string = string
         x, y = self.world_to_screen(position)
+        label.x = x
+        label.y = y
 
-        label = pyglet.text.Label(string, font_name=font, font_size=int(0.6 * size * self.zoom), x=x, y=y,
-                                  anchor_x='center', anchor_y='center', color=color + (255,))
+        if batch is None:
+            if chromatic_aberration:
+                label.x -= size
+                label.color = (255, 0, 0, 255)
+                label.draw()
 
-        if chromatic_aberration:
-            label.x -= size
-            label.color = (255, 0, 0, 255)
+                label.x += 2 * size
+                label.color = (0, 255, 255, 255)
+                label.draw()
+
+                label.x -= size
+                label.color = color + (255,)
+
             label.draw()
+            return
 
-            label.x += 2 * size
-            label.color = (0, 255, 255, 255)
-            label.draw()
-
-            label.x -= size
-            label.color = color + (255,)
-
-        label.draw()
+        return label
 
     def draw_triangle(self, position, size, angle=0, color=(255, 255, 255), chromatic_aberration=False, batch=None):
         a = size * rotate(np.array([0, 0.5]), angle)
@@ -123,14 +133,17 @@ class Camera:
         points = [-self.zoom / 100 * p + position for p in [a, b, c]]
         self.draw_polygon(points, color=color, batch=batch)
 
-    def draw_rectangle(self, batch, position, width, height, color=(255, 255, 255), layer=1):
-        x, y = self.world_to_screen(position)
-        w = int(0.5 * width * self.zoom)
-        h = int(0.5 * height * self.zoom)
-        vertices = [x - w, y - h, x + w, y - h, x + w, y + h, x - w, y + h]
-        return batch.add(4, pyglet.gl.GL_POLYGON, self.layers[layer], ('v2i', vertices))
+    def draw_rectangle(self, position, width, height, color=(255, 255, 255), batch=None, layer=1, vertex_list=None,
+                       linewidth=0):
+        w = 0.5 * width * basis(0)
+        h = 0.5 * height * basis(1)
+        vertices = [position + w + h, position - w + h, position - w - h, position + w - h]
+        return self.draw_polygon(vertices, color, batch, layer, vertex_list, linewidth)
 
-    def draw_polygon(self, points, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
+    def draw_polygon(self, points, color=(255, 255, 255), batch=None, layer=1, vertex_list=None, linewidth=0):
+        if linewidth != 0:
+            return self.draw_line(points + [points[0]], linewidth, color, batch, layer, vertex_list)
+
         vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]
         colors = [int(c) for c in color] * len(points)
 
@@ -163,16 +176,20 @@ class Camera:
                    for theta in np.linspace(0, 2 * np.pi, 8)]
         return self.draw_polygon(points, color, batch=batch, layer=layer, vertex_list=vertex_list)
         
-    def draw_line(self, start, end, linewidth=1, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
-        vertices = [*self.world_to_screen(start), *self.world_to_screen(end)]
-        colors = [int(c) for c in color] * 2
+    def draw_line(self, points, linewidth=1, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
+        pyglet.gl.glLineWidth(linewidth * self.zoom)
+
+        points = [points[0]] + [p for p in points[1:-1] for _ in range(2)] + [points[-1]]
+        vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]
+        n = int(len(vertices) / 2)
+        colors = [int(c) for c in color] * n
         
         if batch is None:
-            pyglet.graphics.draw(2, pyglet.gl.GL_LINES, ('v2i', vertices), ('c3B', colors))
+            pyglet.graphics.draw(n, pyglet.gl.GL_LINES, ('v2i', vertices), ('c3B', colors))
             return
-            
+
         if vertex_list is None:
-            return batch.add(2, pyglet.gl.GL_LINES, self.layers[layer], ('v2i', vertices), ('c3B', colors))
+            return batch.add(n, pyglet.gl.GL_LINES, self.layers[layer], ('v2i', vertices), ('c3B', colors))
         else:
             vertex_list.vertices = vertices
             vertex_list.colors = colors

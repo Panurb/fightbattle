@@ -11,7 +11,7 @@ MAX_SPEED = 5.0
 
 
 class GameObject:
-    def __init__(self, position, image_path='', size=1.0, layer=1):
+    def __init__(self, position, image_path='', size=1.0, layer=3):
         super().__init__()
 
         self.position = np.array(position, dtype=float)
@@ -78,10 +78,10 @@ class GameObject:
         self.sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction, self.angle,
                                         batch=batch, layer=self.layer, sprite=self.sprite)
 
-    def debug_draw(self, screen, camera, image_handler):
-        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.position), 2)
+    def debug_draw(self, batch, camera, image_handler):
+        camera.draw_circle(camera.world_to_screen(self.position), 2, image_handler.debug_color)
         if self.collider:
-            self.collider.draw(screen, camera, image_handler)
+            self.collider.draw(batch, camera, image_handler)
 
     def play_sounds(self, sound_handler):
         for sound in self.sounds:

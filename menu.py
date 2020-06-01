@@ -1,7 +1,6 @@
 from enum import Enum
 
 import numpy as np
-import pygame
 
 from collider import Rectangle
 from gameobject import GameObject
@@ -45,14 +44,14 @@ class Menu:
                     self.selection_moved[controller_id] = True
 
                     if type(b) is Button:
-                        if input_handler.mouse_pressed[0]:
+                        if input_handler.mouse_pressed[1]:
                             self.target_state = self.buttons[self.selection].target_state
                             self.sounds.append('select')
                     elif type(b) is Slider:
-                        if input_handler.mouse_pressed[0]:
+                        if input_handler.mouse_pressed[1]:
                             b.move_right()
                             self.sounds.append('menu')
-                        elif input_handler.mouse_pressed[2]:
+                        elif input_handler.mouse_pressed[4]:
                             b.move_left()
                             self.sounds.append('menu')
 

@@ -3,6 +3,7 @@ from _thread import *
 import numpy as np
 import pygame
 import pyglet
+from pyglet.window import key
 
 from camera import Camera
 from gameobject import Destroyable
@@ -261,7 +262,7 @@ class GameLoop:
                         obj.destroy()
 
     def input(self, input_handler):
-        input_handler.update(self.camera)
+        input_handler.update()
 
         if input_handler.quit:
             self.state = State.QUIT
@@ -273,7 +274,7 @@ class GameLoop:
             for i, player in enumerate(self.players.values()):
                 player.input(input_handler)
 
-            if input_handler.keys_pressed[pygame.K_r]:
+            if input_handler.key_pressed(key.R):
                 self.reset_game()
         elif self.state is State.MENU:
             self.menu.input(input_handler)

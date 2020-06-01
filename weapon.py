@@ -266,13 +266,15 @@ class Bow(Gun):
         self.string_upper = np.array([-0.22, 1.0])
         self.string_lower = np.array([-0.22, -1.0])
         self.timer = 0.0
-        self.string_color = [50, 50, 50]
-        self.arrow = GameObject(self.position, 'arrow', size=1.2, layer=2)
-        self.arrow.image_position = 0.5 * basis(0)
+        self.string_width = 0.05
+        self.string_color = (50, 50, 50)
         self.attack_charge = 0.0
         self.rest_angle = -0.5 * np.pi
-        self.strings = [None, None]
+        self.string = None
         self.layer = 3
+
+        self.arrow = GameObject(self.position, 'arrow', size=1.2, layer=5)
+        self.arrow.image_position = 0.5 * basis(0)
 
     def get_data(self):
         return super().get_data() + (self.attack_charge, )
@@ -314,22 +316,19 @@ class Bow(Gun):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        
+
         if self.arrow.sprite:
             if self.attack_charge:
                 self.arrow.sprite.visible = True
             else:
                 self.arrow.sprite.visible = False
 
-
         a = self.position + self.direction * rotate(self.string_upper, self.angle)
         c = self.position + self.direction * rotate(self.string_lower, self.angle)
         if self.attack_charge:
             b = self.get_hand_position()
-            self.strings[0] = camera.draw_line(a, b, batch=batch, layer=self.layer, vertex_list=self.strings[0])
-            self.strings[1] = camera.draw_line(b, c, batch=batch, layer=self.layer, vertex_list=self.strings[1])
+            self.string = camera.draw_line([a, b, c], self.string_width, self.string_color,
+                                           batch=batch, layer=self.layer, vertex_list=self.string)
         else:
-            self.strings[0] = camera.draw_line(a, c, batch=batch, layer=self.layer, vertex_list=self.strings[0])
-            if self.strings[1]:
-                self.strings[1].delete()
-                self.strings[1] = None
+            self.string = camera.draw_line([a, c, a], self.string_width, self.string_color,
+                                           batch=batch, layer=self.layer, vertex_list=self.string)

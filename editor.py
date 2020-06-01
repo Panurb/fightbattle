@@ -2,11 +2,13 @@ import math
 import pickle
 
 import numpy as np
-import pygame
+import pyglet
+from pyglet.window import key
+from pyglet.window import mouse
 
-import imagehandler
-import inputhandler
-import optionhandler
+from imagehandler import ImageHandler
+from inputhandler import InputHandler
+from optionhandler import OptionHandler
 from camera import Camera
 from level import Level, PlayerSpawn
 from prop import Crate, Ball
@@ -14,33 +16,25 @@ from wall import Basket, Scoreboard
 from weapon import Weapon, Revolver, Shotgun
 
 
-class Editor:
+class Editor(pyglet.window.Window):
     def __init__(self):
-        # init mixer first to prevent audio delay
-        pygame.mixer.pre_init(44100, -16, 2, 2048)
-        pygame.mixer.init()
+        self.option_handler = OptionHandler()
+        self.image_handler = ImageHandler()
+        self.input_handler = InputHandler()
 
-        pygame.init()
-        pygame.display.set_caption('NEXTGAME')
+        width, height = self.option_handler.resolution
+        super().__init__(width, height, vsync=self.option_handler.vsync, fullscreen=False)
 
-        self.option_handler = optionhandler.OptionHandler()
+        # background color
+        pyglet.gl.glClearColor(0.2, 0.2, 0.2, 1)
 
-        mode = 0
-        if self.option_handler.fullscreen:
-            mode = pygame.FULLSCREEN
+        self.fps_display = pyglet.window.FPSDisplay(window=self)
 
-        self.screen = pygame.display.set_mode(self.option_handler.resolution, mode)
+        self.batch = pyglet.graphics.Batch()
 
-        self.image_handler = imagehandler.ImageHandler()
-        self.input_handler = inputhandler.InputHandler()
+        self.level = Level(editor=True)
 
-        self.clock = pygame.time.Clock()
-        self.time_step = 15.0 / self.option_handler.fps
-        self.font = pygame.font.Font(None, 30)
-
-        self.level = Level()
-
-        self.grid_color = [150, 150, 150]
+        self.grid_color = (150, 150, 150)
 
         self.wall_start = None
         self.grabbed_object = None
@@ -50,36 +44,62 @@ class Editor:
 
         self.camera = Camera([0, 0], self.option_handler.resolution)
 
-    def main_loop(self):
-        while not self.input_handler.quit:
-            self.input_handler.update(self.camera)
-            self.input()
+    def on_key_press(self, symbol, modifiers):
+        self.input_handler.keys_pressed[symbol] = True
 
-            if self.grabbed_object is not None:
-                w = self.grabbed_object.collider.half_width
-                h = self.grabbed_object.collider.half_height
-                pos = np.floor(self.input_handler.mouse_position + self.grab_offset - np.floor(w) - np.floor(h))
-                self.grabbed_object.set_position(pos + w + h)
+        if symbol == key.S:
+            for i, o in enumerate(self.level.objects.values()):
+                o.id = i
 
-            self.screen.fill((50, 50, 50))
-            self.draw_grid(1.0)
-            self.level.draw(self.screen, self.camera, self.image_handler)
+            with open('data/levels/lvl.pickle', 'wb') as f:
+                pickle.dump(self.level.get_data(), f)
+        elif symbol == key.L:
+            self.batch = pyglet.graphics.Batch()
+            with open('data/levels/lvl.pickle', 'rb') as f:
+                data = pickle.load(f)
+                self.level.clear()
+                self.level.apply_data(data)
+        elif symbol == key.DELETE:
+            self.level.clear()
+        elif symbol == key.W:
+            if self.type_index == len(self.object_types) - 1:
+                self.type_index = 0
+            else:
+                self.type_index += 1
 
-            for p in self.level.player_spawns:
-                p.draw(self.screen, self.camera, self.image_handler)
+        pos = np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])
 
-            self.draw_selection()
+        if symbol == key.P:
+            self.level.player_spawns.append(PlayerSpawn(pos))
+        elif symbol == key.C:
+            self.level.add_object(Crate(pos))
+        elif symbol == key.B:
+            self.level.add_object(Ball(pos))
+        elif symbol == key.G:
+            self.level.add_object(Shotgun(pos))
+        elif symbol == key.T:
+            self.level.walls.append(Basket(pos))
+        elif symbol == key.I:
+            self.level.scoreboard = Scoreboard(pos)
 
-            type_str = self.font.render(self.object_types[self.type_index], True, self.image_handler.debug_color)
-            self.screen.blit(type_str, (50, 50))
+    def on_key_release(self, symbol, modifiers):
+        self.input_handler.keys_released[symbol] = True
+        self.input_handler.keys_down[symbol] = False
 
-            pygame.display.update()
-            self.clock.tick(self.option_handler.fps)
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.input_handler.mouse_position[:] = self.camera.screen_to_world([x, y])
+        self.input_handler.mouse_change[0] = dx / self.camera.zoom
+        self.input_handler.mouse_change[1] = dy / self.camera.zoom
 
-    def input(self):
-        if self.input_handler.mouse_pressed[0]:
-            for obj in self.level.walls + self.level.player_spawns + list(self.level.objects.values()) + \
-                       [self.level.scoreboard]:
+    def get_objects(self):
+        objects = self.level.walls + self.level.player_spawns + list(self.level.objects.values()) + self.level.goals
+        if self.level.scoreboard:
+            objects.append(self.level.scoreboard)
+        return objects
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if button == mouse.LEFT:
+            for obj in self.get_objects():
                 if obj.collider.point_inside(self.input_handler.mouse_position):
                     self.grabbed_object = obj
                     self.grab_offset = self.grabbed_object.position - self.input_handler.mouse_position
@@ -87,11 +107,14 @@ class Editor:
             else:
                 self.wall_start = np.round(self.input_handler.mouse_position)
 
-        if self.input_handler.mouse_released[0]:
+    def on_mouse_release(self, x, y, button, modifiers):
+        mouse_pos = self.camera.screen_to_world([x, y])
+
+        if button == mouse.LEFT:
             if self.grabbed_object is not None:
                 if isinstance(self.grabbed_object, Weapon):
                     for obj in self.level.objects.values():
-                        if type(obj) is Crate and obj.collider.point_inside(self.input_handler.mouse_position):
+                        if type(obj) is Crate and obj.collider.point_inside(mouse_pos):
                             obj.loot_list.append(type(obj))
                             del self.grabbed_object
                             break
@@ -107,70 +130,60 @@ class Editor:
                     else:
                         self.level.add_platform(pos, size[0])
                 self.wall_start = None
-
-        if self.input_handler.mouse_down[1]:
-            self.camera.position -= self.input_handler.mouse_change
-
-        if self.input_handler.mouse_pressed[2]:
+        elif button == mouse.RIGHT:
             for w in self.level.walls:
-                if w.collider.point_inside(self.input_handler.mouse_position):
+                if w.collider.point_inside(mouse_pos):
+                    w.sprite.delete()
                     self.level.walls.remove(w)
 
             for w in self.level.player_spawns:
-                if w.collider.point_inside(self.input_handler.mouse_position):
+                if w.collider.point_inside(mouse_pos):
                     self.level.player_spawns.remove(w)
 
             for k in list(self.level.objects.keys()):
-                if self.level.objects[k].collider.point_inside(self.input_handler.mouse_position):
+                if self.level.objects[k].collider.point_inside(mouse_pos):
+                    self.level.objects[k].sprite.delete()
                     del self.level.objects[k]
 
-        if self.input_handler.mouse_pressed[3]:
-            self.camera.zoom *= 1.5
+            if self.level.scoreboard and self.level.scoreboard.collider.point_inside(mouse_pos):
+                self.level.scoreboard.sprite.delete()
+                self.level.scoreboard = None
 
-        if self.input_handler.mouse_pressed[4]:
-            self.camera.zoom /= 1.5
+    def on_mouse_drag(self, x, y, dx, dy, button, modifiers):
+        self.input_handler.mouse_position[:] = self.camera.screen_to_world([x, y])
+        self.input_handler.mouse_change[0] = dx / self.camera.zoom
+        self.input_handler.mouse_change[1] = dy / self.camera.zoom
 
-        if self.input_handler.keys_pressed[pygame.K_s]:
-            for i, o in enumerate(self.level.objects.values()):
-                o.id = i
+        if button == mouse.MIDDLE:
+            self.camera.position[0] -= dx / self.camera.zoom
+            self.camera.position[1] -= dy / self.camera.zoom
+        elif button == mouse.LEFT:
+            if self.grabbed_object is not None:
+                w = self.grabbed_object.collider.half_width
+                h = self.grabbed_object.collider.half_height
+                pos = np.floor(self.input_handler.mouse_position + self.grab_offset - np.floor(w) - np.floor(h))
+                self.grabbed_object.set_position(pos + w + h)
 
-            with open('data/levels/lvl.pickle', 'wb') as f:
-                pickle.dump(self.level.get_data(), f)
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        self.camera.zoom *= 1.5**scroll_y
 
-        if self.input_handler.keys_pressed[pygame.K_l]:
-            with open('data/levels/lvl.pickle', 'rb') as f:
-                data = pickle.load(f)
-                self.level.clear()
-                self.level.apply_data(data)
+    def on_draw(self):
+        self.clear()
+        self.draw_grid(1.0)
+        self.level.draw(self.batch, self.camera, self.image_handler)
+        if self.option_handler.debug_draw:
+            self.level.debug_draw(self.batch, self.camera, self.image_handler)
 
-        if self.input_handler.keys_pressed[pygame.K_DELETE]:
-            self.level.clear()
+        for p in self.level.player_spawns:
+            p.draw(self.batch, self.camera, self.image_handler)
 
-        if self.input_handler.keys_pressed[pygame.K_w]:
-            if self.type_index == len(self.object_types) - 1:
-                self.type_index = 0
-            else:
-                self.type_index += 1
+        self.draw_selection()
 
-        pos = np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])
+        pos = self.camera.half_width + self.camera.half_height - 50 * np.ones(2)
+        pos = self.camera.position - pos / self.camera.zoom
+        self.camera.draw_text(self.object_types[self.type_index], pos, 32 / self.camera.zoom)
 
-        if self.input_handler.keys_pressed[pygame.K_p]:
-            self.level.player_spawns.append(PlayerSpawn(pos))
-
-        if self.input_handler.keys_pressed[pygame.K_c]:
-            self.level.add_object(Crate(pos))
-
-        if self.input_handler.keys_pressed[pygame.K_b]:
-            self.level.add_object(Ball(pos))
-
-        if self.input_handler.keys_pressed[pygame.K_g]:
-            self.level.add_object(Shotgun(pos))
-
-        if self.input_handler.keys_pressed[pygame.K_t]:
-            self.level.walls.append(Basket(pos))
-
-        if self.input_handler.keys_pressed[pygame.K_i]:
-            self.level.scoreboard = Scoreboard(pos)
+        self.batch.draw()
 
     def draw_grid(self, size):
         x_min = math.floor(self.camera.position[0] - self.camera.half_width[0] / self.camera.zoom)
@@ -180,34 +193,26 @@ class Editor:
 
         for x in np.linspace(x_min, x_max, int(abs(x_max - x_min) / size) + 1):
             if x % 5 == 0:
-                width = 3
+                width = 0.1
             else:
-                width = 1
-            pygame.draw.line(self.screen, self.grid_color, self.camera.world_to_screen([x, y_min]),
-                             self.camera.world_to_screen([x, y_max]), width)
+                width = 0.05
+            self.camera.draw_line([np.array([x, y_min]), np.array([x, y_max])], width, self.grid_color)
 
         for y in np.linspace(y_min, y_max, int(abs(y_max - y_min) / size) + 1):
             if y % 5 == 0:
-                width = 3
+                width = 0.1
             else:
-                width = 1
-            pygame.draw.line(self.screen, self.grid_color, self.camera.world_to_screen([x_min, y]),
-                             self.camera.world_to_screen([x_max, y]), width)
+                width = 0.05
+            self.camera.draw_line([np.array([x_min, y]), np.array([x_max, y])], width, self.grid_color)
 
     def draw_selection(self):
         if self.wall_start is not None:
             end = np.round(self.input_handler.mouse_position)
-            size = self.camera.zoom * (end - self.wall_start)
-            size[1] *= -1
-            pos = self.camera.world_to_screen(self.wall_start)
-            rect = pygame.rect.Rect(pos[0], pos[1], size[0], size[1])
-            pygame.draw.rect(self.screen, [255, 255, 255], rect, 5)
-
-
-def main():
-    editor_window = Editor()
-    editor_window.main_loop()
+            size = end - self.wall_start
+            pos = (self.wall_start + end) / 2
+            self.camera.draw_rectangle(pos, size[0], size[1], linewidth=0.1)
 
 
 if __name__ == "__main__":
-    main()
+    window = Editor()
+    pyglet.app.run()

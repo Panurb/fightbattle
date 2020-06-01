@@ -7,6 +7,7 @@ class OptionHandler:
 
         self.fps = 120
         self.resolution = (1280, 720)
+        self.vsync = False
         self.fullscreen = False
         self.sfx_volume = 100
         self.music_volume = 0

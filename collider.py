@@ -306,12 +306,9 @@ class Rectangle(Collider):
         self.half_width = perp(self.half_width)
         self.half_height = perp(self.half_height)
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-
-        points = [camera.world_to_screen(p) for p in self.corners()]
-
-        pygame.draw.polygon(screen, image_handler.debug_color, points, 1)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        camera.draw_line(self.corners() + [self.corners()[0]], 1, image_handler.debug_color)
 
     def draw_shadow(self, batch, camera, image_handler, light):
         points = [c + 0.5 * (c - light) / norm(c - light) for c in self.corners()]

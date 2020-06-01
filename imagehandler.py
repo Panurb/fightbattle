@@ -15,6 +15,7 @@ class ImageHandler:
         self.scale = 100
         self.images = dict()
         self.decals = dict()
+        self.tiles = dict()
         self.debug_color = (255, 0, 255)
         pyglet.resource.path = ['data/images', 'data/images/bodies', 'data/images/hands', 'data/images/heads',
                                 'data/images/weapons']
@@ -32,6 +33,19 @@ class ImageHandler:
                         name = file.replace('.png', '')
                         img = Image.open(os.path.join(r, file))
                         self.decals[name] = ImageOps.mirror(img)
+
+                continue
+
+            if 'tiles' in r:
+                for file in f:
+                    if '.png' in file:
+                        name = file.replace('.png', '')
+                        img = Image.open(os.path.join(r, file))
+                        img = ImageOps.mirror(img)
+                        if 'vertical' in name:
+                            self.tiles[name] = self.image_to_tiles(img, 1, 3)
+                        else:
+                            self.tiles[name] = self.image_to_tiles(img, 3, 1)
 
                 continue
 
@@ -56,19 +70,17 @@ class ImageHandler:
                     image.anchor_y = image.height // 2
                     self.images[name + '_flipped'] = image
 
-        self.image_to_tiles('wall', 3, 1)
-        self.image_to_tiles('wall_vertical', 1, 3)
-        self.image_to_tiles('platform', 3, 1)
-
-    def image_to_tiles(self, name, nx, ny):
-        # TODO use ImageGrid
-        image = self.images[name]
+    def image_to_tiles(self, image, nx, ny):
         width = image.width
         height = image.height
         tile_width = width // nx
         tile_height = height // ny
 
+        tiles = []
         for i in range(nx):
             for j in range(ny):
-                self.images[f'{name}_{i}_{j}'] = image.get_region(i * tile_width, j * tile_height,
-                                                                  tile_width, tile_height)
+                tile = image.crop([i * tile_width, (ny - j - 1) * tile_height, (i + 1) * tile_width, (ny - j) * tile_height])
+                tile = ImageOps.flip(tile)
+                tiles.append(tile)
+
+        return tiles

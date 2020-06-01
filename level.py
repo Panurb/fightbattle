@@ -8,24 +8,27 @@ from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
 from helpers import basis, polar_angle
 from prop import Crate, Ball
-from wall import Wall, Platform, Basket, Scoreboard
+from wall import Wall, Platform, Scoreboard
 from weapon import Gun, Bullet, Grenade
 
 
 class Level:
-    def __init__(self, name='', server=False):
+    def __init__(self, name='', server=False, editor=False):
         self.name = name
         self.player_spawns = []
 
         self.walls = []
         self.objects = dict()
+        self.goals = []
         self.scoreboard = None
         self.background = None
+        self.walls_sprite = None
 
         self.gravity = np.array([0, -0.1])
         self.id_count = 0
 
         self.server = server
+        self.editor = editor
 
         self.width = 0.0
         self.height = 0.0
@@ -38,9 +41,8 @@ class Level:
                 self.apply_data(pickle.load(f))
 
     def reset(self):
-        for w in self.walls:
-            if type(w) is Basket:
-                w.collider.colliders[-1].group = Group.WALLS
+        for g in self.goals:
+            g.collider.colliders[-1].group = Group.WALLS
                 
         for o in self.objects.values():
             if o.sprite:
@@ -69,25 +71,31 @@ class Level:
 
     def get_data(self):
         return (tuple(p.get_data() for p in self.player_spawns), tuple(w.get_data() for w in self.walls),
-                tuple(o.get_data() for o in self.objects.values()), self.scoreboard.get_data())
+                tuple(o.get_data() for o in self.objects.values()), tuple(g.get_data() for g in self.goals),
+                self.scoreboard.get_data())
 
     def apply_data(self, data):
         for p in data[0]:
             self.player_spawns.append(PlayerSpawn(p))
 
-        # FIXME: hardcoded index
-        i = 1
         for d in data[1]:
             w = d[0]([d[1], d[2]], *d[3:])
             self.walls.append(w)
-            if d[0] is Basket:
-                w.team = i
-                i -= 1
 
         for o in data[2]:
             self.id_count += 1
             self.objects[o[0]] = o[1]([o[2], o[3]])
             self.objects[o[0]].apply_data(o)
+
+        i = 1
+        for d in data[3]:
+            goal = d[0](d[1:2], *d[3])
+            self.goals.append(goal)
+            goal.team = i
+            i -= 1
+
+        self.scoreboard = Scoreboard([0, 0])
+        self.scoreboard.apply_data(data[4])
 
         self.update_shape()
 
@@ -102,8 +110,10 @@ class Level:
         for p in self.player_spawns:
             p.set_position(p.position + offset)
 
-        self.scoreboard = Scoreboard([0, 0])
-        self.scoreboard.apply_data(data[-1])
+        for g in self.goals:
+            g.set_position(g.position + offset)
+
+        self.scoreboard.set_position(self.scoreboard.position + offset)
 
         self.light = np.array([0.5 * self.width, self.height])
 
@@ -115,9 +125,6 @@ class Level:
         y_max = -np.inf
 
         for w in self.walls:
-            if type(w) is Basket:
-                continue
-
             x_min = min(x_min, w.position[0] - w.collider.half_width[0])
             y_min = min(y_min, w.position[1] - w.collider.half_height[1])
 
@@ -170,20 +177,38 @@ class Level:
             elif isinstance(obj, Bullet):
                 if obj.destroyed and (self.server or not obj.particle_clouds):
                     obj.collider.clear_occupied_squares(colliders)
+                    if obj.sprite:
+                        obj.sprite.delete()
                     del self.objects[k]
                     continue
 
     def draw(self, batch, camera, image_handler):
-        if self.background is None:
-            self.background = Background(int(self.width * camera.zoom), int(self.height * camera.zoom))
+        if not self.editor:
+            if self.background is None:
+                if self.width > 0 and self.height > 0:
+                    self.background = Background(int(self.width * camera.zoom), int(self.height * camera.zoom))
 
-        self.background.draw(batch, camera, image_handler)
+            self.background.draw(batch, camera, image_handler)
 
-        for wall in self.walls:
-            wall.draw(batch, camera, image_handler)
+            if self.walls_sprite is None:
+                width = int(self.width * camera.zoom)
+                height = int(self.height * camera.zoom)
+                image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
-        #if self.scoreboard:
-        #    self.scoreboard.draw(screen, camera, image_handler)
+                for wall in self.walls:
+                    wall.blit_to_image(image, camera, image_handler)
+
+                image = pyglet.image.ImageData(width, height, 'RGBA', image.tobytes())
+
+                self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[1])
+
+            self.walls_sprite.update(*camera.world_to_screen(np.zeros(2)), scale=int(50 / camera.zoom))
+        else:
+            for w in self.walls:
+                w.draw(batch, camera, image_handler)
+
+        if self.scoreboard:
+            self.scoreboard.draw(batch, camera, image_handler)
 
         for obj in self.objects.values():
             if isinstance(obj, Bullet) and obj.decal:
@@ -243,14 +268,21 @@ class Background:
             image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
             self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[self.layer])
 
-            for _ in range(5):
+            for _ in range(10):
+                x = np.random.random() * self.width / camera.zoom
+                y = np.random.random() * self.height / camera.zoom
+                angle = 2 * np.pi * np.random.random()
+                path = np.random.choice(['crack', 'crack2'])
+                self.add_decal(image_handler, path, [x, y], angle, camera)
+
+            for _ in range(10):
                 x = np.random.random() * self.width / camera.zoom
                 y = np.random.random() * self.height / camera.zoom
                 angle = 0.5 * (np.random.random() - 0.5)
-                path = np.random.choice(['warning', 'poster', 'crack'])
+                path = np.random.choice(['warning', 'poster', 'radioactive'])
                 self.add_decal(image_handler, path, [x, y], angle, camera)
 
-        self.sprite.update(*camera.world_to_screen(np.zeros(2)))
+        self.sprite.update(*camera.world_to_screen(np.zeros(2)), scale=int(50 / camera.zoom))
 
     def add_decal(self, image_handler, path, position, angle, camera):
         decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)

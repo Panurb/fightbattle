@@ -21,6 +21,7 @@ class Bullet(PhysicsObject):
         self.destroyed = False
         self.dmg = dmg
         self.decal = ''
+        self.layer = 6
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -87,6 +88,7 @@ class Arrow(Bullet):
         self.bounce = 0.0
         self.hit = False
         self.angle = polar_angle(self.velocity)
+        self.layer = 6
 
     def update(self, gravity, time_step, colliders):
         if self.time < self.lifetime:
@@ -113,14 +115,15 @@ class Arrow(Bullet):
 
         for c in self.collider.collisions:
             obj = c.collider.parent
-            #if obj not in [self.parent.body, self.parent.head]:
             if isinstance(obj, Destroyable):
                 if obj.parent:
                     obj.parent.velocity += 0.1 * self.velocity
-                particle_type = obj.damage(int(self.speed * self.dmg), colliders)
+                particle_type = obj.damage(self.dmg, colliders)
                 self.destroy(particle_type)
+                if particle_type is BloodSplatter:
+                    self.decal = 'blood'
             else:
                 obj.velocity += self.velocity
-                self.destroy(Sparks)
+                self.destroy()
 
             return

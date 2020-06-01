@@ -74,6 +74,7 @@ class Particle:
         self.stretch = stretch
         self.vertex_list = [None, None, None]
         self.time = 0.0
+        self.layer = 7
 
     def update(self, gravity, time_step):
         self.time = min(self.time + time_step, self.lifetime)
@@ -94,19 +95,19 @@ class Particle:
 
         if self.shading:
             self.vertex_list[0] = camera.draw_ellipse(self.position, width, height, angle, (1 - self.shading) * color,
-                                                      batch=batch, layer=2, vertex_list=self.vertex_list[0])
+                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[0])
 
             self.vertex_list[1] = camera.draw_ellipse(self.position + 0.25 * width * basis(0),
                                                       0.8 * width, 0.8 * height, angle, color,
-                                                      batch=batch, layer=2, vertex_list=self.vertex_list[1])
+                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[1])
         else:
             self.vertex_list[0] = camera.draw_ellipse(self.position, width, height, angle, color,
-                                                      batch=batch, layer=2, vertex_list=self.vertex_list[0])
+                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[0])
 
         if self.shine:
             self.vertex_list[2] = camera.draw_circle(self.position + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
                                                      color + (255 - color) * self.shine,
-                                                     batch=batch, layer=2, vertex_list=self.vertex_list[2])
+                                                     batch=batch, layer=self.layer, vertex_list=self.vertex_list[2])
 
 
 class BloodSplatter(Cloud):
@@ -134,5 +135,5 @@ class Sparks(Cloud):
 
 class Dust(Cloud):
     def __init__(self, position, velocity, number):
-        super().__init__(position, 0.2 * velocity, number, 5.0, 0.7, gravity_scale=0.5, start_color=(200, 200, 200),
-                         end_color=(200, 200, 200), shading=0.2)
+        super().__init__(position, 0.2 * velocity, number, 5.0, 0.5, gravity_scale=0.5, start_color=(200, 200, 200),
+                         end_color=(200, 200, 200), shading=0.1)
