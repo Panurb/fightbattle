@@ -1,13 +1,13 @@
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
-from weapon import Revolver, Shotgun, Shield, Sword, Grenade, Bow
+from weapon import Revolver, Shotgun, Shield, Axe, Grenade, Bow
 
 
 class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=10)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
-        self.loot_list = [Revolver, Shotgun, Shield, Sword, Grenade, Bow]
+        self.loot_list = [Axe]
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)

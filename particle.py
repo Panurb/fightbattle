@@ -1,9 +1,7 @@
 import numpy as np
-import pyglet
 from numpy.linalg import norm
-import pygame
 
-from helpers import polar_angle, polar_to_cartesian, norm2, random_unit, basis
+from helpers import polar_angle, polar_to_cartesian, norm2, random_unit, basis, rotate
 
 
 class Cloud:
@@ -57,6 +55,10 @@ class Cloud:
         for p in self.particles:
             p.draw(batch, camera)
 
+    def delete(self):
+        for p in self.particles:
+            p.delete()
+
 
 class Particle:
     def __init__(self, position, velocity, lifetime, size, gravity_scale=1.0,
@@ -76,6 +78,11 @@ class Particle:
         self.time = 0.0
         self.layer = 7
 
+    def delete(self):
+        for v in self.vertex_list:
+            if v:
+                v.delete()
+
     def update(self, gravity, time_step):
         self.time = min(self.time + time_step, self.lifetime)
 
@@ -89,7 +96,7 @@ class Particle:
     def draw(self, batch, camera):
         color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
         height = (1 - self.time / self.lifetime) * self.size
-        width = (1 + self.stretch * norm2(self.velocity)) * height
+        width = (1 + self.stretch * norm(self.velocity)) * height
 
         angle = polar_angle(self.velocity)
 
@@ -105,15 +112,15 @@ class Particle:
                                                       batch=batch, layer=self.layer, vertex_list=self.vertex_list[0])
 
         if self.shine:
-            self.vertex_list[2] = camera.draw_circle(self.position + np.array([0.8 * width, 0.5 * height]), 0.2 * height,
-                                                     color + (255 - color) * self.shine,
+            self.vertex_list[2] = camera.draw_circle(self.position + rotate(np.array([0.7 * width, 0.5 * height]), angle),
+                                                     0.3 * height, color + (255 - color) * self.shine,
                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[2])
 
 
 class BloodSplatter(Cloud):
     def __init__(self, position, direction, number=10):
-        super().__init__(position, direction, number, 10.0, 0.5, start_color=(255, 0, 0), end_color=(255, 0, 0),
-                         shading=0.17, shine=1.0, stretch=0.5)
+        super().__init__(position, direction, number, 10.0, 0.3, start_color=(255, 0, 0), end_color=(255, 0, 0),
+                         shading=0.17, shine=1.0, stretch=5)
 
 
 class MuzzleFlash(Cloud):
@@ -130,7 +137,7 @@ class Explosion(Cloud):
 
 class Sparks(Cloud):
     def __init__(self, position, velocity):
-        super().__init__(position, velocity, 3, 5.0, 0.4)
+        super().__init__(position, velocity, 3, 10.0, 0.2, stretch=5, gravity_scale=0.1)
 
 
 class Dust(Cloud):

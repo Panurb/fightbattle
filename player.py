@@ -1,12 +1,11 @@
 import numpy as np
 from numpy.linalg import norm
-import pygame
 
 from gameobject import GameObject, PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized, rotate, polar_angle, random_unit
 from particle import BloodSplatter, Dust
-from weapon import Shotgun, Shield, Bow, Sword, Weapon, Grenade
+from weapon import Shotgun, Shield, Bow, Axe, Weapon, Grenade
 
 
 class Player(Destroyable):
@@ -68,6 +67,7 @@ class Player(Destroyable):
         self.grab_timer = 0.0
 
         self.jump_speed = 0.65
+        self.team = 'blue'
 
     def get_data(self):
         return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1],
@@ -117,7 +117,7 @@ class Player(Destroyable):
     def set_spawn(self, level, players):
         i = 0
         max_dist = 0.0
-        for j, s in enumerate(level.player_spawns):
+        for j, s in enumerate([s for s in level.player_spawns if s.team == self.team]):
             if len(players) == 1:
                 break
 
@@ -201,7 +201,8 @@ class Player(Destroyable):
                     if self.dust:
                         self.particle_clouds.append(Dust(self.position - self.collider.half_height, -self.velocity, 5))
                 self.on_ground = True
-                self.velocity[1] = 0.0
+                if type(collision.collider) is not Circle:
+                    self.velocity[1] = 0.0
             elif collision.overlap[1] < 0:
                 if self.velocity[1] > 0.1:
                     self.sounds.add('bump')
@@ -271,8 +272,6 @@ class Player(Destroyable):
                 self.hand.velocity[:] = np.zeros(2)
 
                 if type(self.object) not in {Bow, Shield, Grenade} and self.object.timer > 0:
-                    if self.object.hit:
-                        self.hand.play_animation('idle')
                     self.hand.animate(time_step)
                     self.object.set_position(self.hand.position)
 
@@ -281,7 +280,7 @@ class Player(Destroyable):
                     self.hand.set_position(self.object.position)
                     self.hand.velocity[:] = np.zeros(2)
 
-                self.object.rotate(self.hand.angle - self.object.angle)
+                self.object.rotate(self.hand.angle + self.direction * self.throw_charge - self.object.angle)
 
             if norm(self.shoulder - self.object.position) > 1.6 * self.hand.length:
                 if isinstance(self.object, Weapon):
@@ -421,7 +420,7 @@ class Player(Destroyable):
             else:
                 self.hand.image_path = 'hand'
 
-            if self.hand.animation in ['sword', 'revolver', 'shotgun']:
+            if self.hand.animation in ['axe', 'revolver', 'shotgun']:
                 angle = np.arctan(self.hand_goal[1] / self.hand_goal[0])
                 self.hand.animation_angle = angle
 
@@ -467,23 +466,24 @@ class Player(Destroyable):
         for b in self.particle_clouds:
             b.draw(batch, camera)
 
-    def draw_shadow(self, screen, camera, image_handler, light):
-        self.head.draw_shadow(screen, camera, image_handler, light)
-        self.body.draw_shadow(screen, camera, image_handler, light)
+    def draw_shadow(self, batch, camera, image_handler, light):
+        self.head.draw_shadow(batch, camera, image_handler, light)
+        self.body.draw_shadow(batch, camera, image_handler, light)
+        self.hand.draw_shadow(batch, camera, image_handler, light)
 
-    def debug_draw(self, screen, camera, image_handler):
-        self.collider.draw(screen, camera, image_handler)
+    def debug_draw(self, batch, camera, image_handler):
+        self.collider.draw(batch, camera, image_handler)
 
-        self.hand.debug_draw(screen, camera, image_handler)
+        self.hand.debug_draw(batch, camera, image_handler)
 
-        self.back_foot.debug_draw(screen, camera, image_handler)
-        self.front_foot.debug_draw(screen, camera, image_handler)
+        self.back_foot.debug_draw(batch, camera, image_handler)
+        self.front_foot.debug_draw(batch, camera, image_handler)
 
-        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder + self.hand_goal), 2)
-        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.shoulder), 2)
+        #pygame.draw.circle(batch, image_handler.debug_color, camera.world_to_screen(self.shoulder + self.hand_goal), 2)
+        #pygame.draw.circle(batch, image_handler.debug_color, camera.world_to_screen(self.shoulder), 2)
 
-        self.head.debug_draw(screen, camera, image_handler)
-        self.body.debug_draw(screen, camera, image_handler)
+        self.head.debug_draw(batch, camera, image_handler)
+        self.body.debug_draw(batch, camera, image_handler)
 
     def input(self, input_handler):
         if self.destroyed or self.controller_id == -1 or self.controller_id >= len(input_handler.controllers):
@@ -503,6 +503,8 @@ class Player(Destroyable):
             self.health = 0
 
         self.goal_velocity[0] = (5 - 2 * self.crouched) / 5 * self.max_speed * controller.left_stick[0]
+        if self.object:
+            self.goal_velocity[0] *= 0.9
 
         if self.on_ground and controller.left_stick[1] < -0.5:
             self.goal_crouched = 1.0
@@ -632,7 +634,7 @@ class Player(Destroyable):
 
         if self.object.timer == 0:
             self.object.attacked = True
-            if type(self.object) not in {Sword, Bow, Grenade}:
+            if type(self.object) not in {Axe, Bow, Grenade}:
                 self.camera_shake = 40 * random_unit()
 
 
@@ -641,7 +643,6 @@ class Head(Destroyable):
         super().__init__(position, image_path='bald', debris_path='gib', size=0.85, debris_size=0.4, health=20,
                          parent=parent)
         self.layer = 4
-        self.blood = []
         self.reset()
 
     def reset(self):
@@ -651,17 +652,14 @@ class Head(Destroyable):
         self.health = 20
         self.active = True
         self.collision_enabled = True
-        self.blood.clear()
 
     def damage(self, amount, colliders):
-        self.blood.append(GameObject(self.position, 'blood'))
         super().damage(amount, colliders)
         self.parent.damage(5 * amount, colliders)
 
         return BloodSplatter
 
     def destroy(self, colliders):
-        self.blood.clear()
         self.parent.destroy(colliders)
         super().destroy(colliders)
         self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4], 5))
@@ -669,17 +667,12 @@ class Head(Destroyable):
     def draw(self, batch, camera, image_handler):
         self.image_path = f'{self.parent.head_type}'
         super().draw(batch, camera, image_handler)
-        for b in self.blood:
-            b.set_position(self.position)
-            b.angle = self.angle
-            b.draw(batch, camera, image_handler)
 
 
 class Body(Destroyable):
     def __init__(self, position, parent):
         super().__init__(position, debris_path='gib', size=0.75, debris_size=0.5, health=100, parent=parent)
         self.layer = 4
-        self.blood = []
         self.reset()
 
     def reset(self):
@@ -688,12 +681,10 @@ class Body(Destroyable):
         self.destroyed = False
         self.health = 100
         self.collision_enabled = True
-        self.blood.clear()
         self.rotate(-self.angle)
 
     def damage(self, amount, colliders):
         self.parent.damage(amount, colliders)
-        self.blood.append(((np.random.random() - 0.5) * basis(1), 2 * np.pi * np.random.random()))
 
         return BloodSplatter
 
@@ -704,9 +695,6 @@ class Body(Destroyable):
     def draw(self, batch, camera, image_handler):
         self.image_path = f'body_{self.parent.body_type}'
         super().draw(batch, camera, image_handler)
-        for b in self.blood:
-            camera.draw_image(image_handler, 'blood', self.position + rotate(b[0], self.angle), 1,
-                              self.direction, self.angle + b[1])
 
 
 class Hand(PhysicsObject, AnimatedObject):
@@ -724,10 +712,10 @@ class Hand(PhysicsObject, AnimatedObject):
 
             self.add_animation(np.zeros(1), np.zeros(1), np.zeros(1), 'idle')
 
-            xs = np.array([-0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
-            ys = np.array([-0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
-            angles = np.pi * np.array([-0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
-            self.add_animation(xs, ys, angles, 'sword')
+            xs = np.array([-0.1, -0.125, 0.1, 0.0, -0.1, -0.2, -0.15, -0.2])
+            ys = np.array([-0.2, -0.2, -0.4, -0.6, -0.55, -0.4, -0.3, -0.15])
+            angles = np.pi * np.array([0.25, -0.25, -0.55, -0.5, -0.25, -0.125, 0.0, 0.125])
+            self.add_animation(xs, ys, angles, 'axe')
 
             xs = 2 * np.array([0.0, -0.15, -0.25, -0.25, -0.25, -0.25, -0.25, -0.2, -0.1, -0.05, 0.0])
             ys = 3 * np.array([0.0, 0.1, 0.2, 0.18, 0.15, 0.125, 0.1, 0.15, 0.1, 0.05, 0.0])
@@ -783,6 +771,9 @@ class Hand(PhysicsObject, AnimatedObject):
                                                   batch=batch, layer=self.arm_layer, sprite=self.lower_arm_sprite)
 
         super().draw(batch, camera, image_handler)
+
+    def draw_shadow(self, screen, camera, image_handler, light):
+        super().draw_shadow(screen, camera, image_handler, light)
 
 
 class Foot(PhysicsObject, AnimatedObject):

@@ -6,8 +6,7 @@ from PIL import Image
 
 from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
-from helpers import basis, polar_angle
-from prop import Crate, Ball
+from prop import Crate
 from wall import Wall, Platform, Scoreboard
 from weapon import Gun, Bullet, Grenade
 
@@ -45,10 +44,7 @@ class Level:
             g.collider.colliders[-1].group = Group.WALLS
                 
         for o in self.objects.values():
-            if o.sprite:
-                o.sprite.delete()
-            if o.shadow_sprite:
-                o.shadow_sprite.delete()
+            o.delete()
 
         self.objects.clear()
         if self.name:
@@ -70,9 +66,11 @@ class Level:
         self.objects.clear()
 
     def get_data(self):
-        return (tuple(p.get_data() for p in self.player_spawns), tuple(w.get_data() for w in self.walls),
+        data = (tuple(p.get_data() for p in self.player_spawns), tuple(w.get_data() for w in self.walls),
                 tuple(o.get_data() for o in self.objects.values()), tuple(g.get_data() for g in self.goals),
                 self.scoreboard.get_data())
+
+        return data
 
     def apply_data(self, data):
         for p in data[0]:
@@ -87,12 +85,9 @@ class Level:
             self.objects[o[0]] = o[1]([o[2], o[3]])
             self.objects[o[0]].apply_data(o)
 
-        i = 1
         for d in data[3]:
-            goal = d[0](d[1:2], *d[3])
+            goal = d[0]([d[1], d[2]], d[3])
             self.goals.append(goal)
-            goal.team = i
-            i -= 1
 
         self.scoreboard = Scoreboard([0, 0])
         self.scoreboard.apply_data(data[4])
@@ -169,7 +164,7 @@ class Level:
                 if obj.destroyed and (self.server or (not obj.active)):
                     del self.objects[k]
                     continue
-            elif isinstance(obj, Gun) and obj.attacked:
+            elif isinstance(obj, Gun):
                 bs = obj.attack()
                 for b in bs:
                     self.add_object(b)
@@ -186,26 +181,29 @@ class Level:
         if not self.editor:
             if self.background is None:
                 if self.width > 0 and self.height > 0:
-                    self.background = Background(int(self.width * camera.zoom), int(self.height * camera.zoom))
+                    self.background = Background(int(self.width * 100), int(self.height * 100))
 
             self.background.draw(batch, camera, image_handler)
 
             if self.walls_sprite is None:
-                width = int(self.width * camera.zoom)
-                height = int(self.height * camera.zoom)
+                width = int(self.width * 100)
+                height = int(self.height * 100)
                 image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
                 for wall in self.walls:
-                    wall.blit_to_image(image, camera, image_handler)
+                    wall.blit_to_image(image, image_handler)
 
                 image = pyglet.image.ImageData(width, height, 'RGBA', image.tobytes())
 
-                self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[1])
+                self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[2])
 
-            self.walls_sprite.update(*camera.world_to_screen(np.zeros(2)), scale=int(50 / camera.zoom))
+            self.walls_sprite.update(*camera.world_to_screen(np.zeros(2)), scale=camera.zoom / 100)
         else:
             for w in self.walls:
                 w.draw(batch, camera, image_handler)
+
+        for g in self.goals:
+            g.draw(batch, camera, image_handler)
 
         if self.scoreboard:
             self.scoreboard.draw(batch, camera, image_handler)
@@ -221,12 +219,18 @@ class Level:
         for w in self.walls:
             w.draw_shadow(screen, camera, image_handler, self.light)
 
+        for g in self.goals:
+            g.draw_shadow(screen, camera, image_handler, self.light)
+
         for o in self.objects.values():
             o.draw_shadow(screen, camera, image_handler, self.light)
 
     def debug_draw(self, screen, camera, image_handler):
         for wall in self.walls:
             wall.debug_draw(screen, camera, image_handler)
+
+        for g in self.goals:
+            g.debug_draw(screen, camera, image_handler)
 
         for obj in self.objects.values():
             obj.debug_draw(screen, camera, image_handler)
@@ -241,16 +245,25 @@ class Level:
 
 
 class PlayerSpawn(GameObject):
-    def __init__(self, position):
+    def __init__(self, position, team='blue'):
         super().__init__(position)
-
+        self.team = team
         self.add_collider(Rectangle([0, 0], 1, 3))
+        self.vertex_list = None
 
     def get_data(self):
         return tuple(self.position)
 
     def apply_data(self, data):
         self.set_position(np.array(data))
+
+    def change_team(self):
+        self.team = 'blue' if self.team == 'red' else 'red'
+
+    def draw(self, batch, camera, image_handler):
+        color = (0, 0, 255) if self.team == 'blue' else (255, 0, 0)
+        self.vertex_list = camera.draw_rectangle(self.collider.position, self.collider.width, self.collider.height,
+                                                 color, batch=batch, layer=6, vertex_list=self.vertex_list)
 
 
 class Background:
@@ -269,25 +282,27 @@ class Background:
             self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[self.layer])
 
             for _ in range(10):
-                x = np.random.random() * self.width / camera.zoom
-                y = np.random.random() * self.height / camera.zoom
+                x = np.random.random() * self.width
+                y = np.random.random() * self.height
                 angle = 2 * np.pi * np.random.random()
+                scale = np.random.uniform(1.0, 1.5)
                 path = np.random.choice(['crack', 'crack2'])
-                self.add_decal(image_handler, path, [x, y], angle, camera)
+                self.add_decal(image_handler, path, [x, y], angle, scale)
 
             for _ in range(10):
-                x = np.random.random() * self.width / camera.zoom
-                y = np.random.random() * self.height / camera.zoom
+                x = np.random.random() * self.width
+                y = np.random.random() * self.height
                 angle = 0.5 * (np.random.random() - 0.5)
                 path = np.random.choice(['warning', 'poster', 'radioactive'])
-                self.add_decal(image_handler, path, [x, y], angle, camera)
+                self.add_decal(image_handler, path, [x, y], angle)
 
-        self.sprite.update(*camera.world_to_screen(np.zeros(2)), scale=int(50 / camera.zoom))
+        self.sprite.update(*camera.world_to_screen(np.zeros(2)), scale=camera.zoom / 100)
 
-    def add_decal(self, image_handler, path, position, angle, camera):
+    def add_decal(self, image_handler, path, position, angle, scale=1.0):
         decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)
-        pos = [int(position[0] * camera.zoom - 0.5 * decal.width),
-               int(position[1] * camera.zoom - 0.5 * decal.height)]
+        decal = decal.resize([int(scale * x) for x in decal.size], Image.ANTIALIAS)
+        pos = [int(position[0] - 0.5 * decal.width),
+               int(position[1] - 0.5 * decal.height)]
         self.image.paste(decal, pos, decal.convert('RGBA'))
         image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
         self.sprite.image = image

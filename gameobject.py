@@ -1,10 +1,8 @@
 import numpy as np
-import pyglet
 from numpy.linalg import norm
-import pygame
 
 from collider import Circle, Group, Rectangle
-from helpers import norm2, rotate, normalized, basis, random_unit, polar_angle
+from helpers import norm2, rotate, normalized, basis, random_unit
 from particle import Sparks, Dust
 
 MAX_SPEED = 5.0
@@ -32,6 +30,12 @@ class GameObject:
 
         self.shadow_sprite = None
         self.layer = layer
+
+    def delete(self):
+        if self.sprite:
+            self.sprite.delete()
+        if self.shadow_sprite:
+            self.shadow_sprite.delete()
 
     def get_data(self):
         data = (self.id, type(self), self.position[0], self.position[1], self.direction, self.angle)
@@ -79,7 +83,7 @@ class GameObject:
                                         batch=batch, layer=self.layer, sprite=self.sprite)
 
     def debug_draw(self, batch, camera, image_handler):
-        camera.draw_circle(camera.world_to_screen(self.position), 2, image_handler.debug_color)
+        camera.draw_circle(self.position, 0.1, image_handler.debug_color)
         if self.collider:
             self.collider.draw(batch, camera, image_handler)
 
@@ -94,7 +98,7 @@ class GameObject:
         pos = self.position + 0.5 * r / norm(r) + rotate(self.image_position, self.angle)
 
         self.shadow_sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction,
-                                               self.angle, batch=batch, layer=0, sprite=self.shadow_sprite)
+                                               self.angle, batch=batch, layer=2, sprite=self.shadow_sprite)
         self.shadow_sprite.color = (0, 0, 0)
         self.shadow_sprite.opacity = 128
 
@@ -127,6 +131,12 @@ class PhysicsObject(GameObject):
         self.group = None
 
         self.dust = dust
+        self.blunt_damage = 10
+
+    def delete(self):
+        super().delete()
+        for p in self.particle_clouds:
+            p.delete()
 
     def add_collider(self, collider):
         super().add_collider(collider)
@@ -234,7 +244,7 @@ class PhysicsObject(GameObject):
             elif collision.overlap[0] != 0:
                 self.angular_velocity *= -1
 
-            if self.dust:
+            if self.dust and self.gravity_scale:
                 n = min(int(self.speed * 5), 10)
                 if n > 1:
                     self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
@@ -245,8 +255,15 @@ class PhysicsObject(GameObject):
             self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
             self.velocity *= self.bounce
 
-            if not self.parent and isinstance(collider.parent, PhysicsObject):
-                collider.parent.velocity[:] = -self.velocity
+            if self.gravity_scale:
+                if isinstance(collider.parent, PhysicsObject):
+                    collider.parent.velocity[:] = -self.velocity
+                    if isinstance(collider.parent, Destroyable):
+                        particle_type = collider.parent.damage(self.speed * self.blunt_damage, colliders)
+                        if particle_type:
+                            self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
+                        if self.parent:
+                            self.parent.camera_shake = 20 * random_unit()
 
         if self.collider.group is Group.THROWN and self.collider.collisions:
             self.parent = None
@@ -292,6 +309,11 @@ class Destroyable(PhysicsObject):
         self.debris_size = debris_size
         self.parent = parent
 
+    def delete(self):
+        super().delete()
+        for d in self.debris:
+            d.delete()
+
     def get_data(self):
         return super().get_data() + (self.health, )
 
@@ -306,7 +328,7 @@ class Destroyable(PhysicsObject):
         if self.health <= 0:
             self.destroy(colliders)
 
-        return Sparks
+        return None
 
     def destroy(self, colliders):
         if self.destroyed:
@@ -369,8 +391,7 @@ class Destroyable(PhysicsObject):
 
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)
-        text = image_handler.font.render(str(self.health), True, image_handler.debug_color)
-        screen.blit(text, camera.world_to_screen(self.position))
+        camera.draw_text(str(self.health), self.position, 0.05, color=image_handler.debug_color)
 
     def play_sounds(self, sound_handler):
         super().play_sounds(sound_handler)

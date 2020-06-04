@@ -3,7 +3,7 @@ import numpy as np
 from collider import Circle, Group
 from gameobject import PhysicsObject, Destroyable
 from helpers import polar_angle
-from particle import Sparks, BloodSplatter
+from particle import BloodSplatter
 
 
 class Bullet(PhysicsObject):

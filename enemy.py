@@ -3,13 +3,13 @@ from numpy.linalg import norm
 
 from helpers import normalized
 from player import Player
-from weapon import Sword
+from weapon import Axe
 
 
 class Enemy(Player):
     def __init__(self, position):
         super().__init__(position)
-        self.object = Sword(self.hand.position)
+        self.object = Axe(self.hand.position)
         self.object.parent = self
 
     def update(self, gravity, time_step, colliders):

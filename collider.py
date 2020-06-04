@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.linalg import norm
 import enum
-import pygame
 from numba import njit, prange
 
 from helpers import norm2, perp, basis, polar_angle
@@ -29,7 +28,7 @@ class Group(enum.IntEnum):
 COLLIDES_WITH = {Group.NONE: set(),
                  Group.PLAYERS: {Group.WALLS, Group.PLATFORMS},
                  Group.WALLS: set(),
-                 Group.GUNS: {Group.WALLS, Group.SHIELDS, Group.PLATFORMS},
+                 Group.GUNS: {Group.WALLS, Group.PLATFORMS},
                  Group.HANDS: {Group.WALLS},
                  Group.PROPS: {Group.WALLS, Group.PROPS, Group.PLATFORMS},
                  Group.BULLETS: {Group.WALLS, Group.SHIELDS},
@@ -168,10 +167,11 @@ class Collider:
         pass
 
     def draw(self, screen, camera, image_handler):
-        for i, j in self.occupied_squares:
-            x, y = camera.world_to_screen(np.array([GRID_SIZE * i, GRID_SIZE * (j + 1)]))
-            rect = pygame.rect.Rect(x, y, GRID_SIZE * camera.zoom, GRID_SIZE * camera.zoom)
-            pygame.draw.rect(screen, pygame.Color('white'), rect, 1)
+        pass
+        #for i, j in self.occupied_squares:
+        #    x, y = camera.world_to_screen(np.array([GRID_SIZE * i, GRID_SIZE * (j + 1)]))
+        #    rect = pygame.rect.Rect(x, y, GRID_SIZE * camera.zoom, GRID_SIZE * camera.zoom)
+        #    pygame.draw.rect(screen, pygame.Color('white'), rect, 1)
 
     def overlap(self, other):
         pass
@@ -186,8 +186,8 @@ class Collider:
         w = axis_half_width(self.half_width, self.half_height, basis(0))
         h = axis_half_width(self.half_width, self.half_height, basis(1))
 
-        for i in range(int((pos[0] - w) / GRID_SIZE), min(int((pos[0] + w) / GRID_SIZE) + 1, len(colliders))):
-            for j in range(int((pos[1] - h) / GRID_SIZE), min(int((pos[1] + h) / GRID_SIZE) + 1, len(colliders[i]))):
+        for i in range(max(int((pos[0] - w) / GRID_SIZE), 0), min(int((pos[0] + w) / GRID_SIZE) + 1, len(colliders))):
+            for j in range(max(int((pos[1] - h) / GRID_SIZE), 0), min(int((pos[1] + h) / GRID_SIZE) + 1, len(colliders[i]))):
                 self.occupied_squares.append((i, j))
 
         for i, j in self.occupied_squares:
@@ -197,9 +197,6 @@ class Collider:
         for i, j in self.occupied_squares:
             colliders[i][j].remove(self)
         self.occupied_squares.clear()
-
-    def draw_shadow(self, screen, camera, image_handler, light):
-        pass
 
 
 class ColliderGroup:
@@ -213,6 +210,9 @@ class ColliderGroup:
         self.occupied_squares = []
 
         self.colliders = []
+        self.radius = 0.0
+        self.half_width = 0.5 * basis(0)
+        self.half_height = 0.5 * basis(1)
 
     def set_position(self, position):
         delta_pos = position - self.position
@@ -223,8 +223,8 @@ class ColliderGroup:
     def add_collider(self, collider):
         self.colliders.append(collider)
         collider.parent = self.parent
-        # FIXME: why half?
-        collider.position += 0.5 * self.position
+        self.radius = max(self.radius, norm(collider.position + collider.half_width + collider.half_height))
+        collider.position += self.position
 
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
@@ -241,15 +241,16 @@ class ColliderGroup:
         for c in self.colliders:
             c.draw(screen, camera, image_handler)
 
+    def debug_draw(self, batch, camera, image_handler):
+        for c in self.colliders:
+            c.debug_draw(batch, camera, image_handler)
+
     def overlap(self, other):
         return sum(c.overlap(other) for c in self.colliders)
 
     def point_inside(self, point):
-        for c in self.colliders:
-            if c.point_inside(point):
-                return True
-
-        return False
+        r = point - self.position
+        return norm(r) < self.radius
 
     def update_occupied_squares(self, colliders):
         for c in self.colliders:
@@ -259,9 +260,6 @@ class ColliderGroup:
         for c in self.colliders:
             c.clear_occupied_squares(colliders)
 
-    def draw_shadow(self, screen, camera, image_handler, light):
-        pass
-
 
 class Rectangle(Collider):
     def __init__(self, position, width, height, group=Group.NONE):
@@ -270,6 +268,7 @@ class Rectangle(Collider):
         self.half_height = np.array([0.0, 0.5 * height])
         self.width = width
         self.height = height
+        self.vertex_list = None
 
     def corners(self):
         ur = self.position + self.half_width + self.half_height
@@ -308,20 +307,16 @@ class Rectangle(Collider):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        camera.draw_line(self.corners() + [self.corners()[0]], 1, image_handler.debug_color)
-
-    def draw_shadow(self, batch, camera, image_handler, light):
-        points = [c + 0.5 * (c - light) / norm(c - light) for c in self.corners()]
-
-        camera.draw_polygon(points, (80, 80, 80), layer=0)
+        self.vertex_list = camera.draw_line(self.corners() + [self.corners()[0]], 0.05, image_handler.debug_color,
+                                            batch=batch, layer=6, vertex_list=self.vertex_list)
 
 
 class Circle(Collider):
     def __init__(self, position, radius, group=Group.NONE):
         super().__init__(position, group)
         self.radius = radius
-        self.half_height = radius * basis(1)
         self.half_width = radius * basis(0)
+        self.half_height = radius * basis(1)
 
     def overlap(self, other):
         overlap = np.zeros(2)
@@ -347,10 +342,4 @@ class Circle(Collider):
 
     def draw(self, screen, camera, image_handler):
         super().draw(screen, camera, image_handler)
-        center = camera.world_to_screen(self.position)
-        pygame.draw.circle(screen, image_handler.debug_color, center, int(self.radius * camera.zoom), 1)
-
-    def draw_shadow(self, screen, camera, light):
-        r = self.position - light
-        camera.draw_circle(screen, self.position + 0.5 * r / norm(r), max(self.radius, self.radius / norm(r)),
-                           (80, 80, 80), 0)
+        camera.draw_circle(self.position, self.radius, image_handler.debug_color, linewidth=1)

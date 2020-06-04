@@ -1,18 +1,16 @@
-import pygame
-
 import numpy as np
 from numpy.linalg import norm
 
 from bullet import Pellet, Bullet, Arrow
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
-from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit, norm2
+from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit, norm2, normalized
 from particle import MuzzleFlash, Explosion, Sparks, BloodSplatter
 
 
 class Weapon(PhysicsObject):
-    def __init__(self, position):
-        super().__init__(position, bump_sound='gun')
+    def __init__(self, position, image_path):
+        super().__init__(position, image_path=image_path, bump_sound='gun')
         self.hand_position = np.zeros(2)
         self.attacked = False
         self.hit = False
@@ -24,13 +22,16 @@ class Weapon(PhysicsObject):
         self.timer = max(0.0, self.timer - time_step)
 
     def attack(self):
+        if self.timer != 0:
+            return
+
         self.attacked = False
         self.timer = self.attack_delay
 
 
 class Gun(Weapon):
-    def __init__(self, position):
-        super().__init__(position)
+    def __init__(self, position, image_path):
+        super().__init__(position, image_path=image_path)
         self.barrel_position = np.array([1.0, 0.3])
         self.grip_position = None
         self.bullet_speed = 3.0
@@ -66,10 +67,6 @@ class Gun(Weapon):
         super().attack()
         v = 0.1 * self.direction * polar_to_cartesian(1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
-        self.particle_clouds.append(
-            MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, 0.5 * np.pi), self.parent.velocity))
-        self.particle_clouds.append(
-            MuzzleFlash(self.get_barrel_position(), rotate(0.5 * v, -0.5 * np.pi), self.parent.velocity))
 
         return []
 
@@ -79,8 +76,7 @@ class Gun(Weapon):
 
 class Revolver(Gun):
     def __init__(self, position):
-        super().__init__(position)
-        self.image_path = 'revolver'
+        super().__init__(position, 'revolver')
         self.image_position = np.array([0.35, 0.15])
         self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.GUNS))
 
@@ -94,9 +90,8 @@ class Revolver(Gun):
 
 class Shotgun(Gun):
     def __init__(self, position):
-        super().__init__(position)
+        super().__init__(position, 'shotgun')
         self.size = 0.9
-        self.image_path = 'shotgun'
         self.image_position = np.array([0, -0.1])
         self.add_collider(Rectangle([0, 0.08], 1.8, 0.3, Group.GUNS))
         self.bullet_speed = 2.0
@@ -115,27 +110,35 @@ class Shotgun(Gun):
         return bs
 
 
-class Sword(PhysicsObject):
+class Axe(Weapon):
     def __init__(self, position):
-        super().__init__(position, image_path='sword', size=1.0, bump_sound='gun')
-        self.add_collider(Rectangle([0.0, 0.8], 0.25, 2.25, Group.SWORDS))
-        self.image_position = np.array([0.0, 0.8])
+        super().__init__(position, image_path='axe')
+        self.bump_sound = 'sword'
+        self.add_collider(Rectangle([0.25, 0.2], 0.6, 1.5, Group.SWORDS))
+        self.image_position = np.array([0.25, 0.2])
         self.rotate(np.pi / 2)
         self.hit = False
         self.timer = 0.0
         self.parent = None
         self.rest_angle = 0.5 * np.pi
+        self.blunt_damage = 60
+        self.attack_delay = 5.0
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
+
+        if self.timer > 0 and self.hit:
+            return
+
+        if self.attacked:
+            self.attack()
 
         if self.collider.collisions:
             if self.parent is not None and self.timer > 0:
                 self.sounds.add('sword')
                 self.parent.camera_shake = 10 * random_unit()
-                self.particle_clouds.append(Sparks(self.position + self.collider.half_height, np.zeros(2)))
+                self.particle_clouds.append(Sparks(self.position + self.collider.half_height, -0.1 * self.direction * basis(0)))
             self.hit = True
-            self.timer = 0.0
             return
 
         self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
@@ -145,17 +148,20 @@ class Sword(PhysicsObject):
                 for c in self.collider.collisions:
                     obj = c.collider.parent
                     if obj not in [self.parent.body, self.parent.head]:
-                        obj.damage(50, self.position, self.direction * basis(0), colliders)
+                        if isinstance(obj, PhysicsObject):
+                            r = normalized(self.collider.position - obj.collider.position)
+                            obj.velocity -= r
+                            if isinstance(obj, Destroyable):
+                                particle_type = obj.damage(50, colliders)
+                                if particle_type:
+                                    self.particle_clouds.append(particle_type(self.position, 0.2 * r))
                         self.hit = True
-                        self.timer = 0.0
                         self.parent.camera_shake = 10 * random_unit()
                         break
-                else:
-                    self.timer = max(0.0, self.timer - time_step)
 
     def attack(self):
+        super().attack()
         self.hit = False
-        self.timer = 5.0
         self.sounds.add('sword_swing')
 
 

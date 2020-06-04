@@ -1,8 +1,5 @@
 from _thread import *
 
-import numpy as np
-import pygame
-import pyglet
 from pyglet.window import key
 
 from camera import Camera
@@ -13,7 +10,6 @@ from menu import State, PlayerMenu, MainMenu, OptionsMenu
 from player import Player
 from network import Network
 from prop import Ball
-from wall import Basket
 from weapon import Bullet
 
 
@@ -33,7 +29,7 @@ class GameLoop:
         self.respawn_time = 50.0
 
         self.menu = MainMenu()
-        self.player_menus = [PlayerMenu((6 * i - 9) * basis(0)) for i in range(4)]
+        self.player_menus = [PlayerMenu((6 * i - 9) * basis(0) - 20 * basis(1)) for i in range(4)]
         self.options_menu = OptionsMenu()
         self.options_menu.set_values(self.option_handler)
 
@@ -45,9 +41,6 @@ class GameLoop:
 
     def load_level(self):
         self.level = Level('lvl')
-        size = [int(self.camera.zoom * self.level.width), int(self.camera.zoom * self.level.height)]
-        #self.level.background = pygame.Surface(size)
-        #self.level.background.fill((150, 150, 150))
 
         self.colliders.clear()
 
@@ -56,13 +49,16 @@ class GameLoop:
         for wall in self.level.walls:
             wall.collider.update_occupied_squares(self.colliders)
 
+        for goal in self.level.goals:
+            goal.collider.update_occupied_squares(self.colliders)
+
         for obj in self.level.objects.values():
             obj.collider.update_occupied_squares(self.colliders)
 
     def reset_game(self):
-        for w in self.level.walls:
-            if type(w) is Basket:
-                self.level.scoreboard.scores[w.team] = w.score
+        for g in self.level.goals:
+            self.level.scoreboard.scores[g.team] += g.score
+            g.score = 0
 
         for o in self.level.objects.values():
             if o.collider:
@@ -85,15 +81,24 @@ class GameLoop:
 
     def update(self, time_step):
         if self.state is State.PLAY:
-            alive = 0
+            alive = {'blue': 0, 'red': 0}
             for player in self.players.values():
                 if player.active:
-                    alive += 1
+                    alive[player.team] += 1
 
                 player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
-            if len(self.players) > 1 >= alive:
+            if alive['red'] == 0 and alive['blue'] == 0:
                 self.reset_game()
+
+            if len([p for p in self.players.values() if p.team == 'red']) > 0 and \
+                    len([p for p in self.players.values() if p.team == 'blue']):
+                if alive['red'] == 0 or alive['blue'] == 0:
+                    if alive['red'] > 0:
+                        self.level.scoreboard.scores['red'] += 1
+                    if alive['blue'] > 0:
+                        self.level.scoreboard.scores['blue'] += 1
+                    self.reset_game()
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
@@ -103,6 +108,7 @@ class GameLoop:
 
             self.camera.update(self.time_scale * time_step, self.players, self.level)
         elif self.state is State.MENU:
+            self.camera.position[0] += time_step * (self.menu.position - self.camera.position)[0]
             self.menu.update(time_step)
             self.state = self.menu.target_state
             self.menu.target_state = State.MENU
@@ -111,14 +117,16 @@ class GameLoop:
                 self.option_handler.load()
                 self.options_menu.set_values(self.option_handler)
         elif self.state is State.PLAYER_SELECT:
+            self.camera.position[1] += time_step * (self.player_menus[1].position - self.camera.position)[1]
+
             if not self.players:
                 return
 
             for pm in self.player_menus:
                 if pm.controller_id is not None:
-                    # FIXME: hardcoded index
-                    self.players[pm.controller_id].body_type = pm.buttons[1].get_value()
-                    self.players[pm.controller_id].head_type = pm.buttons[0].get_value()
+                    self.players[pm.controller_id].body_type = pm.body_slider.get_value()
+                    self.players[pm.controller_id].head_type = pm.head_slider.get_value()
+                    self.players[pm.controller_id].team = pm.team_slider.get_value()
 
             for pm in self.player_menus:
                 if pm.controller_id is None:
@@ -135,6 +143,11 @@ class GameLoop:
                     return
 
             self.state = State.PLAY
+            for pm in self.player_menus:
+                pm.delete()
+            self.menu.delete()
+            self.options_menu.delete()
+
             self.load_level()
             for p in self.players.values():
                 p.set_spawn(self.level, self.players)
@@ -164,6 +177,9 @@ class GameLoop:
                 for wall in self.level.walls:
                     wall.collider.update_occupied_squares(self.colliders)
 
+                for goal in self.level.goals:
+                    goal.collider.update_occupied_squares(self.colliders)
+
                 for obj in self.level.objects.values():
                     obj.collider.update_occupied_squares(self.colliders)
 
@@ -189,15 +205,14 @@ class GameLoop:
                     if obj.destroyed and not obj.particle_clouds:
                         del self.level.objects[i]
         elif self.state is State.OPTIONS:
+            self.camera.position[0] += time_step * (self.options_menu.position - self.camera.position)[0]
             self.state = self.options_menu.target_state
             self.options_menu.target_state = State.OPTIONS
 
             if self.options_menu.options_changed:
                 if self.options_menu.buttons[0].get_value() == 'windowed':
-                    pygame.display.set_mode(self.options_menu.buttons[1].get_value())
                     self.option_handler.fullscreen = False
                 else:
-                    pygame.display.set_mode(self.options_menu.buttons[1].get_value(), pygame.FULLSCREEN)
                     self.option_handler.fullscreen = True
 
                 self.camera.set_resolution(self.options_menu.buttons[1].get_value())
@@ -207,8 +222,6 @@ class GameLoop:
                 self.option_handler.shadows = self.options_menu.buttons[4].get_value() == 'ON'
 
                 self.option_handler.save()
-
-                self.options_menu.options_changed = False
 
     def network_thread(self):
         while True:
@@ -262,10 +275,7 @@ class GameLoop:
                         obj.destroy()
 
     def input(self, input_handler):
-        input_handler.update()
-
-        if input_handler.quit:
-            self.state = State.QUIT
+        input_handler.update(self.camera)
 
         if self.state is State.PLAY:
             if 0 in self.players:
@@ -313,7 +323,7 @@ class GameLoop:
             self.options_menu.input(input_handler)
 
     def draw(self, screen, image_handler):
-        if self.state in [State.PLAY, State.LAN]:
+        if self.state in {State.PLAY, State.LAN}:
             if self.option_handler.shadows:
                 self.level.draw_shadow(screen, self.camera, image_handler)
                 for p in self.players.values():
@@ -326,11 +336,9 @@ class GameLoop:
 
             if self.option_handler.debug_draw:
                 self.debug_draw(screen, image_handler)
-        elif self.state is State.MENU:
-            #screen.fill((50, 50, 50))
+        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT}:
             self.menu.draw(screen, self.camera, image_handler)
-        elif self.state is State.PLAYER_SELECT:
-            #screen.fill((50, 50, 50))
+            self.options_menu.draw(screen, self.camera, image_handler)
             for pm in self.player_menus:
                 pm.draw(screen, self.camera, image_handler)
                 if pm.controller_id is not None:
@@ -338,9 +346,6 @@ class GameLoop:
                     self.players[pm.controller_id].on_ground = True
                     self.players[pm.controller_id].animate(0.0)
                     self.players[pm.controller_id].draw(screen, self.camera, image_handler)
-        elif self.state is State.OPTIONS:
-            #screen.fill((50, 50, 50))
-            self.options_menu.draw(screen, self.camera, image_handler)
 
     def debug_draw(self, screen, image_handler):
         for player in self.players.values():

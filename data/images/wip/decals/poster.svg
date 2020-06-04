@@ -11,7 +11,7 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="1024"
    height="1024"
-   viewBox="0 0 270.93333 270.93333"
+   viewBox="0 0 135.46667 135.46667"
    version="1.1"
    id="svg8"
    inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
@@ -28,9 +28,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.69977474"
-     inkscape:cx="484.95833"
-     inkscape:cy="514.09239"
+     inkscape:zoom="0.34988737"
+     inkscape:cx="536.70613"
+     inkscape:cy="324.63916"
      inkscape:document-units="mm"
      inkscape:current-layer="layer2"
      showgrid="false"
@@ -50,7 +50,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -182,71 +182,71 @@
          id="tspan925"
          x="34.028809"
          y="51.258472"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal">Lorem ipsum dolor sit </tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332">Lorem ipsum dolor sit </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="64.48764"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="64.533302"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan929">amet, consectetur </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="77.716805"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="77.808128"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan931">adipiscing elit, sed do </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="90.945969"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="91.082962"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan933">eiusmod tempor incididunt </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="104.17514"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="104.35779"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan935">ut labore et dolore magna </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="117.4043"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="117.63261"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan937">aliqua. Ut enim ad minim </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="130.63347"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="130.90744"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan939">veniam, quis nostrud </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="143.86264"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="144.18228"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan941">exercitation ullamco </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="157.0918"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="157.45711"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan943">laboris nisi ut aliquip ex ea </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="170.32097"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="170.73193"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan945">commodo consequat. Duis </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="183.55014"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="184.00676"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan947">aute irure dolor in </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="196.7793"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="197.28159"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan949">reprehenderit in voluptate </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="210.00847"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="210.55643"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan951">velit esse cillum dolore eu </tspan><tspan
          sodipodi:role="line"
          x="34.028809"
-         y="223.23764"
-         style="stroke-width:0.26458332;fill:#8b8b8b;fill-opacity:1;-inkscape-font-specification:Century;font-family:Century;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+         y="223.83125"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Century;-inkscape-font-specification:Century;fill:#8b8b8b;fill-opacity:1;stroke-width:0.26458332"
          id="tspan953">fugiat nulla pariatur.</tspan></text>
   </g>
 </svg>

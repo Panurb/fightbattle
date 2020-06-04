@@ -3,6 +3,7 @@ import pickle
 
 import numpy as np
 import pyglet
+from numpy.linalg import norm
 from pyglet.window import key
 from pyglet.window import mouse
 
@@ -39,6 +40,7 @@ class Editor(pyglet.window.Window):
         self.wall_start = None
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
+        self.grab_start = np.zeros(2)
         self.object_types = ['wall', 'platform']
         self.type_index = 0
 
@@ -78,7 +80,7 @@ class Editor(pyglet.window.Window):
         elif symbol == key.G:
             self.level.add_object(Shotgun(pos))
         elif symbol == key.T:
-            self.level.walls.append(Basket(pos))
+            self.level.goals.append(Basket(pos))
         elif symbol == key.I:
             self.level.scoreboard = Scoreboard(pos)
 
@@ -103,6 +105,7 @@ class Editor(pyglet.window.Window):
                 if obj.collider.point_inside(self.input_handler.mouse_position):
                     self.grabbed_object = obj
                     self.grab_offset = self.grabbed_object.position - self.input_handler.mouse_position
+                    self.grab_start = np.round(self.input_handler.mouse_position)
                     break
             else:
                 self.wall_start = np.round(self.input_handler.mouse_position)
@@ -112,12 +115,10 @@ class Editor(pyglet.window.Window):
 
         if button == mouse.LEFT:
             if self.grabbed_object is not None:
-                if isinstance(self.grabbed_object, Weapon):
-                    for obj in self.level.objects.values():
-                        if type(obj) is Crate and obj.collider.point_inside(mouse_pos):
-                            obj.loot_list.append(type(obj))
-                            del self.grabbed_object
-                            break
+                if type(self.grabbed_object) in {PlayerSpawn, Basket}:
+                    if norm(np.round(self.input_handler.mouse_position) - self.grab_start) < 1.0:
+                        self.grabbed_object.change_team()
+                        return
 
                 self.grabbed_object = None
             else:
@@ -134,16 +135,29 @@ class Editor(pyglet.window.Window):
             for w in self.level.walls:
                 if w.collider.point_inside(mouse_pos):
                     w.sprite.delete()
+                    if w.collider.vertex_list:
+                        w.collider.vertex_list.delete()
                     self.level.walls.remove(w)
 
-            for w in self.level.player_spawns:
-                if w.collider.point_inside(mouse_pos):
-                    self.level.player_spawns.remove(w)
+            for p in self.level.player_spawns:
+                if p.collider.point_inside(mouse_pos):
+                    if p.collider.vertex_list:
+                        p.collider.vertex_list.delete()
+                    p.vertex_list.delete()
+                    self.level.player_spawns.remove(p)
 
             for k in list(self.level.objects.keys()):
                 if self.level.objects[k].collider.point_inside(mouse_pos):
                     self.level.objects[k].sprite.delete()
+                    if self.level.objects[k].collider.vertex_list:
+                        self.level.objects[k].collider.vertex_list.delete()
                     del self.level.objects[k]
+
+            for g in self.level.goals:
+                if g.collider.point_inside(mouse_pos):
+                    g.sprite.delete()
+                    g.front.sprite.delete()
+                    self.level.goals.remove(g)
 
             if self.level.scoreboard and self.level.scoreboard.collider.point_inside(mouse_pos):
                 self.level.scoreboard.sprite.delete()
@@ -171,6 +185,8 @@ class Editor(pyglet.window.Window):
         self.clear()
         self.draw_grid(1.0)
         self.level.draw(self.batch, self.camera, self.image_handler)
+        for g in self.level.goals:
+            g.sprite.color = (0, 0, 255) if g.team == 'blue' else (255, 0, 0)
         if self.option_handler.debug_draw:
             self.level.debug_draw(self.batch, self.camera, self.image_handler)
 
