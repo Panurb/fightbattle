@@ -59,9 +59,9 @@ class Camera:
         self.shake += sum(o.camera_shake for o in level.objects.values() if type(o) is Grenade)
 
     def set_zoom(self, zoom):
-        self.half_width *= zoom / self.zoom
-        self.half_height *= zoom / self.zoom
         self.zoom = zoom
+        self.half_width = 0.5 * self.resolution[0] / self.zoom * basis(0)
+        self.half_height = 0.5 * self.resolution[1] / self.zoom * basis(1)
 
     def world_to_screen(self, position):
         pos = (position - self.position) * self.zoom + 0.5 * self.resolution + self.shake

@@ -179,7 +179,7 @@ class Editor(pyglet.window.Window):
                 self.grabbed_object.set_position(pos + w + h)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        self.camera.zoom *= 1.5**scroll_y
+        self.camera.set_zoom(self.camera.zoom * 1.5**scroll_y)
 
     def on_draw(self):
         self.clear()
@@ -197,15 +197,15 @@ class Editor(pyglet.window.Window):
 
         pos = self.camera.half_width + self.camera.half_height - 50 * np.ones(2)
         pos = self.camera.position - pos / self.camera.zoom
-        self.camera.draw_text(self.object_types[self.type_index], pos, 32 / self.camera.zoom)
+        #self.camera.draw_text(self.object_types[self.type_index], pos, 32 / self.camera.zoom)
 
         self.batch.draw()
 
     def draw_grid(self, size):
-        x_min = math.floor(self.camera.position[0] - self.camera.half_width[0] / self.camera.zoom)
-        x_max = math.ceil(self.camera.position[0] + self.camera.half_width[0] / self.camera.zoom)
-        y_min = math.floor(self.camera.position[1] - self.camera.half_height[1] / self.camera.zoom)
-        y_max = math.ceil(self.camera.position[1] + self.camera.half_height[1] / self.camera.zoom)
+        x_min = math.floor(self.camera.position[0] - self.camera.half_width[0])
+        x_max = math.ceil(self.camera.position[0] + self.camera.half_width[0])
+        y_min = math.floor(self.camera.position[1] - self.camera.half_height[1])
+        y_max = math.ceil(self.camera.position[1] + self.camera.half_height[1])
 
         for x in np.linspace(x_min, x_max, int(abs(x_max - x_min) / size) + 1):
             if x % 5 == 0:

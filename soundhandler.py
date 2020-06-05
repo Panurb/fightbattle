@@ -22,8 +22,10 @@ class SoundHandler:
         self.player = pyglet.media.player.Player()
         self.set_music_volume(option_handler.music_volume)
 
-        self.queue_music()
-        self.player.on_player_eos = self.queue_music
+        self.track_list = list(self.music.keys())
+        random.shuffle(self.track_list)
+        self.play_track_list()
+        self.player.on_player_eos = self.play_track_list
 
     def set_volume(self, vol):
         pass
@@ -31,11 +33,8 @@ class SoundHandler:
     def set_music_volume(self, vol):
         self.player.volume = vol / 100
 
-    def queue_music(self):
-        tracks = list(self.music.keys())
-        random.shuffle(tracks)
-
-        for track in tracks:
+    def play_track_list(self):
+        for track in self.track_list:
             self.player.queue(self.music[track])
 
         self.player.play()
