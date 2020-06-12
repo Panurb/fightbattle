@@ -68,43 +68,55 @@ class Controller:
 
 
 class DualShock4(Controller):
-    def update(self):
-        self.left_stick[0] = self.joystick.get_axis(0)
-        self.left_stick[1] = -self.joystick.get_axis(1)
+    def __init__(self, joystick):
+        super().__init__(joystick=joystick)
+        self.buttons = ['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']
 
-        self.right_stick[0] = self.joystick.get_axis(2)
-        self.right_stick[1] = -self.joystick.get_axis(3)
+        self.button_down = {}
+        self.button_pressed = {}
+        self.button_released = {}
+        for b in self.buttons:
+            self.button_down[b] = False
+            self.button_pressed[b] = False
+            self.button_released[b] = False
+
+    def update(self):
+        for b in self.buttons:
+            if self.button_pressed[b]:
+                if self.button_down[b]:
+                    self.button_pressed[b] = False
+                self.button_down[b] = True
+
+        self.left_stick[0] = self.joystick.x
+        self.left_stick[1] = -self.joystick.y
+
+        self.right_stick[0] = self.joystick.z
+        self.right_stick[1] = -self.joystick.rz
 
         for stick in [self.left_stick, self.right_stick]:
             n = norm(stick)
             if n < self.stick_deadzone:
                 stick[:] = np.zeros(2)
-            elif n > 0.9:
+            elif n > 0.85:
                 stick[:] /= n
 
-        self.left_trigger = (self.joystick.get_axis(5) + 1) / 2
-        if abs(self.left_trigger) < self.trigger_deadzone:
+        left_trigger = self.joystick.rx
+        if abs(left_trigger) < self.trigger_deadzone:
+            left_trigger = 0
+
+        if left_trigger > 0:
+            self.left_trigger = left_trigger
+        else:
             self.left_trigger = 0
 
-        self.right_trigger = (self.joystick.get_axis(4) + 1) / 2
-        if abs(self.right_trigger) < self.trigger_deadzone:
+        right_trigger = self.joystick.ry
+        if abs(right_trigger) < self.trigger_deadzone:
+            right_trigger = 0
+
+        if right_trigger > 0:
+            self.right_trigger = right_trigger
+        else:
             self.right_trigger = 0
-
-        for i, b in enumerate(['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']):
-            if not b:
-                continue
-
-            self.button_pressed[b] = False
-            self.button_released[b] = False
-
-            if self.joystick.get_button(i):
-                if not self.button_down[b]:
-                    self.button_pressed[b] = True
-            else:
-                if self.button_down[b]:
-                    self.button_released[b] = True
-
-            self.button_down[b] = self.joystick.get_button(i)
 
 
 class Keyboard(Controller):
@@ -205,9 +217,13 @@ class InputHandler:
 
         for k in self.keys_pressed:
             if self.keys_pressed[k]:
-                if k in self.keys_down and self.keys_down[k]:
+                if self.keys_down.get(k):
                     self.keys_pressed[k] = False
                 self.keys_down[k] = True
+            elif self.keys_released.get(k):
+                if not self.keys_down.get(k):
+                    self.keys_released[k] = False
+                self.keys_down[k] = False
 
         self.mouse_position = camera.screen_to_world(self.mouse_screen)
         self.mouse_change /= camera.zoom
@@ -217,6 +233,10 @@ class InputHandler:
                 if self.mouse_down[b]:
                     self.mouse_pressed[b] = False
                 self.mouse_down[b] = True
+            elif self.mouse_released[b]:
+                if not self.mouse_down[b]:
+                    self.mouse_released[b] = False
+                self.mouse_down[b] = False
 
     def on_key_press(self, symbol, modifiers):
         self.keys_pressed[symbol] = True
@@ -225,7 +245,6 @@ class InputHandler:
 
     def on_key_release(self, symbol, modifiers):
         self.keys_released[symbol] = True
-        self.keys_down[symbol] = False
 
     def on_mouse_motion(self, x, y, dx, dy):
         self.mouse_screen[:] = [x, y]
@@ -240,4 +259,3 @@ class InputHandler:
 
     def on_mouse_release(self, x, y, button, modifiers):
         self.mouse_released[button] = True
-        self.mouse_down[button] = False

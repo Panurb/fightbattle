@@ -60,6 +60,13 @@ class Level:
                 for o in self.objects.values():
                     o.set_position(o.position + offset)
 
+    def delete(self):
+        for g in self.goals:
+            g.delete()
+        self.scoreboard.delete()
+        for obj in self.objects.values():
+            obj.delete()
+
     def clear(self):
         self.player_spawns.clear()
         self.walls.clear()
@@ -165,10 +172,11 @@ class Level:
                     del self.objects[k]
                     continue
             elif isinstance(obj, Gun):
-                bs = obj.attack()
-                for b in bs:
-                    self.add_object(b)
-                    b.collider.update_occupied_squares(colliders)
+                if obj.attacked:
+                    bs = obj.attack()
+                    for b in bs:
+                        self.add_object(b)
+                        b.collider.update_occupied_squares(colliders)
             elif isinstance(obj, Bullet):
                 if obj.destroyed and (self.server or not obj.particle_clouds):
                     obj.collider.clear_occupied_squares(colliders)
@@ -186,18 +194,22 @@ class Level:
             self.background.draw(batch, camera, image_handler)
 
             if self.walls_sprite is None:
-                width = int(self.width * 100)
-                height = int(self.height * 100)
+                width = int(self.width * 100) - 100
+                height = int(self.height * 100) - 100
                 image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
                 for wall in self.walls:
+                    if int(wall.position[0]) == 0 or int(wall.position[0]) == self.width - 1:
+                        wall.border = True
+                    if int(wall.position[1]) == 0 or int(wall.position[1]) == self.height - 1:
+                        wall.border = True
                     wall.blit_to_image(image, image_handler)
 
                 image = pyglet.image.ImageData(width, height, 'RGBA', image.tobytes())
 
                 self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[2])
 
-            self.walls_sprite.update(*camera.world_to_screen(np.zeros(2)), scale=camera.zoom / 100)
+            self.walls_sprite.update(*camera.world_to_screen(0.505 * np.ones(2)), scale=camera.zoom / 100)
         else:
             for w in self.walls:
                 w.draw(batch, camera, image_handler)
@@ -268,8 +280,9 @@ class PlayerSpawn(GameObject):
 
 class Background:
     def __init__(self, width, height):
-        self.width = width
-        self.height = height
+        self.position = 1.05 * np.ones(2)
+        self.width = width - 200
+        self.height = height - 200
         self.image = None
         self.sprite = None
         self.layer = 0
@@ -296,7 +309,7 @@ class Background:
                 path = np.random.choice(['warning', 'poster', 'radioactive'])
                 self.add_decal(image_handler, path, [x, y], angle)
 
-        self.sprite.update(*camera.world_to_screen(np.zeros(2)), scale=camera.zoom / 100)
+        self.sprite.update(*camera.world_to_screen(self.position), scale=camera.zoom / 100)
 
     def add_decal(self, image_handler, path, position, angle, scale=1.0):
         decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)

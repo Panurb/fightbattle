@@ -22,9 +22,6 @@ class Weapon(PhysicsObject):
         self.timer = max(0.0, self.timer - time_step)
 
     def attack(self):
-        if self.timer != 0:
-            return
-
         self.attacked = False
         self.timer = self.attack_delay
 
@@ -162,13 +159,13 @@ class Axe(Weapon):
     def attack(self):
         super().attack()
         self.hit = False
-        self.sounds.add('sword_swing')
+        self.sounds.add('swing')
 
 
 class Shield(PhysicsObject):
     def __init__(self, position):
         super().__init__(position, image_path='shield', size=0.85, bump_sound='gun')
-        self.add_collider(Rectangle([0.0, 0.0], 0.25, 2.0, Group.SHIELDS))
+        self.add_collider(Rectangle([0, 0], 0.5, 2.0, Group.SHIELDS))
         self.rest_angle = 0.5 * np.pi
 
 
@@ -181,12 +178,15 @@ class Grenade(Destroyable):
         self.timer = 0.0
         self.primed = False
         self.pin = PhysicsObject(self.position, image_path='grenade_pin')
-        self.pin.rest_angle = None
         self.pin.add_collider(Circle([0, 0], 0.25, Group.DEBRIS))
-        self.rest_angle = None
         self.destroyed = False
         self.attacked = False
         self.camera_shake = np.zeros(2)
+        self.roll = True
+
+    def delete(self):
+        super().delete()
+        self.pin.delete()
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -204,17 +204,20 @@ class Grenade(Destroyable):
             if self.timer <= 0.0:
                 self.destroy(colliders)
         else:
-            self.pin.set_position(self.position + 0.15 * rotate(basis(0), self.angle))
-            self.pin.rotate(self.angle - self.pin.angle)
+            if self.pin:
+                self.pin.set_position(self.position + 0.15 * rotate(basis(0), self.angle))
+                self.pin.rotate(self.angle - self.pin.angle)
 
     def destroy(self, colliders):
         if not self.destroyed:
-            self.sprite.delete()
-            self.sprite = None
+            if self.sprite:
+                self.sprite.delete()
+                self.sprite = None
             self.destroyed = True
-            
-            self.pin.sprite.delete()
-            self.pin = None
+
+            if self.pin:
+                self.pin.sprite.delete()
+                self.pin = None
 
             explosion_collider = Circle(self.position, 3.0)
             explosion_collider.update_occupied_squares(colliders)
@@ -250,7 +253,7 @@ class Grenade(Destroyable):
             self.pin.velocity[1] = 0.5
             self.primed = True
             self.timer = 50.0
-            self.sounds.add('sword')
+            self.sounds.add('pin')
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
@@ -260,7 +263,7 @@ class Grenade(Destroyable):
 
 class Bow(Gun):
     def __init__(self, position):
-        super().__init__(position)
+        super().__init__(position, 'bow')
         self.bump_sound = 'bump'
         self.image_path = 'bow'
         self.add_collider(Rectangle([0, 0], 0.5, 1.9, Group.GUNS))
@@ -281,6 +284,10 @@ class Bow(Gun):
 
         self.arrow = GameObject(self.position, 'arrow', size=1.2, layer=5)
         self.arrow.image_position = 0.5 * basis(0)
+
+    def delete(self):
+        super().delete()
+        self.string.delete()
 
     def get_data(self):
         return super().get_data() + (self.attack_charge, )

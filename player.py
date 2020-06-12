@@ -69,6 +69,12 @@ class Player(Destroyable):
         self.jump_speed = 0.65
         self.team = 'blue'
 
+    def delete(self):
+        super().delete()
+        self.head.delete()
+        self.body.delete()
+        self.hand.delete()
+
     def get_data(self):
         return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1],
                                                                self.crouched)
@@ -280,7 +286,8 @@ class Player(Destroyable):
                     self.hand.set_position(self.object.position)
                     self.hand.velocity[:] = np.zeros(2)
 
-                self.object.rotate(self.hand.angle + self.direction * self.throw_charge - self.object.angle)
+                self.object.rotate(self.hand.angle - self.object.angle)
+                #self.object.rotate(self.hand.angle + self.direction * self.throw_charge - self.object.angle)
 
             if norm(self.shoulder - self.object.position) > 1.6 * self.hand.length:
                 if isinstance(self.object, Weapon):
@@ -625,7 +632,7 @@ class Player(Destroyable):
                     self.object.parent.throw_object()
                 self.object.parent = self
                 self.object.angular_velocity = 0.0
-                self.object.layer = 5
+                self.object.layer = 6 if self.object.group is Group.SHIELDS else 5
                 break
 
     def attack(self):

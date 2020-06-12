@@ -34,7 +34,7 @@ COLLIDES_WITH = {Group.NONE: set(),
                  Group.BULLETS: {Group.WALLS, Group.SHIELDS},
                  Group.SHIELDS: {Group.WALLS, Group.PLATFORMS},
                  Group.DEBRIS: {Group.WALLS, Group.PLATFORMS},
-                 Group.SWORDS: {Group.WALLS, Group.SHIELDS, Group.PLATFORMS},
+                 Group.SWORDS: {Group.WALLS, Group.PLATFORMS},
                  Group.HITBOXES: set(),
                  Group.PLATFORMS: set(),
                  Group.GOALS: set(),
@@ -182,12 +182,12 @@ class Collider:
     def update_occupied_squares(self, colliders):
         self.clear_occupied_squares(colliders)
 
-        pos = self.position
+        x, y = self.position
         w = axis_half_width(self.half_width, self.half_height, basis(0))
         h = axis_half_width(self.half_width, self.half_height, basis(1))
 
-        for i in range(max(int((pos[0] - w) / GRID_SIZE), 0), min(int((pos[0] + w) / GRID_SIZE) + 1, len(colliders))):
-            for j in range(max(int((pos[1] - h) / GRID_SIZE), 0), min(int((pos[1] + h) / GRID_SIZE) + 1, len(colliders[i]))):
+        for i in range(max(int((x - w) / GRID_SIZE) - 1, 0), min(int((x + w) / GRID_SIZE) + 1, len(colliders))):
+            for j in range(max(int((y - h) / GRID_SIZE) - 1, 0), min(int((y + h) / GRID_SIZE) + 1, len(colliders[i]))):
                 self.occupied_squares.append((i, j))
 
         for i, j in self.occupied_squares:

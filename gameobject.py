@@ -54,7 +54,7 @@ class GameObject:
 
     def flip_horizontally(self):
         if type(self.collider) is Rectangle:
-            w = normalized(self.collider.half_width)
+            w = 2 * self.collider.half_width / self.collider.width
             r = self.collider.position - self.position
             self.collider.position -= 2 * np.dot(r, w) * w
 
@@ -89,7 +89,8 @@ class GameObject:
 
     def play_sounds(self, sound_handler):
         for sound in self.sounds:
-            sound_handler.sounds[sound].play()
+            player = sound_handler.sounds[sound].play()
+            player.volume = sound_handler.volume
 
         self.sounds.clear()
 
@@ -111,7 +112,6 @@ class PhysicsObject(GameObject):
         self.speed = norm(self.velocity)
         self.acceleration = np.zeros(2)
 
-        self.rest_angle = 0.0
         self.angular_velocity = 0.0
         self.angular_acceleration = 0.0
 
@@ -132,6 +132,7 @@ class PhysicsObject(GameObject):
 
         self.dust = dust
         self.blunt_damage = 10
+        self.roll = False
 
     def delete(self):
         super().delete()
@@ -188,7 +189,7 @@ class PhysicsObject(GameObject):
         acc_old = self.acceleration.copy()
         self.acceleration = self.get_acceleration(gravity)
 
-        if self.rest_angle is None:
+        if self.roll:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
         delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
@@ -238,9 +239,19 @@ class PhysicsObject(GameObject):
             if collision.overlap[1] > 0:
                 self.on_ground = True
                 if not self.parent:
-                    if self.rest_angle is not None:
-                        self.rotate(-self.angle + self.direction * self.rest_angle)
-                    self.angular_velocity = 0.0
+                    if type(self.collider) is Rectangle:
+                        ratio = self.collider.width / self.collider.height
+                        if ratio > 1.5:
+                            n = np.round(self.angle / np.pi)
+                            self.angular_velocity = 0.5 * (n * np.pi - self.angle)
+                        elif ratio < 0.5:
+                            n = np.round((self.angle + 0.5 * np.pi) / np.pi)
+                            self.angular_velocity = 0.5 * (n * np.pi - (self.angle + 0.5 * np.pi))
+                        else:
+                            n = np.round(self.angle / (0.5 * np.pi))
+                            self.angular_velocity = 0.5 * (n * 0.5 * np.pi - self.angle)
+                        if abs(self.angular_velocity) > 0.1:
+                            self.sounds.add(self.bump_sound)
             elif collision.overlap[0] != 0:
                 self.angular_velocity *= -1
 
@@ -248,6 +259,7 @@ class PhysicsObject(GameObject):
                 n = min(int(self.speed * 5), 10)
                 if n > 1:
                     self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
+                    self.sounds.add(self.bump_sound)
 
             self.set_position(self.position + collision.overlap)
 
@@ -258,12 +270,13 @@ class PhysicsObject(GameObject):
             if self.gravity_scale:
                 if isinstance(collider.parent, PhysicsObject):
                     collider.parent.velocity[:] = -self.velocity
-                    if isinstance(collider.parent, Destroyable):
-                        particle_type = collider.parent.damage(self.speed * self.blunt_damage, colliders)
-                        if particle_type:
-                            self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
-                        if self.parent:
-                            self.parent.camera_shake = 20 * random_unit()
+                    if self.speed > 0.1:
+                        if isinstance(collider.parent, Destroyable):
+                            particle_type = collider.parent.damage(self.speed * self.blunt_damage, colliders)
+                            if particle_type:
+                                self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
+                            if self.parent:
+                                self.parent.camera_shake = int(self.speed * 10) * random_unit()
 
         if self.collider.group is Group.THROWN and self.collider.collisions:
             self.parent = None
@@ -274,23 +287,6 @@ class PhysicsObject(GameObject):
 
         if abs(self.velocity[0]) < 0.05:
             self.velocity[0] = 0.0
-
-        if self.parent is None and self.collider.collisions and self.speed > 0.1:
-            self.sounds.add(self.bump_sound)
-
-    def draw_shadow(self, screen, camera, image_handler, light):
-        '''
-        if self.on_ground:
-            angle = polar_angle(self.position - self.collider.half_width - light)
-            left = self.collider.half_height[1] * np.cos(angle)
-
-            angle = polar_angle(self.position + self.collider.half_width - light)
-            right = self.collider.half_height[1] * np.cos(angle)
-
-            camera.draw_ellipse(screen, self.position + 0.5 * (left + right) * basis(0) - self.collider.half_height,
-                                2 * self.collider.half_width[0] + right - left, 0.25, (80, 80, 80))
-        '''
-        super().draw_shadow(screen, camera,image_handler, light)
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
@@ -391,7 +387,7 @@ class Destroyable(PhysicsObject):
 
     def debug_draw(self, screen, camera, image_handler):
         super().debug_draw(screen, camera, image_handler)
-        camera.draw_text(str(self.health), self.position, 0.05, color=image_handler.debug_color)
+        #camera.draw_text(str(self.health), self.position, 0.05, color=image_handler.debug_color)
 
     def play_sounds(self, sound_handler):
         super().play_sounds(sound_handler)

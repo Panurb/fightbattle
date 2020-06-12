@@ -38,20 +38,20 @@ class Camera:
         if level.height < 2 * self.half_height[1]:
             cam_goal[1] = 0.5 * level.height
 
-        cam_goal[0] = max(cam_goal[0], self.half_width[0] / self.zoom)
-        cam_goal[0] = min(cam_goal[0], level.width - self.half_width[0] / self.zoom)
+        cam_goal[0] = max(cam_goal[0], self.half_width[0])
+        cam_goal[0] = min(cam_goal[0], level.width - self.half_width[0])
 
-        #if level.height > 2 * self.half_height[1] / self.zoom:
-        #    cam_goal[1] = max(cam_goal[1], self.half_height[1] / self.zoom)
-        #    cam_goal[1] = min(cam_goal[1], level.height - self.half_height[1] / self.zoom)
-        #else:
-        #    cam_goal[1] = level.position[1]
+        cam_goal[1] = max(cam_goal[1], self.half_height[1])
+        cam_goal[1] = min(cam_goal[1], level.height - self.half_height[1])
 
         self.position[:] += time_step * (cam_goal - self.position)
 
         if len(players) > 1:
-            dist2 = max(norm2(p.position - cam_goal) for p in players.values())
-            zoom_goal = min(500 / (np.sqrt(dist2) + 1e-6), self.max_zoom)
+            eps = 1e-6
+            x = max(abs(p.position[0] - cam_goal[0]) for p in players.values()) + eps
+            y = max(abs(p.position[1] - cam_goal[1]) for p in players.values()) + eps
+            zoom_goal = min(500 / x, 250 / y)
+            zoom_goal = min(zoom_goal, self.max_zoom)
             self.zoom += time_step * (zoom_goal - self.zoom)
 
         self.shake = sum(p.camera_shake for p in players.values())

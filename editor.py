@@ -160,7 +160,7 @@ class Editor(pyglet.window.Window):
                     self.level.goals.remove(g)
 
             if self.level.scoreboard and self.level.scoreboard.collider.point_inside(mouse_pos):
-                self.level.scoreboard.sprite.delete()
+                self.level.scoreboard.delete()
                 self.level.scoreboard = None
 
     def on_mouse_drag(self, x, y, dx, dy, button, modifiers):

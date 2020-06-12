@@ -23,6 +23,11 @@ class ImageHandler:
 
         self.load_images()
 
+        self.set_clear_color((50, 50, 50))
+
+    def set_clear_color(self, color):
+        pyglet.gl.glClearColor(color[0] / 255, color[1] / 255, color[2] / 255, 1)
+
     def load_images(self):
         path = os.path.join('data', 'images')
 
@@ -44,8 +49,10 @@ class ImageHandler:
                         img = ImageOps.mirror(img)
                         if 'vertical' in name:
                             self.tiles[name] = self.image_to_tiles(img, 1, 3)
-                        else:
+                        elif 'horizontal' in name or name == 'platform':
                             self.tiles[name] = self.image_to_tiles(img, 3, 1)
+                        else:
+                            self.tiles[name] = self.image_to_tiles(img, 3, 3)
 
                 continue
 
@@ -74,13 +81,20 @@ class ImageHandler:
         width = image.width
         height = image.height
         tile_width = width // nx
-        tile_height = height // ny
+
+        if ny == 3:
+            ys = [0, int(0.5 * height) - 50, int(0.5 * height) + 50, height]
+        else:
+            ys = [0, height]
 
         tiles = []
         for i in range(nx):
+            row = []
             for j in range(ny):
-                tile = image.crop([i * tile_width, (ny - j - 1) * tile_height, (i + 1) * tile_width, (ny - j) * tile_height])
+                tile = image.crop([i * tile_width, ys[ny - j - 1],
+                                   (i + 1) * tile_width, ys[ny - j]])
                 tile = ImageOps.flip(tile)
-                tiles.append(tile)
+                row.append(tile)
+            tiles.append(row)
 
         return tiles

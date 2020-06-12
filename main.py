@@ -18,16 +18,13 @@ pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA, pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
 class GameWindow(pyglet.window.Window):
     def __init__(self):
         self.option_handler = OptionHandler()
+        width, height = self.option_handler.resolution
+        super().__init__(width, height, vsync=self.option_handler.vsync, fullscreen=self.option_handler.fullscreen)
+
         self.image_handler = ImageHandler()
         self.input_handler = InputHandler()
         self.sound_handler = SoundHandler(self.option_handler)
         self.loop = GameLoop(self.option_handler)
-
-        width, height = self.option_handler.resolution
-        super().__init__(width, height, vsync=self.option_handler.vsync, fullscreen=self.option_handler.fullscreen)
-
-        # background color
-        pyglet.gl.glClearColor(0.2, 0.2, 0.2, 1)
 
         self.fps_display = pyglet.window.FPSDisplay(window=self)
 

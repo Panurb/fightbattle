@@ -26,7 +26,7 @@ class Menu:
         self.selection = 0
         self.selection_moved = dict()
         self.slider_moved = dict()
-        self.sounds = []
+        self.sounds = set()
 
     def delete(self):
         for b in self.buttons:
@@ -43,21 +43,21 @@ class Menu:
             for i, b in enumerate(self.buttons):
                 if b.collider.point_inside(input_handler.mouse_position):
                     if self.selection is not i:
-                        self.sounds.append('menu')
+                        self.sounds.add('menu')
                     self.selection = i
                     self.selection_moved[controller_id] = True
 
                     if type(b) is Button:
-                        if input_handler.mouse_pressed[1]:
+                        if input_handler.mouse_released[1]:
                             self.target_state = self.buttons[self.selection].target_state
-                            self.sounds.append('select')
+                            self.sounds.add('select')
                     elif type(b) is Slider:
                         if input_handler.mouse_pressed[1]:
                             b.move_right()
-                            self.sounds.append('menu')
+                            self.sounds.add('menu')
                         elif input_handler.mouse_pressed[4]:
                             b.move_left()
-                            self.sounds.append('menu')
+                            self.sounds.add('menu')
 
                     break
             else:
@@ -68,12 +68,12 @@ class Menu:
 
             if controller.left_stick[1] < -0.5:
                 if not self.selection_moved[controller_id]:
-                    self.sounds.append('menu')
+                    self.sounds.add('menu')
                     self.selection = (self.selection + 1) % len(self.buttons)
                     self.selection_moved[controller_id] = True
             elif controller.left_stick[1] > 0.5:
                 if not self.selection_moved[controller_id]:
-                    self.sounds.append('menu')
+                    self.sounds.add('menu')
                     self.selection = (self.selection - 1) % len(self.buttons)
                     self.selection_moved[controller_id] = True
             else:
@@ -84,23 +84,23 @@ class Menu:
                     if not self.slider_moved[controller_id]:
                         self.buttons[self.selection].move_left()
                         self.slider_moved[controller_id] = True
-                        self.sounds.append('menu')
+                        self.sounds.add('menu')
                 elif controller.left_stick[0] > 0.5:
                     if not self.slider_moved[controller_id]:
                         self.buttons[self.selection].move_right()
                         self.slider_moved[controller_id] = True
-                        self.sounds.append('menu')
+                        self.sounds.add('menu')
                 else:
                     self.slider_moved[controller_id] = False
 
             if controller.button_pressed['A']:
                 if type(self.buttons[self.selection]) is Button:
                     self.target_state = self.buttons[self.selection].target_state
-                    self.sounds.append('select')
+                    self.sounds.add('select')
 
             if controller.button_pressed['B']:
                 self.target_state = State.MENU
-                self.sounds.append('cancel')
+                self.sounds.add('cancel')
 
         for i, b in enumerate(self.buttons):
             b.selected = True if i == self.selection else False
@@ -111,7 +111,8 @@ class Menu:
 
     def play_sounds(self, sound_handler):
         for sound in self.sounds:
-            sound_handler.sounds[sound].play()
+            player = sound_handler.sounds[sound].play()
+            player.volume = sound_handler.volume
 
         self.sounds.clear()
 
@@ -233,7 +234,7 @@ class MainMenu(Menu):
                 self.chromatic_aberration = 0.0
             else:
                 self.timer = 5
-                self.sounds.append('static')
+                self.sounds.add('static')
                 self.chromatic_aberration = 5.0
 
     def input(self, input_handler, controller_id=0):
@@ -274,7 +275,7 @@ class PlayerMenu(Menu):
         if self.controller_id is None:
             if input_handler.controllers[controller_id].button_pressed['START']:
                 self.controller_id = controller_id
-                self.sounds.append('select')
+                self.sounds.add('select')
 
             if self.buttons[0].collider.point_inside(input_handler.mouse_position):
                 if input_handler.mouse_pressed[1]:
@@ -334,10 +335,10 @@ class OptionsMenu(Menu):
             controller = input_handler.controllers[i]
             if controller.button_pressed['A']:
                 self.options_changed = True
-                self.sounds.append('select')
+                self.sounds.add('select')
             if controller.button_pressed['B']:
                 self.target_state = State.MENU
-                self.sounds.append('cancel')
+                self.sounds.add('cancel')
                 return
 
             super().input(input_handler, i)
@@ -346,3 +347,21 @@ class OptionsMenu(Menu):
         super().draw(screen, camera, image_handler)
         self.button_back.draw(screen, camera, image_handler)
         self.button_apply.draw(screen, camera, image_handler)
+
+
+class PauseMenu(Menu):
+    def __init__(self):
+        super().__init__()
+        self.target_state = State.PAUSED
+        self.buttons.append(Button('Resume', State.PLAY))
+        self.buttons.append(Button('Quit', State.MENU))
+        self.update_buttons()
+
+    def input(self, input_handler, controller_id=0):
+        for i in range(len(input_handler.controllers)):
+            super().input(input_handler, i)
+
+    def draw(self, screen, camera, image_handler):
+        self.position[:] = camera.position
+        self.update_buttons()
+        super().draw(screen, camera, image_handler)
