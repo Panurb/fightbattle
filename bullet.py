@@ -3,7 +3,7 @@ import numpy as np
 from collider import Circle, Group
 from gameobject import PhysicsObject, Destroyable
 from helpers import polar_angle
-from particle import BloodSplatter
+from particle import BloodSplatter, Dust
 
 
 class Bullet(PhysicsObject):
@@ -27,7 +27,8 @@ class Bullet(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if self.collider.collisions:
-            self.destroy()
+            self.destroy(Dust)
+            self.decal = 'blood'
         elif np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
@@ -50,7 +51,8 @@ class Bullet(PhysicsObject):
                         self.decal = 'blood'
                 else:
                     obj.velocity += self.velocity
-                    self.destroy()
+                    self.destroy(Dust)
+                    self.decal = 'blood'
 
                 return
 
@@ -67,7 +69,7 @@ class Bullet(PhysicsObject):
     def draw(self, batch, camera, image_handler):
         if self.destroyed:
             for p in self.particle_clouds:
-                p.draw(batch, camera)
+                p.draw(batch, camera, image_handler)
         else:
             super().draw(batch, camera, image_handler)
 

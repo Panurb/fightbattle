@@ -82,23 +82,21 @@ class GameLoop:
 
     def update(self, time_step):
         if self.state is State.PLAY:
-            alive = {'blue': 0, 'red': 0}
+            alive = {'blue': False, 'red': False}
             for player in self.players.values():
-                if player.active:
-                    alive[player.team] += 1
-
                 player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
-            if alive['red'] == 0 and alive['blue'] == 0:
-                self.reset_game()
+                if player.active:
+                    alive[player.team] = True
 
-            if len([p for p in self.players.values() if p.team == 'red']) > 0 and \
-                    len([p for p in self.players.values() if p.team == 'blue']):
-                if alive['red'] == 0 or alive['blue'] == 0:
-                    if alive['red'] > 0:
-                        self.level.scoreboard.scores['red'] += 1
-                    if alive['blue'] > 0:
-                        self.level.scoreboard.scores['blue'] += 1
+            if len(self.players) > 1:
+                if not any(alive.values()):
+                    self.reset_game()
+                elif alive['red'] and not alive['blue']:
+                    self.level.scoreboard.scores['red'] += 1
+                    self.reset_game()
+                elif alive['blue'] and not alive['red']:
+                    self.level.scoreboard.scores['blue'] += 1
                     self.reset_game()
 
             self.level.update(self.time_scale * time_step, self.colliders)
@@ -109,7 +107,7 @@ class GameLoop:
 
             self.camera.update(self.time_scale * time_step, self.players, self.level)
         elif self.state is State.MENU:
-            self.camera.position[0] += time_step * (self.menu.position - self.camera.position)[0]
+            self.camera.position += time_step * (self.menu.position - self.camera.position)
             self.menu.update(time_step)
             self.state = self.menu.target_state
             self.menu.target_state = State.MENU
@@ -120,39 +118,29 @@ class GameLoop:
         elif self.state is State.PLAYER_SELECT:
             self.camera.position[1] += time_step * (self.player_menus[1].position - self.camera.position)[1]
 
-            if not self.players:
-                return
-
             for pm in self.player_menus:
-                if pm.controller_id is not None:
+                if pm.joined:
                     self.players[pm.controller_id].body_type = pm.body_slider.get_value()
                     self.players[pm.controller_id].head_type = pm.head_slider.get_value()
                     self.players[pm.controller_id].team = pm.team_slider.get_value()
-
-            for pm in self.player_menus:
-                if pm.controller_id is None:
-                    if pm.controller_id in self.players:
+                else:
+                    if pm.controller_id is not None:
+                        self.players[pm.controller_id].delete()
                         del self.players[pm.controller_id]
+                        pm.controller_id = None
+                        return
 
-                if pm.target_state is State.MENU:
-                    pm.target_state = State.PLAYER_SELECT
-                    self.state = State.MENU
-                    self.players.clear()
-                    return
+            if self.players and all(not pm.joined or pm.ready for pm in self.player_menus):
+                self.state = State.PLAY
+                for pm in self.player_menus:
+                    pm.delete()
+                self.menu.delete()
+                self.options_menu.delete()
 
-                if pm.controller_id is not None and pm.target_state is State.PLAYER_SELECT:
-                    return
-
-            self.state = State.PLAY
-            for pm in self.player_menus:
-                pm.delete()
-            self.menu.delete()
-            self.options_menu.delete()
-
-            self.load_level()
-            for p in self.players.values():
-                p.set_spawn(self.level, self.players)
-                p.reset(self.colliders)
+                self.load_level()
+                for p in self.players.values():
+                    p.set_spawn(self.level, self.players)
+                    p.reset(self.colliders)
         elif self.state is State.LAN:
             if self.network is None:
                 self.network = Network()
@@ -243,7 +231,7 @@ class GameLoop:
             for player in self.players.values():
                 player.input(input_handler)
 
-            if input_handler.key_pressed(key.R):
+            if input_handler.keys_pressed.get(key.R):
                 self.reset_game()
 
             for c in input_handler.controllers:
@@ -262,17 +250,23 @@ class GameLoop:
                         pm.input(input_handler, i)
                         break
                 else:
+                    if controller.button_pressed['B']:
+                        self.state = State.MENU
+                        for p in self.players.values():
+                            p.delete()
+                        self.players.clear()
+                        for pm in self.player_menus:
+                            pm.joined = False
+                            pm.controller_id = None
+                        return
+
                     for pm in self.player_menus:
                         if pm.controller_id is None:
                             pm.input(input_handler, i)
                         if pm.controller_id == i:
                             self.add_player(i)
-                            break
+                            return
 
-            if all(pm.target_state is State.PLAYER_SELECT for pm in self.player_menus):
-                for i, controller in enumerate(input_handler.controllers):
-                    if controller.button_down['B']:
-                        self.state = State.MENU
         elif self.state is State.LAN:
             if self.network is not None:
                 player = self.players[self.network_id]
@@ -310,7 +304,7 @@ class GameLoop:
             self.options_menu.draw(batch, self.camera, image_handler)
             for pm in self.player_menus:
                 pm.draw(batch, self.camera, image_handler)
-                if pm.controller_id is not None:
+                if pm.controller_id in self.players:
                     self.players[pm.controller_id].set_position(pm.position + 3 * basis(1))
                     self.players[pm.controller_id].on_ground = True
                     self.players[pm.controller_id].animate(0.0)

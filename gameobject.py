@@ -3,7 +3,7 @@ from numpy.linalg import norm
 
 from collider import Circle, Group, Rectangle
 from helpers import norm2, rotate, normalized, basis, random_unit
-from particle import Sparks, Dust
+from particle import Dust
 
 MAX_SPEED = 5.0
 
@@ -278,9 +278,10 @@ class PhysicsObject(GameObject):
                             if self.parent:
                                 self.parent.camera_shake = int(self.speed * 10) * random_unit()
 
-        if self.collider.group is Group.THROWN and self.collider.collisions:
-            self.parent = None
-            self.collider.group = self.group
+        if self.collider:
+            if self.collider.group is Group.THROWN and self.collider.collisions:
+                self.parent = None
+                self.collider.group = self.group
 
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
@@ -291,7 +292,7 @@ class PhysicsObject(GameObject):
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
         for p in self.particle_clouds:
-            p.draw(batch, camera)
+            p.draw(batch, camera, image_handler)
 
 
 class Destroyable(PhysicsObject):
@@ -374,7 +375,7 @@ class Destroyable(PhysicsObject):
             for d in self.debris:
                 d.draw(batch, camera, image_handler)
             for p in self.particle_clouds:
-                p.draw(batch, camera)
+                p.draw(batch, camera, image_handler)
         else:
             super().draw(batch, camera, image_handler)
 

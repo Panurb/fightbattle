@@ -15,7 +15,7 @@ class Wall(GameObject):
         self.size = 1.0
         self.vertical = 0
 
-        self.image_position = np.array([-0.5, -0.8])
+        self.image_position = np.array([0.0, -0.2])
 
         if width == 1:
             self.image_path = 'wall_vertical'
@@ -30,6 +30,9 @@ class Wall(GameObject):
                 2 * self.collider.half_width[0], 2 * self.collider.half_height[1])
 
     def blit_to_image(self, image, image_handler):
+        if self.border:
+            self.image_path = 'wall'
+
         w = 0.5 * self.collider.width
         h = 0.5 * self.collider.height
         nx = int(self.collider.width)
@@ -44,6 +47,9 @@ class Wall(GameObject):
                     n = 2
             if nx == 1:
                 n = 0
+            if self.border and int(self.position[0]) == 0:
+                n = 2
+
             for j in range(ny):
                 m = 1
                 if not self.border:
@@ -53,6 +59,8 @@ class Wall(GameObject):
                         m = 2
                 if ny == 1:
                     m = 0
+                if self.border and int(self.position[1]) == 0:
+                    m = 2
 
                 decal = image_handler.tiles[self.image_path][n][m]
                 size = [int(1.05 * s) for s in decal.size]
@@ -87,7 +95,7 @@ class Wall(GameObject):
             image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
             pos = self.position.copy()
-            self.position = self.collider.half_width + self.collider.half_height + 0.6 * basis(1) + 0.5
+            self.position = self.collider.half_width + self.collider.half_height + self.image_position
             self.blit_to_image(image, image_handler)
             self.position[:] = pos
 
@@ -108,7 +116,7 @@ class Platform(Wall):
         super().__init__(position, width, 1)
         self.collider.group = Group.PLATFORMS
         self.image_path = 'platform'
-        self.image_position = np.array([-0.5, -0.2])
+        self.image_position = np.array([0.0, 0.45])
 
     def get_data(self):
         return type(self), self.position[0], self.position[1], 2 * self.collider.half_width[0]

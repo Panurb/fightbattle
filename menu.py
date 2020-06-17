@@ -127,6 +127,7 @@ class Button(GameObject):
         self.color_selected = (255, 255, 255)
         self.selected = False
         self.labels = 3 * [None]
+        self.visible = True
 
     def delete(self):
         for label in self.labels:
@@ -140,9 +141,14 @@ class Button(GameObject):
                 label.y = position[1]
 
     def draw(self, batch, camera, image_handler):
-        color = self.color_selected if self.selected else self.color
-        self.labels = camera.draw_text(self.text, self.position, 0.45, color=color, chromatic_aberration=self.selected,
-                                       batch=batch, labels=self.labels)
+        if self.visible:
+            color = self.color_selected if self.selected else self.color
+            self.labels = camera.draw_text(self.text, self.position, 0.45, color=color,
+                                           chromatic_aberration=self.selected, batch=batch, labels=self.labels)
+        else:
+            for label in self.labels:
+                if label:
+                    label.font_size = 0
 
 
 class Slider(GameObject):
@@ -160,6 +166,7 @@ class Slider(GameObject):
         self.value_labels = 3 * [None]
         self.triangle_left = 3 * [None]
         self.triangle_right = 3 * [None]
+        self.visible = True
 
     def delete(self):
         for label in self.labels:
@@ -168,6 +175,12 @@ class Slider(GameObject):
         for label in self.value_labels:
             if label:
                 label.delete()
+        for vl in self.triangle_left:
+            if vl:
+                vl.delete()
+        for vl in self.triangle_right:
+            if vl:
+                vl.delete()
 
     def get_value(self):
         return self.values[self.selection]
@@ -185,32 +198,43 @@ class Slider(GameObject):
             self.selection = max(self.selection - 1, 0)
 
     def draw(self, batch, camera, image_handler):
-        color = self.color_selected if self.selected else self.color
-        self.labels = camera.draw_text(self.text, self.position + 0.63 * basis(1), 0.45, color=color,
-                                       chromatic_aberration=self.selected,
-                                       batch=batch, labels=self.labels)
+        if self.visible:
+            color = self.color_selected if self.selected else self.color
+            self.labels = camera.draw_text(self.text, self.position + 0.63 * basis(1), 0.45, color=color,
+                                           chromatic_aberration=self.selected,
+                                           batch=batch, labels=self.labels)
 
-        val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
-        self.value_labels = camera.draw_text(val_str, self.position, 0.45, color=color,
-                                             chromatic_aberration=self.selected, batch=batch, labels=self.value_labels)
+            val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
+            self.value_labels = camera.draw_text(val_str, self.position, 0.45, color=color,
+                                                 chromatic_aberration=self.selected, batch=batch, labels=self.value_labels)
 
-        if self.selected:
-            self.triangle_left = camera.draw_triangle(self.position - 1.5 * basis(0), 0.75,
-                                                      chromatic_aberration=True,
-                                                      batch=batch, vertex_lists=self.triangle_left)
-            self.triangle_right = camera.draw_triangle(self.position + 1.5 * basis(0), 0.75, np.pi,
-                                                       chromatic_aberration=True,
-                                                       batch=batch, vertex_lists=self.triangle_right)
+            if self.selected:
+                self.triangle_left = camera.draw_triangle(self.position - 1.5 * basis(0), 0.75,
+                                                          chromatic_aberration=True,
+                                                          batch=batch, vertex_lists=self.triangle_left)
+                self.triangle_right = camera.draw_triangle(self.position + 1.5 * basis(0), 0.75, np.pi,
+                                                           chromatic_aberration=True,
+                                                           batch=batch, vertex_lists=self.triangle_right)
+        else:
+            for label in self.labels:
+                if label:
+                    label.font_size = 0
+            for label in self.value_labels:
+                if label:
+                    label.font_size = 0
 
-        if not self.selected or (not self.cyclic and self.selection == 0):
+        if not self.visible or not self.selected or (not self.cyclic and self.selection == 0):
             for vl in self.triangle_left:
                 if vl:
                     vl.vertices = np.zeros_like(vl.vertices)
 
-        if not self.selected or (not self.cyclic and self.selection == len(self.values) - 1):
+        if not self.visible or not self.selected or (not self.cyclic and self.selection == len(self.values) - 1):
             for vl in self.triangle_right:
                 if vl:
                     vl.vertices = np.zeros_like(vl.vertices)
+
+    def randomize(self):
+        self.selection = np.random.randint(len(self.values))
 
 
 class MainMenu(Menu):
@@ -255,9 +279,9 @@ class PlayerMenu(Menu):
         self.controller_id = None
 
         # TODO: read from directory
-        self.head_slider = Slider('Head', ['bald', 'goggles', 'clown'], selection=np.random.randint(3))
+        self.head_slider = Slider('Head', ['bald', 'goggles', 'clown'])
         self.buttons.append(self.head_slider)
-        self.body_slider = Slider('Body', ['camo', 'suit', 'speedo', 'sporty'], selection=np.random.randint(4))
+        self.body_slider = Slider('Body', ['camo', 'suit', 'speedo', 'sporty'])
         self.buttons.append(self.body_slider)
         self.team_slider = Slider('Team', ['blue', 'red'], False)
         self.buttons.append(self.team_slider)
@@ -265,6 +289,9 @@ class PlayerMenu(Menu):
 
         self.update_buttons()
         self.labels = 3 * [None]
+
+        self.joined = False
+        self.ready = False
 
     def delete(self):
         super().delete()
@@ -276,31 +303,49 @@ class PlayerMenu(Menu):
             if input_handler.controllers[controller_id].button_pressed['START']:
                 self.controller_id = controller_id
                 self.sounds.add('select')
+                self.joined = True
+                self.head_slider.randomize()
+                self.body_slider.randomize()
 
             if self.buttons[0].collider.point_inside(input_handler.mouse_position):
                 if input_handler.mouse_pressed[1]:
                     self.controller_id = 0
-                    self.target_state = State.PLAY
+                    self.sounds.add('select')
+                    self.joined = True
+                    self.head_slider.randomize()
+                    self.body_slider.randomize()
         else:
             if input_handler.controllers[controller_id].button_pressed['B']:
-                if self.target_state is State.PLAY:
+                if self.ready:
+                    self.sounds.add('cancel')
+                    self.ready = False
                     self.target_state = State.PLAYER_SELECT
                 else:
-                    self.controller_id = None
+                    self.sounds.add('cancel')
+                    self.joined = False
             else:
                 super().input(input_handler, self.controller_id)
+                if self.target_state is State.PLAY:
+                    self.ready = True
 
     def draw(self, batch, camera, image_handler):
-        if self.controller_id is None:
+        if not self.joined:
             self.labels = camera.draw_text('Press START to join', self.buttons[0].position, 0.45,
                                            chromatic_aberration=1.0, batch=batch, labels=self.labels)
-        elif self.target_state is State.PLAY:
+            for b in self.buttons:
+                b.visible = False
+        elif self.ready:
             self.labels = camera.draw_text('READY', self.buttons[0].position, 0.45, chromatic_aberration=1.0,
                                            batch=batch, labels=self.labels)
+            for b in self.buttons:
+                b.visible = False
         else:
+            for b in self.buttons:
+                b.visible = True
             for label in self.labels:
                 label.font_size = 0
-            super().draw(batch, camera, image_handler)
+
+        super().draw(batch, camera, image_handler)
 
 
 class OptionsMenu(Menu):
@@ -310,7 +355,8 @@ class OptionsMenu(Menu):
         self.position[1] = 2
         self.target_state = State.OPTIONS
         self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
-        self.buttons.append(Slider('Resolution', [(1280, 720), (1600, 900), (1920, 1080)], False))
+        self.buttons.append(Slider('Resolution', [(1280, 720), (1360, 768), (1600, 900), (1920, 1080), (2560, 1440),
+                                                  (3840, 2160)], False))
         self.buttons.append(Slider('SFX volume', range(0, 110, 10), False))
         self.buttons.append(Slider('Music volume', range(0, 110, 10), False))
         self.buttons.append(Slider('Shadows', ['OFF', 'ON']))

@@ -186,16 +186,16 @@ class Level:
                     continue
 
     def draw(self, batch, camera, image_handler):
-        if not self.editor:
+        if not self.editor and self.width > 0 and self.height > 0:
             if self.background is None:
-                if self.width > 0 and self.height > 0:
-                    self.background = Background(int(self.width * 100), int(self.height * 100))
+                self.background = Background(int(self.width * 100), int(self.height * 100))
 
-            self.background.draw(batch, camera, image_handler)
+            if self.background:
+                self.background.draw(batch, camera, image_handler)
 
             if self.walls_sprite is None:
-                width = int(self.width * 100) - 100
-                height = int(self.height * 100) - 100
+                width = int(self.width * 100)
+                height = int(self.height * 100)
                 image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
                 for wall in self.walls:
@@ -209,7 +209,7 @@ class Level:
 
                 self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[2])
 
-            self.walls_sprite.update(*camera.world_to_screen(0.505 * np.ones(2)), scale=camera.zoom / 100)
+            self.walls_sprite.update(*camera.world_to_screen(np.zeros(2)), scale=camera.zoom / 100)
         else:
             for w in self.walls:
                 w.draw(batch, camera, image_handler)
@@ -222,7 +222,7 @@ class Level:
 
         for obj in self.objects.values():
             if isinstance(obj, Bullet) and obj.decal:
-                self.background.add_decal(image_handler, obj.decal, obj.position, obj.angle, camera)
+                #self.background.add_decal(image_handler, obj.decal, obj.position, obj.angle)
                 obj.decal = ''
 
             obj.draw(batch, camera, image_handler)
@@ -314,8 +314,7 @@ class Background:
     def add_decal(self, image_handler, path, position, angle, scale=1.0):
         decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)
         decal = decal.resize([int(scale * x) for x in decal.size], Image.ANTIALIAS)
-        pos = [int(position[0] - 0.5 * decal.width),
-               int(position[1] - 0.5 * decal.height)]
+        pos = [int(position[0] - 0.5 * decal.width), int(position[1] - 0.5 * decal.height)]
         self.image.paste(decal, pos, decal.convert('RGBA'))
         image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
         self.sprite.image = image

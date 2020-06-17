@@ -28,11 +28,13 @@ class Controller:
         self.trigger_deadzone = 0.01
 
     def on_joybutton_press(self, joystick, button):
-        self.button_pressed[self.buttons[button]] = True
+        if button < len(self.buttons):
+            self.button_pressed[self.buttons[button]] = True
 
     def on_joybutton_release(self, joystick, button):
-        self.button_released[self.buttons[button]] = True
-        self.button_down[self.buttons[button]] = False
+        if button < len(self.buttons):
+            self.button_released[self.buttons[button]] = True
+            self.button_down[self.buttons[button]] = False
 
     def update(self):
         for b in self.buttons:
@@ -136,15 +138,15 @@ class Keyboard(Controller):
 
     def update(self):
         self.left_stick[0] = 0
-        if self.input_handler.key_down(key.A):
+        if self.input_handler.keys_down.get(key.A):
             self.left_stick[0] = -1
-        elif self.input_handler.key_down(key.D):
+        elif self.input_handler.keys_down.get(key.D):
             self.left_stick[0] = 1
 
         self.left_stick[1] = 0
-        if self.input_handler.key_down(key.W):
+        if self.input_handler.keys_down.get(key.W):
             self.left_stick[1] = 1
-        elif self.input_handler.key_down(key.S):
+        elif self.input_handler.keys_down.get(key.S):
             self.left_stick[1] = -1
 
         n = norm(self.input_handler.mouse_position)
@@ -162,12 +164,9 @@ class Keyboard(Controller):
             self.right_trigger = 0
 
         for i, b in enumerate(['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']):
-            self.button_pressed[b] = False
-            self.button_released[b] = False
-
-            self.button_pressed[b] = self.input_handler.key_pressed(self.buttons[b])
-            self.button_down[b] = self.input_handler.key_down(self.buttons[b])
-            self.button_released[b] = self.input_handler.key_released(self.buttons[b])
+            self.button_pressed[b] = self.input_handler.keys_pressed.get(self.buttons[b])
+            self.button_down[b] = self.input_handler.keys_down.get(self.buttons[b])
+            self.button_released[b] = self.input_handler.keys_released.get(self.buttons[b])
 
 
 class InputHandler:
@@ -202,19 +201,7 @@ class InputHandler:
         self.mouse_screen = np.zeros(2)
         self.mouse_change = np.zeros(2)
 
-    def key_pressed(self, k):
-        return k in self.keys_pressed and self.keys_pressed[k]
-
-    def key_released(self, k):
-        return k in self.keys_released and self.keys_released[k]
-
-    def key_down(self, k):
-        return k in self.keys_down and self.keys_down[k]
-
     def update(self, camera):
-        for c in self.controllers:
-            c.update()
-
         for k in self.keys_pressed:
             if self.keys_pressed[k]:
                 if self.keys_down.get(k):
@@ -238,6 +225,9 @@ class InputHandler:
                     self.mouse_released[b] = False
                 self.mouse_down[b] = False
 
+        for c in self.controllers:
+            c.update()
+
     def on_key_press(self, symbol, modifiers):
         self.keys_pressed[symbol] = True
         if symbol == key.ESCAPE:
@@ -245,6 +235,7 @@ class InputHandler:
 
     def on_key_release(self, symbol, modifiers):
         self.keys_released[symbol] = True
+        self.keys_down[symbol] = False
 
     def on_mouse_motion(self, x, y, dx, dy):
         self.mouse_screen[:] = [x, y]

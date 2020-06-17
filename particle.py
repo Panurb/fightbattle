@@ -5,12 +5,8 @@ from helpers import polar_angle, polar_to_cartesian, norm2, random_unit, basis, 
 
 
 class Cloud:
-    def __init__(self, position, velocity, number, lifetime, size, gravity_scale=1.0,
-                 start_color=(255, 255, 255), end_color=(255, 255, 255), base_velocity=(0, 0), shading=0.0, shine=0.0,
-                 stretch=0.0):
-        self.lifetime = lifetime
-        self.time = 0.0
-
+    def __init__(self, image_path, position, velocity, number, lifetime, start_size, end_size=0.0, gravity_scale=1.0,
+                 base_velocity=(0, 0), stretch=0.0):
         self.particles = []
 
         self.active = True
@@ -25,35 +21,31 @@ class Cloud:
             if angle is None:
                 v = 0.5 * random_unit()
             else:
-                theta = np.random.normal(angle, 0.25)
+                theta = np.random.normal(angle, 1.0)
                 r = np.abs(np.random.normal(v_norm, v_norm))
                 v = polar_to_cartesian(r, theta)
 
-            self.particles.append(Particle(position, base_velocity + v, lifetime=lifetime, size=size,
-                                           gravity_scale=gravity_scale, start_color=start_color,
-                                           end_color=end_color, shading=shading, shine=shine, stretch=stretch))
+            self.particles.append(Particle(image_path, position, base_velocity + v, lifetime=lifetime,
+                                           start_size=start_size, end_size=end_size,
+                                           gravity_scale=gravity_scale, stretch=stretch))
 
     def update(self, gravity, time_step):
-        self.time += time_step
-        if self.time >= self.lifetime:
-            self.active = False
-            for p in self.particles:
-                for v in p.vertex_list:
-                    if v:
-                        v.delete()
-
-            self.particles.clear()
-            return
-
         for p in self.particles:
             p.update(gravity, time_step)
 
-    def draw(self, batch, camera):
+            if p.time >= p.lifetime:
+                p.delete()
+                self.particles.remove(p)
+
+        if not self.particles:
+            self.active = False
+
+    def draw(self, batch, camera, image_handler):
         if not self.active:
             return
 
         for p in self.particles:
-            p.draw(batch, camera)
+            p.draw(batch, camera, image_handler)
 
     def delete(self):
         for p in self.particles:
@@ -61,86 +53,91 @@ class Cloud:
 
 
 class Particle:
-    def __init__(self, position, velocity, lifetime, size, gravity_scale=1.0,
-                 start_color=(255, 255, 255), end_color=(255, 255, 255), shading=0.0, shine=0.0, stretch=0.0):
+    def __init__(self, image_path, position, velocity, lifetime, start_size, end_size=0.0, gravity_scale=1.0,
+                 stretch=0.0):
+        self.initial_position = position.copy()
         self.position = position.copy()
-        self.velocity = velocity
-        self.acceleration = np.zeros_like(self.position)
-        self.lifetime = lifetime
-        self.size = size
+        self.initial_velocity = velocity.copy()
+        self.velocity = np.zeros_like(velocity)
         self.gravity_scale = gravity_scale
-        self.start_color = np.array(start_color, dtype=int)
-        self.end_color = np.array(end_color, dtype=int)
-        self.shading = shading
-        self.shine = shine
+        self.angle = 0.0
+        self.lifetime = lifetime
+        self.size = start_size
+        self.start_size = start_size
+        self.end_size = end_size
         self.stretch = stretch
-        self.vertex_list = [None, None, None]
         self.time = 0.0
         self.layer = 7
+        self.image_path = image_path
+        self.sprite = None
 
     def delete(self):
-        for v in self.vertex_list:
-            if v:
-                v.delete()
+        self.sprite.delete()
 
     def update(self, gravity, time_step):
         self.time = min(self.time + time_step, self.lifetime)
 
-        delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
-        self.position += delta_pos
-        acc_old = self.acceleration.copy()
-        self.acceleration[:] = self.gravity_scale * gravity
+        self.velocity = self.initial_velocity + self.gravity_scale * gravity * self.time
+        self.position = self.initial_position + self.initial_velocity * self.time \
+            + 0.5 * self.gravity_scale * gravity * self.time ** 2
+        self.angle = polar_angle(self.velocity)
+        self.size = self.start_size + self.time / self.lifetime * (self.end_size - self.start_size)
 
-        self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
-
-    def draw(self, batch, camera):
-        color = self.start_color + self.time / self.lifetime * (self.end_color - self.start_color)
-        height = (1 - self.time / self.lifetime) * self.size
-        width = (1 + self.stretch * norm(self.velocity)) * height
-
-        angle = polar_angle(self.velocity)
-
-        if self.shading:
-            self.vertex_list[0] = camera.draw_ellipse(self.position, width, height, angle, (1 - self.shading) * color,
-                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[0])
-
-            self.vertex_list[1] = camera.draw_ellipse(self.position + 0.25 * width * basis(0),
-                                                      0.8 * width, 0.8 * height, angle, color,
-                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[1])
-        else:
-            self.vertex_list[0] = camera.draw_ellipse(self.position, width, height, angle, color,
-                                                      batch=batch, layer=self.layer, vertex_list=self.vertex_list[0])
-
-        if self.shine:
-            self.vertex_list[2] = camera.draw_circle(self.position + rotate(np.array([0.7 * width, 0.5 * height]), angle),
-                                                     0.3 * height, color + (255 - color) * self.shine,
-                                                     batch=batch, layer=self.layer, vertex_list=self.vertex_list[2])
+    def draw(self, batch, camera, image_handler):
+        self.sprite = camera.draw_image(image_handler, self.image_path, self.position, angle=self.angle,
+                                        batch=batch, layer=self.layer, sprite=self.sprite,
+                                        scale_x=(1 + self.stretch * norm(self.velocity)) * self.size,
+                                        scale_y=self.size)
+        if self.end_size > 0:
+            self.sprite.opacity = (1 - (self.time / self.lifetime)**4) * 255
 
 
 class BloodSplatter(Cloud):
     def __init__(self, position, direction, number=10):
-        super().__init__(position, direction, number, 10.0, 0.3, start_color=(255, 0, 0), end_color=(255, 0, 0),
-                         shading=0.17, shine=1.0, stretch=5)
+        super().__init__('blood', position, direction, number, 10.0, 3.0, stretch=5)
 
 
-class MuzzleFlash(Cloud):
-    def __init__(self, position, velocity, base_velocity=(0, 0)):
-        super().__init__(position, velocity, 3, 10.0, 0.8, base_velocity=base_velocity, gravity_scale=0.0,
-                         start_color=(255, 255, 200), end_color=(255, 215, 0))
+class MuzzleFlash:
+    def __init__(self, position, velocity):
+        self.angle = polar_angle(velocity)
+        self.position = np.zeros_like(position)
+        self.velocity = velocity.copy()
+        self.time = 0.0
+        self.lifetime = 5.0
+        self.initial_size = 3.0
+        self.initial_position = position.copy() + polar_to_cartesian(0.2 * self.initial_size, self.angle)
+        self.size = self.initial_size
+        self.image_path = 'muzzleflash'
+        self.layer = 7
+        self.sprite = None
+        self.active = True
+
+    def delete(self):
+        self.sprite.delete()
+
+    def update(self, gravity, time_step):
+        self.time += time_step
+        if self.time >= self.lifetime:
+            self.active = False
+            self.delete()
+            return
+
+        self.position = self.initial_position + self.velocity * self.time
+        self.size = (1 - (self.time / self.lifetime)**2) * self.initial_size
+
+    def draw(self, batch, camera, image_handler):
+        self.sprite = camera.draw_image(image_handler, self.image_path, self.position, angle=self.angle,
+                                        batch=batch, layer=self.layer, sprite=self.sprite,
+                                        scale_x=self.initial_size, scale_y=self.size)
 
 
 class Explosion(Cloud):
     def __init__(self, position):
-        super().__init__(position, np.zeros(2), 10, 8.0, 5.0, gravity_scale=0.0, start_color=(255, 255, 255),
-                         end_color=(50, 50, 50), shading=0.2)
-
-
-class Sparks(Cloud):
-    def __init__(self, position, velocity):
-        super().__init__(position, velocity, 3, 10.0, 0.2, stretch=5, gravity_scale=0.1)
+        super().__init__('smoke', position, 0.1 * basis(1), 5, 10.0, start_size=8.0, end_size=0.0, gravity_scale=-0.5)
+        self.particles.append(Particle('explosion', position, np.zeros(2), 5.0, start_size=4.0, end_size=5.0,
+                                       gravity_scale=0.0))
 
 
 class Dust(Cloud):
-    def __init__(self, position, velocity, number):
-        super().__init__(position, 0.2 * velocity, number, 5.0, 0.5, gravity_scale=0.5, start_color=(200, 200, 200),
-                         end_color=(200, 200, 200), shading=0.1)
+    def __init__(self, position, velocity, number=5):
+        super().__init__('dust', position, 0.2 * velocity, number, 5.0, 5.0, gravity_scale=0.5)

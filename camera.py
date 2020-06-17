@@ -3,7 +3,7 @@ from itertools import chain
 import numpy as np
 import pyglet
 
-from helpers import basis, norm2, rotate
+from helpers import basis, rotate
 from weapon import Grenade
 
 
@@ -20,7 +20,7 @@ class Camera:
         self.resolution = np.array(resolution, dtype=int)
         self.shake = np.zeros(2)
         self.velocity = np.zeros(2)
-        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(8)]
+        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(9)]
 
     def set_resolution(self, resolution):
         self.max_zoom = resolution[1] / 720 * 50.0
@@ -74,8 +74,8 @@ class Camera:
 
         return pos
 
-    def draw_image(self, image_handler, image_path, position, size=1, direction=1, angle=0.0,
-                   batch=None, layer=1, sprite=None):
+    def draw_image(self, image_handler, image_path, position, scale=1, direction=1, angle=0.0, scale_x=None,
+                   scale_y=None, batch=None, layer=1, sprite=None):
         if sprite is None:
             sprite = pyglet.sprite.Sprite(img=image_handler.images[image_path], batch=batch, group=self.layers[layer])
 
@@ -84,7 +84,10 @@ class Camera:
         else:
             sprite.image = image_handler.images[image_path]
 
-        sprite.update(*self.world_to_screen(position), -np.rad2deg(angle), 1.05 * self.zoom * size / 100)
+        scale = 1.05 * self.zoom * scale / 100 if scale else None
+        scale_x = 1.05 * self.zoom * scale_x / 100 if scale_x else None
+        scale_y = 1.05 * self.zoom * scale_y / 100 if scale_y else None
+        sprite.update(*self.world_to_screen(position), -np.rad2deg(angle), scale, scale_x, scale_y)
         sprite.group = self.layers[layer]
 
         return sprite

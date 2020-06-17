@@ -18,8 +18,8 @@ class Player(Destroyable):
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
-        self.body_type = 'speedo'
-        self.head_type = 'bald'
+        self.body_type = ''
+        self.head_type = ''
 
         self.body = Body(self.position, self)
         self.head = Head(self.position + basis(1), self)
@@ -74,6 +74,8 @@ class Player(Destroyable):
         self.head.delete()
         self.body.delete()
         self.hand.delete()
+        self.front_foot.delete()
+        self.back_foot.delete()
 
     def get_data(self):
         return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1],
@@ -105,6 +107,7 @@ class Player(Destroyable):
         self.collider.group = Group.PLAYERS
         self.head.reset()
         self.body.reset()
+        self.hand.reset()
         self.front_foot.reset()
         self.back_foot.reset()
         self.hand.set_position(self.position)
@@ -112,6 +115,8 @@ class Player(Destroyable):
         self.destroyed = False
         self.health = 100
         self.rotate(-self.angle)
+        self.collider.half_width = np.round(self.collider.half_width, 3)
+        self.collider.half_height = np.round(self.collider.half_height, 3)
         self.bounce = 0.0
         self.active = True
         self.throw_object(0.0)
@@ -119,6 +124,10 @@ class Player(Destroyable):
         self.collider.update_occupied_squares(colliders)
         self.head.collider.update_occupied_squares(colliders)
         self.body.collider.update_occupied_squares(colliders)
+
+        for p in self.particle_clouds:
+            p.delete()
+        self.particle_clouds.clear()
 
     def set_spawn(self, level, players):
         i = 0
@@ -341,8 +350,6 @@ class Player(Destroyable):
 
         PhysicsObject.update(self, gravity, time_step, colliders)
 
-        if self.collider.collisions and self.speed > 0.1:
-            self.sounds.add('bump')
         self.head.update_active()
         if not self.head.active or not self.head.destroyed:
             if self.on_ground and self.speed < 0.1:
@@ -354,6 +361,11 @@ class Player(Destroyable):
         self.update_limb(gravity, time_step, colliders, self.hand, self.shoulder, self.hand.length)
         self.update_limb(gravity, time_step, colliders, self.back_foot, self.back_hip, self.back_foot.length)
         self.update_limb(gravity, time_step, colliders, self.front_foot, self.front_hip, self.front_foot.length)
+
+        angle = np.round(polar_angle(self.velocity), 2) + 0.5 * (1 + self.direction) * np.pi
+        self.hand.rotate(angle - self.hand.angle)
+        self.front_foot.rotate(angle - self.front_foot.angle)
+        self.back_foot.rotate(angle - self.back_foot.angle)
 
     def update_limb(self, gravity, time_step, colliders, limb, joint, length):
         limb.update(gravity, time_step, colliders)
@@ -471,7 +483,7 @@ class Player(Destroyable):
             self.hand.draw(batch, camera, image_handler)
 
         for b in self.particle_clouds:
-            b.draw(batch, camera)
+            b.draw(batch, camera, image_handler)
 
     def draw_shadow(self, batch, camera, image_handler, light):
         self.head.draw_shadow(batch, camera, image_handler, light)
@@ -653,12 +665,16 @@ class Head(Destroyable):
         self.reset()
 
     def reset(self):
+        for p in self.particle_clouds:
+            p.delete()
+        self.particle_clouds.clear()
         self.gravity_scale = 0.0
-        self.add_collider(Circle([0, 0], 0.5, Group.HITBOXES))
+        if not self.collider:
+            self.add_collider(Circle([0, 0], 0.5, Group.HITBOXES))
         self.destroyed = False
         self.health = 20
         self.active = True
-        self.collision_enabled = True
+        self.rotate(-self.angle)
 
     def damage(self, amount, colliders):
         super().damage(amount, colliders)
@@ -683,11 +699,13 @@ class Body(Destroyable):
         self.reset()
 
     def reset(self):
+        for p in self.particle_clouds:
+            p.delete()
+        self.particle_clouds.clear()
         if not self.collider:
             self.add_collider(Rectangle([0, -0.5], 0.8, 2, Group.HITBOXES))
         self.destroyed = False
         self.health = 100
-        self.collision_enabled = True
         self.rotate(-self.angle)
 
     def damage(self, amount, colliders):
@@ -738,6 +756,17 @@ class Hand(PhysicsObject, AnimatedObject):
         self.upper_arm_sprite = None
         self.lower_arm_sprite = None
         self.length = 1.0
+
+    def reset(self):
+        for p in self.particle_clouds:
+            p.delete()
+        self.particle_clouds.clear()
+
+    def delete(self):
+        super().delete()
+        self.elbow_sprite.delete()
+        self.upper_arm_sprite.delete()
+        self.lower_arm_sprite.delete()
 
     def set_visibility(self, visible):
         if self.sprite:
@@ -813,7 +842,17 @@ class Foot(PhysicsObject, AnimatedObject):
         self.lower_leg_sprite = None
         self.length = 0.95
 
+    def delete(self):
+        super().delete()
+        self.knee_sprite.delete()
+        self.upper_leg_sprite.delete()
+        self.lower_leg_sprite.delete()
+
     def reset(self):
+        for p in self.particle_clouds:
+            p.delete()
+        self.particle_clouds.clear()
+
         self.gravity_scale = 0.0
         self.active = True
 

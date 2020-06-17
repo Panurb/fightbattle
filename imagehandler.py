@@ -18,7 +18,7 @@ class ImageHandler:
         self.tiles = dict()
         self.debug_color = (255, 0, 255)
         pyglet.resource.path = ['data/images', 'data/images/bodies', 'data/images/hands', 'data/images/heads',
-                                'data/images/weapons']
+                                'data/images/weapons', 'data/images/particles']
         pyglet.resource.reindex()
 
         self.load_images()

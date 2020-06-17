@@ -20,6 +20,7 @@ class SoundHandler:
                 self.music[file.split('.')[0]] = pyglet.media.load(os.path.join(path, file))
 
         self.volume = 1.0
+        self.set_volume(option_handler.sfx_volume)
         self.music_player = pyglet.media.player.Player()
         self.set_music_volume(option_handler.music_volume)
 

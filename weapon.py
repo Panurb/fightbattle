@@ -4,8 +4,8 @@ from numpy.linalg import norm
 from bullet import Pellet, Bullet, Arrow
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
-from helpers import basis, polar_to_cartesian, polar_angle, rotate, random_unit, norm2, normalized
-from particle import MuzzleFlash, Explosion, Sparks, BloodSplatter
+from helpers import basis, polar_to_cartesian, rotate, random_unit, normalized
+from particle import MuzzleFlash, Explosion, Dust
 
 
 class Weapon(PhysicsObject):
@@ -62,8 +62,8 @@ class Gun(Weapon):
 
     def attack(self):
         super().attack()
-        v = 0.1 * self.direction * polar_to_cartesian(1, self.angle)
-        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v, self.parent.velocity))
+        v = self.direction * polar_to_cartesian(0.1, self.angle)
+        self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v))
 
         return []
 
@@ -134,7 +134,8 @@ class Axe(Weapon):
             if self.parent is not None and self.timer > 0:
                 self.sounds.add('sword')
                 self.parent.camera_shake = 10 * random_unit()
-                self.particle_clouds.append(Sparks(self.position + self.collider.half_height, -0.1 * self.direction * basis(0)))
+                self.particle_clouds.append(Dust(self.position + self.collider.half_height,
+                                                 -0.1 * self.direction * basis(0)))
             self.hit = True
             return
 
@@ -216,7 +217,8 @@ class Grenade(Destroyable):
             self.destroyed = True
 
             if self.pin:
-                self.pin.sprite.delete()
+                if self.pin.sprite:
+                    self.pin.sprite.delete()
                 self.pin = None
 
             explosion_collider = Circle(self.position, 3.0)
@@ -274,6 +276,7 @@ class Bow(Gun):
         self.grip_position = 0.2 * basis(0)
         self.string_upper = np.array([-0.22, 1.0])
         self.string_lower = np.array([-0.22, -1.0])
+        self.string_middle = np.zeros(2)
         self.timer = 0.0
         self.string_width = 0.05
         self.string_color = (50, 50, 50)
@@ -315,6 +318,8 @@ class Bow(Gun):
             self.hand_position[0] = -0.2
             self.timer = 0.0
 
+        self.string_middle[0] *= -0.7
+
     def attack(self):
         if self.timer == 0.0:
             self.attacked = False
@@ -322,6 +327,7 @@ class Bow(Gun):
             v = self.direction * self.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
             self.timer = 10.0
             self.attack_charge = 0.0
+            self.string_middle[0] = 0.5 * self.direction
 
             return [Arrow(self.get_barrel_position(), v, self.parent)]
 
@@ -340,8 +346,8 @@ class Bow(Gun):
         c = self.position + self.direction * rotate(self.string_lower, self.angle)
         if self.attack_charge:
             b = self.get_hand_position()
-            self.string = camera.draw_line([a, b, c], self.string_width, self.string_color,
-                                           batch=batch, layer=self.layer, vertex_list=self.string)
         else:
-            self.string = camera.draw_line([a, c, a], self.string_width, self.string_color,
-                                           batch=batch, layer=self.layer, vertex_list=self.string)
+            b = (a + c) / 2 + rotate(self.string_middle, self.angle)
+
+        self.string = camera.draw_line([a, b, c], self.string_width, self.string_color,
+                                       batch=batch, layer=self.layer+2, vertex_list=self.string)
