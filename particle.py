@@ -72,7 +72,8 @@ class Particle:
         self.sprite = None
 
     def delete(self):
-        self.sprite.delete()
+        if self.sprite:
+            self.sprite.delete()
 
     def update(self, gravity, time_step):
         self.time = min(self.time + time_step, self.lifetime)

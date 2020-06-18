@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 
 import numpy as np
@@ -27,6 +28,7 @@ class Menu:
         self.selection_moved = dict()
         self.slider_moved = dict()
         self.sounds = set()
+        self.previous_state = State.MENU
 
     def delete(self):
         for b in self.buttons:
@@ -93,14 +95,14 @@ class Menu:
                 else:
                     self.slider_moved[controller_id] = False
 
-            if controller.button_pressed['A']:
-                if type(self.buttons[self.selection]) is Button:
-                    self.target_state = self.buttons[self.selection].target_state
-                    self.sounds.add('select')
+        if controller.button_pressed['A']:
+            if type(self.buttons[self.selection]) is Button:
+                self.target_state = self.buttons[self.selection].target_state
+                self.sounds.add('select')
 
-            if controller.button_pressed['B']:
-                self.target_state = State.MENU
-                self.sounds.add('cancel')
+        if controller.button_pressed['B']:
+            self.target_state = self.previous_state
+            self.sounds.add('cancel')
 
         for i, b in enumerate(self.buttons):
             b.selected = True if i == self.selection else False
@@ -278,11 +280,16 @@ class PlayerMenu(Menu):
         self.position = np.array(position, dtype=float)
         self.controller_id = None
 
-        # TODO: read from directory
-        self.head_slider = Slider('Head', ['bald', 'goggles', 'clown'])
+        path = os.path.join('data', 'images', 'heads')
+        heads = [x.split('.')[0] for x in os.listdir(path)]
+        self.head_slider = Slider('Head', heads)
         self.buttons.append(self.head_slider)
-        self.body_slider = Slider('Body', ['camo', 'suit', 'speedo', 'sporty'])
+
+        path = os.path.join('data', 'images', 'bodies')
+        bodies = [x.split('.')[0] for x in os.listdir(path)]
+        self.body_slider = Slider('Body', bodies)
         self.buttons.append(self.body_slider)
+
         self.team_slider = Slider('Team', ['blue', 'red'], False)
         self.buttons.append(self.team_slider)
         self.buttons.append(Button('Ready up', State.PLAY))
@@ -327,6 +334,7 @@ class PlayerMenu(Menu):
                 super().input(input_handler, self.controller_id)
                 if self.target_state is State.PLAY:
                     self.ready = True
+                    self.target_state = State.PLAYER_SELECT
 
     def draw(self, batch, camera, image_handler):
         if not self.joined:
@@ -400,7 +408,7 @@ class PauseMenu(Menu):
         super().__init__()
         self.target_state = State.PAUSED
         self.buttons.append(Button('Resume', State.PLAY))
-        self.buttons.append(Button('Quit', State.MENU))
+        self.buttons.append(Button('Quit', State.PLAYER_SELECT))
         self.update_buttons()
 
     def input(self, input_handler, controller_id=0):
@@ -411,3 +419,22 @@ class PauseMenu(Menu):
         self.position[:] = camera.position
         self.update_buttons()
         super().draw(screen, camera, image_handler)
+
+
+class LevelMenu(Menu):
+    def __init__(self):
+        super().__init__()
+        self.position = np.array([25, -20])
+        path = os.path.join('data', 'levels')
+        levels = [x.split('.')[0] for x in os.listdir(path)]
+        self.level_slider = Slider('Level', levels, cyclic=False)
+        self.buttons.append(self.level_slider)
+        self.buttons.append(Slider('Point limit', range(1, 11), cyclic=False, selection=2))
+        self.buttons.append(Button('Start', State.PLAY))
+        self.update_buttons()
+        self.target_state = State.LEVEL_SELECT
+        self.previous_state = State.PLAYER_SELECT
+
+    def input(self, input_handler, controller_id=0):
+        for i in range(len(input_handler.controllers)):
+            super().input(input_handler, i)

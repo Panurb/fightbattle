@@ -25,6 +25,10 @@ class Wall(GameObject):
 
         self.border = False
 
+    def delete(self):
+        if self.shadow_sprite:
+            self.shadow_sprite.delete()
+
     def get_data(self):
         return (type(self), self.position[0], self.position[1],
                 2 * self.collider.half_width[0], 2 * self.collider.half_height[1])

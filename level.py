@@ -66,6 +66,8 @@ class Level:
         self.scoreboard.delete()
         for obj in self.objects.values():
             obj.delete()
+        for w in self.walls:
+            w.delete()
 
     def clear(self):
         self.player_spawns.clear()

@@ -1,12 +1,13 @@
 from _thread import *
 
+import numpy as np
 from pyglet.window import key
 
 from camera import Camera
 from gameobject import Destroyable
 from helpers import basis
 from level import Level
-from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu
+from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu
 from player import Player
 from network import Network
 from prop import Ball
@@ -29,10 +30,11 @@ class GameLoop:
         self.respawn_time = 50.0
 
         self.menu = MainMenu()
-        self.player_menus = [PlayerMenu((6 * i - 9) * basis(0) - 20 * basis(1)) for i in range(4)]
+        self.player_menus = [PlayerMenu(np.array([6 * i - 9, -20])) for i in range(4)]
         self.options_menu = OptionsMenu()
         self.options_menu.set_values(self.option_handler)
         self.pause_menu = PauseMenu()
+        self.level_menu = LevelMenu()
 
         self.network = None
         self.network_id = -1
@@ -40,8 +42,8 @@ class GameLoop:
 
         self.controller_id = 0
 
-    def load_level(self):
-        self.level = Level('lvl')
+    def load_level(self, name):
+        self.level = Level(name)
 
         self.colliders.clear()
 
@@ -55,6 +57,10 @@ class GameLoop:
 
         for obj in self.level.objects.values():
             obj.collider.update_occupied_squares(self.colliders)
+
+        for p in self.players.values():
+            p.set_spawn(self.level, self.players)
+            p.reset(self.colliders)
 
     def reset_game(self):
         for g in self.level.goals:
@@ -116,7 +122,8 @@ class GameLoop:
                 self.option_handler.load()
                 self.options_menu.set_values(self.option_handler)
         elif self.state is State.PLAYER_SELECT:
-            self.camera.position[1] += time_step * (self.player_menus[1].position - self.camera.position)[1]
+            pos = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
+            self.camera.position += time_step * (pos - self.camera.position)
 
             for pm in self.player_menus:
                 if pm.joined:
@@ -131,16 +138,16 @@ class GameLoop:
                         return
 
             if self.players and all(not pm.joined or pm.ready for pm in self.player_menus):
-                self.state = State.PLAY
+                self.state = State.LEVEL_SELECT
                 for pm in self.player_menus:
-                    pm.delete()
-                self.menu.delete()
-                self.options_menu.delete()
-
-                self.load_level()
-                for p in self.players.values():
-                    p.set_spawn(self.level, self.players)
-                    p.reset(self.colliders)
+                    pm.ready = False
+        elif self.state is State.LEVEL_SELECT:
+            self.camera.position += time_step * (self.level_menu.position - self.camera.position)
+            self.state = self.level_menu.target_state
+            if self.state is State.PLAY:
+                self.load_level(self.level_menu.level_slider.get_value())
+                self.level_menu.delete()
+            self.level_menu.target_state = State.LEVEL_SELECT
         elif self.state is State.LAN:
             if self.network is None:
                 self.network = Network()
@@ -213,10 +220,13 @@ class GameLoop:
                 self.option_handler.save()
         elif self.state is State.PAUSED:
             self.state = self.pause_menu.target_state
-            if self.state is State.MENU:
+            if self.state is State.PLAYER_SELECT:
+                for p in self.players.values():
+                    p.reset(self.colliders)
                 self.level.delete()
                 self.level = None
                 self.camera.position[:] = [0, 0]
+                self.camera.zoom = self.camera.max_zoom
             if self.state is not State.PAUSED:
                 self.pause_menu.delete()
             self.pause_menu.target_state = State.PAUSED
@@ -266,7 +276,8 @@ class GameLoop:
                         if pm.controller_id == i:
                             self.add_player(i)
                             return
-
+        elif self.state is State.LEVEL_SELECT:
+            self.level_menu.input(input_handler)
         elif self.state is State.LAN:
             if self.network is not None:
                 player = self.players[self.network_id]
@@ -297,7 +308,7 @@ class GameLoop:
 
             if self.option_handler.debug_draw:
                 self.debug_draw(batch, image_handler)
-        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT}:
+        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT}:
             image_handler.set_clear_color((50, 50, 50))
 
             self.menu.draw(batch, self.camera, image_handler)
@@ -309,6 +320,7 @@ class GameLoop:
                     self.players[pm.controller_id].on_ground = True
                     self.players[pm.controller_id].animate(0.0)
                     self.players[pm.controller_id].draw(batch, self.camera, image_handler)
+            self.level_menu.draw(batch, self.camera, image_handler)
         elif self.state is State.PAUSED:
             self.pause_menu.draw(batch, self.camera, image_handler)
 
@@ -339,6 +351,7 @@ class GameLoop:
             self.options_menu.play_sounds(sound_handler)
             for pm in self.player_menus:
                 pm.play_sounds(sound_handler)
+            self.level_menu.play_sounds(sound_handler)
         self.pause_menu.play_sounds(sound_handler)
 
     def network_thread(self):

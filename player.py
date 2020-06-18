@@ -121,10 +121,6 @@ class Player(Destroyable):
         self.active = True
         self.throw_object(0.0)
 
-        self.collider.update_occupied_squares(colliders)
-        self.head.collider.update_occupied_squares(colliders)
-        self.body.collider.update_occupied_squares(colliders)
-
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
