@@ -195,13 +195,16 @@ class Player(Destroyable):
             return
 
         for collision in self.collider.collisions:
+            collider = collision.collider
             obj = collision.collider.parent
             if not obj.collision_enabled:
                 continue
 
             if obj.collider.group is Group.PLATFORMS:
-                if self.position[1] - self.collider.half_height[1] - delta_pos[1] \
-                        < obj.position[1] + obj.collider.half_height[1] + 0.5 * gravity[1] * time_step**2:
+                bottom = self.collider.position[1] - delta_pos[1] - self.collider.half_height[1] \
+                         - 0.5 * self.gravity_scale * gravity[1] * time_step**2
+                platform_top = collider.position[1] + collider.half_height[1]
+                if bottom < platform_top:
                     continue
 
             if collision.overlap[1] > 0:

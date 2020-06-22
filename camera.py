@@ -92,73 +92,35 @@ class Camera:
 
         return sprite
 
-    def draw_text(self, string, position, size, font=None, color=(255, 255, 255), chromatic_aberration=0.0,
-                  batch=None, layer=6, labels=None):
-        if not labels[0]:
+    def draw_label(self, string, position, size, font=None, color=(255, 255, 255), batch=None, layer=6, label=None):
+        if not label:
             if font is not None:
                 pyglet.font.add_file(f'data/fonts/{font}')
                 font = font.split('.')[0]
 
-            labels[0] = pyglet.text.Label(string, font_name=font, font_size=size*self.zoom,
-                                          anchor_x='center', anchor_y='center', color=color + (255,),
-                                          batch=batch, group=self.layers[layer])
+            label = pyglet.text.Label(string, font_name=font, font_size=size*self.zoom,
+                                      anchor_x='center', anchor_y='center', color=color + (255,),
+                                      batch=batch, group=self.layers[layer])
 
-        labels[0].text = string
-        labels[0].color = color + (255,)
+        label.text = string
+        label.color = color + (255,)
         x, y = self.world_to_screen(position)
-        labels[0].x = x
-        labels[0].y = y
-        labels[0].font_size = size * self.zoom
+        label.x = x
+        label.y = y
+        if int(size * self.zoom) != label.font_size:
+            label.font_size = int(size * self.zoom)
 
-        if chromatic_aberration:
-            if not labels[1]:
-                if font is not None:
-                    pyglet.font.add_file(f'data/fonts/{font}')
-                    font = font.split('.')[0]
+        return label
 
-                labels[1] = pyglet.text.Label(string, font_name=font, font_size=size*self.zoom,
-                                              anchor_x='center', anchor_y='center', color=(255, 0, 0, 255),
-                                              batch=batch, group=self.layers[layer - 2])
-
-                labels[2] = pyglet.text.Label(string, font_name=font, font_size=size*self.zoom,
-                                              anchor_x='center', anchor_y='center', color=(0, 255, 255, 255),
-                                              batch=batch, group=self.layers[layer - 1])
-
-            labels[1].text = string
-            labels[1].x = x - chromatic_aberration
-            labels[1].y = y
-            labels[1].font_size = size * self.zoom
-
-            labels[2].text = string
-            labels[2].x = x + chromatic_aberration
-            labels[2].y = y
-            labels[2].font_size = size * self.zoom
-        else:
-            if labels[1]:
-                labels[1].font_size = 0
-            if labels[2]:
-                labels[2].font_size = 0
-
-        return labels
-
-    def draw_triangle(self, position, size, angle=0, color=(255, 255, 255), chromatic_aberration=False, batch=None,
-                      vertex_lists=None):
+    def draw_triangle(self, position, size, angle=0, color=(255, 255, 255), batch=None, vertex_list=None):
         a = size * rotate(np.array([0, 0.5]), angle)
         b = size * rotate(np.array([0, -0.5]), angle)
         c = size * rotate(np.array([np.sqrt(3) / 2, 0]), angle)
 
-        if chromatic_aberration:
-            offset = 0.05 * size * basis(0)
-
-            points = [-self.zoom / 100 * p + position - offset for p in [a, b, c]]
-            vertex_lists[1] = self.draw_polygon(points, color=(255, 0, 0), batch=batch, vertex_list=vertex_lists[1])
-
-            points = [-self.zoom / 100 * p + position + offset for p in [a, b, c]]
-            vertex_lists[2] = self.draw_polygon(points, color=(0, 255, 255), batch=batch, vertex_list=vertex_lists[2])
-
         points = [-self.zoom / 100 * p + position for p in [a, b, c]]
-        vertex_lists[0] = self.draw_polygon(points, color=color, batch=batch, vertex_list=vertex_lists[0])
-        return vertex_lists
+        vertex_list = self.draw_polygon(points, color=color, batch=batch, vertex_list=vertex_list)
+
+        return vertex_list
 
     def draw_rectangle(self, position, width, height, color=(255, 255, 255), batch=None, layer=1, vertex_list=None,
                        linewidth=0):

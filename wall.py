@@ -5,7 +5,8 @@ from numpy.linalg import norm
 
 from gameobject import GameObject
 from collider import Rectangle, Group, ColliderGroup, Circle
-from helpers import basis
+from helpers import basis, normalized
+from text import Text
 
 
 class Wall(GameObject):
@@ -33,9 +34,11 @@ class Wall(GameObject):
         return (type(self), self.position[0], self.position[1],
                 2 * self.collider.half_width[0], 2 * self.collider.half_height[1])
 
-    def blit_to_image(self, image, image_handler):
+    def blit_to_image(self, image, image_handler, light=None):
         if self.border:
             self.image_path = 'wall'
+            if light is not None:
+                return
 
         w = 0.5 * self.collider.width
         h = 0.5 * self.collider.height
@@ -66,11 +69,20 @@ class Wall(GameObject):
                 if self.border and int(self.position[1]) == 0:
                     m = 2
 
+                pos = self.position + self.image_position + np.array([x, j - h])
                 decal = image_handler.tiles[self.image_path][n][m]
                 size = [int(1.05 * s) for s in decal.size]
                 decal = decal.resize(size, Image.ANTIALIAS)
-                pos = self.position + self.image_position + x * basis(0) + 1.0 * (-h + j) * basis(1)
-                image.paste(decal, [int(p * 100) for p in pos], decal.convert('RGBA'))
+                mask = decal.convert('RGBA')
+
+                if light is not None:
+                    decal = decal.convert('L').point(lambda x: 0, mode='1').convert('RGBA')
+                    decal.putalpha(128)
+
+                    shadow_offset = 0.5 * normalized(self.position - light)
+                    image.paste(decal, [int(p * 100) for p in pos + shadow_offset], mask)
+                else:
+                    image.paste(decal, [int(p * 100) for p in pos], mask)
 
     def draw(self, batch, camera, image_handler):
         if self.sprite is None:
@@ -88,31 +100,6 @@ class Wall(GameObject):
 
         x, y = camera.world_to_screen(self.position - self.collider.half_width - self.collider.half_height)
         self.sprite.update(x, y - 0.5 * camera.zoom, scale=camera.zoom / 100)
-
-    def draw_shadow(self, batch, camera, image_handler, light):
-        if self.border:
-            return
-
-        if self.shadow_sprite is None:
-            width = int(self.collider.width * 100) + 50
-            height = int(self.collider.height * 100) + 100
-            image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-
-            pos = self.position.copy()
-            self.position = self.collider.half_width + self.collider.half_height + self.image_position
-            self.blit_to_image(image, image_handler)
-            self.position[:] = pos
-
-            image = pyglet.image.ImageData(width, height, 'RGBA', image.tobytes())
-            self.shadow_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[1])
-            self.shadow_sprite.color = (0, 0, 0)
-            self.shadow_sprite.opacity = 128
-
-        r = self.position - light
-        pos = self.position + 0.5 * r / norm(r)
-
-        x, y = camera.world_to_screen(pos - self.collider.half_width - self.collider.half_height)
-        self.shadow_sprite.update(x, y - 0.5 * camera.zoom, scale=camera.zoom / 100)
 
 
 class Platform(Wall):
@@ -139,6 +126,9 @@ class Basket(GameObject):
         self.score = 0
         self.front = GameObject(self.position, 'basket_front', layer=4)
         self.front.image_position = np.array([0.4, -0.72])
+
+    def reset(self):
+        self.collider.colliders[-1].group = Group.WALLS
 
     def delete(self):
         super().delete()
@@ -168,13 +158,15 @@ class Scoreboard(GameObject):
         super().__init__(position, image_path='scoreboard', layer=1)
         self.add_collider(Rectangle([0, 0], 7, 4))
         self.scores = {'blue': 0, 'red': 0}
-        self.labels = 3 * [None]
+        self.text = Text('00 - 00', self.position, 2, 'Seven Segment.ttf', (200, 255, 0), layer=self.layer+1)
+
+    def set_position(self, position):
+        super().set_position(position)
+        self.text.position[:] = position
 
     def delete(self):
         super().delete()
-        for l in self.labels:
-            if l:
-                l.delete()
+        self.text.delete()
 
     def get_data(self):
         return tuple(self.position)
@@ -184,6 +176,5 @@ class Scoreboard(GameObject):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        text = '-'.join(map(lambda x: str(x) if x > 9 else '0' + str(x), self.scores.values()))
-        self.labels = camera.draw_text(text, self.position, 2, 'Seven Segment.ttf', (200, 255, 0),
-                                       batch=batch, layer=self.layer+1, labels=self.labels)
+        self.text.string = '-'.join(map(lambda x: str(x) if x > 9 else '0' + str(x), self.scores.values()))
+        self.text.draw(batch, camera)

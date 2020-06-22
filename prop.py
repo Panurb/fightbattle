@@ -12,10 +12,10 @@ class Crate(Destroyable):
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
-        if not self.destroyed:
-            if self.collider.collisions:
-                if self.speed > 0.1:
-                    self.damage(self.speed * self.blunt_damage, colliders)
+        #if not self.destroyed:
+        #    if self.collider.collisions:
+        #        if self.speed > 0.1:
+        #            self.damage(self.speed * self.blunt_damage, colliders)
 
     def destroy(self, colliders):
         if not self.destroyed:
@@ -32,8 +32,9 @@ class Ball(PhysicsObject):
         self.add_collider(Circle([0, 0], radius, Group.PROPS))
         self.bounce = 0.8
         self.size = 2.1 * radius
-        self.scored = False
+        self.scored = ''
         self.roll = True
+        self.blunt_damage = 0
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -43,5 +44,5 @@ class Ball(PhysicsObject):
             for c in self.collider.collisions:
                 c.collider.parent.score += 1
                 c.collider.parent.collider.colliders[-1].group = Group.NONE
-                self.scored = True
+                self.scored = c.collider.parent.team
                 break

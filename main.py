@@ -27,6 +27,7 @@ class GameWindow(pyglet.window.Window):
         self.loop = GameLoop(self.option_handler)
 
         self.fps_display = pyglet.window.FPSDisplay(window=self)
+        self.fps_display.label.color = (255, 255, 255, 128)
 
         self.batch = pyglet.graphics.Batch()
 

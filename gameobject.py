@@ -192,6 +192,9 @@ class PhysicsObject(GameObject):
         if self.roll:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
+        if self.collider:
+            height = self.collider.axis_half_width(basis(1))
+
         delta_angle = self.angular_velocity * time_step + 0.5 * self.angular_acceleration * time_step**2
         if delta_angle:
             self.rotate(delta_angle)
@@ -208,27 +211,15 @@ class PhysicsObject(GameObject):
 
         for collision in self.collider.collisions:
             collider = collision.collider
-            if not collider.parent.collision_enabled:
-                continue
 
             if collider.group is Group.PLATFORMS:
-                if self.parent and self.collider.group in {Group.GUNS, Group.SWORDS, Group.SHIELDS}:
-                    self.collider.collisions.remove(collision)
-                    continue
-
-                if collider.half_height[1] > 0:
-                    if self.collider.position[1] - delta_pos[1] - self.collider.axis_half_width(basis(1)) \
-                            < collider.position[1] + collider.half_height[1]:
-                        self.collider.collisions.remove(collision)
-                        continue
-                elif self.collider.position[1] - delta_pos[1] + self.collider.axis_half_width(basis(1)) \
-                        > collider.position[1] + collider.half_height[1]:
-                    self.collider.collisions.remove(collision)
+                bottom = self.collider.position[1] - delta_pos[1] - height
+                platform_top = collider.position[1] + collider.half_height[1]
+                if bottom < platform_top - 0.1:
                     continue
 
             if self.collider.group is Group.THROWN:
                 if collider.parent is self.parent:
-                    self.collider.collisions.remove(collision)
                     continue
 
                 try:
@@ -240,16 +231,7 @@ class PhysicsObject(GameObject):
                 self.on_ground = True
                 if not self.parent:
                     if type(self.collider) is Rectangle:
-                        ratio = self.collider.width / self.collider.height
-                        if ratio > 1.5:
-                            n = np.round(self.angle / np.pi)
-                            self.angular_velocity = 0.5 * (n * np.pi - self.angle)
-                        elif ratio < 0.5:
-                            n = np.round((self.angle + 0.5 * np.pi) / np.pi)
-                            self.angular_velocity = 0.5 * (n * np.pi - (self.angle + 0.5 * np.pi))
-                        else:
-                            n = np.round(self.angle / (0.5 * np.pi))
-                            self.angular_velocity = 0.5 * (n * 0.5 * np.pi - self.angle)
+                        self.angular_velocity = 0.5 * (self.collider.rest_angle() - self.angle)
                         if abs(self.angular_velocity) > 0.1:
                             self.sounds.add(self.bump_sound)
             elif collision.overlap[0] != 0:

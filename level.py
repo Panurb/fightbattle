@@ -33,7 +33,7 @@ class Level:
         self.height = 0.0
         self.position = np.zeros(2)
 
-        self.light = np.zeros(2)
+        self.light = None
 
         if self.name:
             with open(f'data/levels/{self.name}.pickle', 'rb') as f:
@@ -41,12 +41,12 @@ class Level:
 
     def reset(self):
         for g in self.goals:
-            g.collider.colliders[-1].group = Group.WALLS
+            g.reset()
                 
         for o in self.objects.values():
             o.delete()
-
         self.objects.clear()
+
         if self.name:
             with open(f'data/levels/{self.name}.pickle', 'rb') as f:
                 data = pickle.load(f)
@@ -187,6 +187,9 @@ class Level:
                     del self.objects[k]
                     continue
 
+        for g in self.goals:
+            self.scoreboard.scores[g.team] = g.score
+
     def draw(self, batch, camera, image_handler):
         if not self.editor and self.width > 0 and self.height > 0:
             if self.background is None:
@@ -205,6 +208,11 @@ class Level:
                         wall.border = True
                     if int(wall.position[1]) == 0 or int(wall.position[1]) == self.height - 1:
                         wall.border = True
+
+                for wall in self.walls:
+                    wall.blit_to_image(image, image_handler, self.light)
+
+                for wall in self.walls:
                     wall.blit_to_image(image, image_handler)
 
                 image = pyglet.image.ImageData(width, height, 'RGBA', image.tobytes())
@@ -230,9 +238,6 @@ class Level:
             obj.draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler):
-        for w in self.walls:
-            w.draw_shadow(screen, camera, image_handler, self.light)
-
         for g in self.goals:
             g.draw_shadow(screen, camera, image_handler, self.light)
 

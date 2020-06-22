@@ -3,9 +3,9 @@ from enum import Enum
 
 import numpy as np
 
-from collider import Rectangle
-from gameobject import GameObject
+from button import Button, Slider
 from helpers import basis
+from text import Text, TitleText
 
 
 class State(Enum):
@@ -29,6 +29,11 @@ class Menu:
         self.slider_moved = dict()
         self.sounds = set()
         self.previous_state = State.MENU
+        self.visible = True
+
+    def set_visible(self, visible):
+        for b in self.buttons:
+            b.set_visible(visible)
 
     def delete(self):
         for b in self.buttons:
@@ -109,6 +114,7 @@ class Menu:
 
     def draw(self, screen, camera, image_handler):
         for b in self.buttons:
+            b.visible = self.visible
             b.draw(screen, camera, image_handler)
 
     def play_sounds(self, sound_handler):
@@ -117,126 +123,6 @@ class Menu:
             player.volume = sound_handler.volume
 
         self.sounds.clear()
-
-
-class Button(GameObject):
-    def __init__(self, text, target_state):
-        super().__init__([0, 0])
-        self.add_collider(Rectangle([0, 0], 3, 1))
-        self.text = text
-        self.target_state = target_state
-        self.color = (150, 150, 150)
-        self.color_selected = (255, 255, 255)
-        self.selected = False
-        self.labels = 3 * [None]
-        self.visible = True
-
-    def delete(self):
-        for label in self.labels:
-            if label:
-                label.delete()
-
-    def set_position(self, position):
-        super().set_position(position)
-        for label in self.labels:
-            if label:
-                label.y = position[1]
-
-    def draw(self, batch, camera, image_handler):
-        if self.visible:
-            color = self.color_selected if self.selected else self.color
-            self.labels = camera.draw_text(self.text, self.position, 0.45, color=color,
-                                           chromatic_aberration=self.selected, batch=batch, labels=self.labels)
-        else:
-            for label in self.labels:
-                if label:
-                    label.font_size = 0
-
-
-class Slider(GameObject):
-    def __init__(self, text, values, cyclic=True, selection=0):
-        super().__init__([0, 0])
-        self.add_collider(Rectangle([0, 0], 3, 1))
-        self.text = text
-        self.color = (150, 150, 150)
-        self.color_selected = (255, 255, 255)
-        self.selected = False
-        self.selection = selection
-        self.values = values
-        self.cyclic = cyclic
-        self.labels = 3 * [None]
-        self.value_labels = 3 * [None]
-        self.triangle_left = 3 * [None]
-        self.triangle_right = 3 * [None]
-        self.visible = True
-
-    def delete(self):
-        for label in self.labels:
-            if label:
-                label.delete()
-        for label in self.value_labels:
-            if label:
-                label.delete()
-        for vl in self.triangle_left:
-            if vl:
-                vl.delete()
-        for vl in self.triangle_right:
-            if vl:
-                vl.delete()
-
-    def get_value(self):
-        return self.values[self.selection]
-
-    def move_right(self):
-        if self.cyclic:
-            self.selection = (self.selection + 1) % len(self.values)
-        else:
-            self.selection = min(self.selection + 1, len(self.values) - 1)
-
-    def move_left(self):
-        if self.cyclic:
-            self.selection = (self.selection - 1) % len(self.values)
-        else:
-            self.selection = max(self.selection - 1, 0)
-
-    def draw(self, batch, camera, image_handler):
-        if self.visible:
-            color = self.color_selected if self.selected else self.color
-            self.labels = camera.draw_text(self.text, self.position + 0.63 * basis(1), 0.45, color=color,
-                                           chromatic_aberration=self.selected,
-                                           batch=batch, labels=self.labels)
-
-            val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
-            self.value_labels = camera.draw_text(val_str, self.position, 0.45, color=color,
-                                                 chromatic_aberration=self.selected, batch=batch, labels=self.value_labels)
-
-            if self.selected:
-                self.triangle_left = camera.draw_triangle(self.position - 1.5 * basis(0), 0.75,
-                                                          chromatic_aberration=True,
-                                                          batch=batch, vertex_lists=self.triangle_left)
-                self.triangle_right = camera.draw_triangle(self.position + 1.5 * basis(0), 0.75, np.pi,
-                                                           chromatic_aberration=True,
-                                                           batch=batch, vertex_lists=self.triangle_right)
-        else:
-            for label in self.labels:
-                if label:
-                    label.font_size = 0
-            for label in self.value_labels:
-                if label:
-                    label.font_size = 0
-
-        if not self.visible or not self.selected or (not self.cyclic and self.selection == 0):
-            for vl in self.triangle_left:
-                if vl:
-                    vl.vertices = np.zeros_like(vl.vertices)
-
-        if not self.visible or not self.selected or (not self.cyclic and self.selection == len(self.values) - 1):
-            for vl in self.triangle_right:
-                if vl:
-                    vl.vertices = np.zeros_like(vl.vertices)
-
-    def randomize(self):
-        self.selection = np.random.randint(len(self.values))
 
 
 class MainMenu(Menu):
@@ -249,7 +135,7 @@ class MainMenu(Menu):
         self.update_buttons()
         self.timer = 40.0
         self.chromatic_aberration = False
-        self.title = 3 * [None]
+        self.title = TitleText('FIGHTBATTLE', np.array([0, 3.5]), 2.2, 'CollegiateBlackFLF.ttf')
 
     def update(self, time_step):
         self.timer -= time_step
@@ -261,7 +147,7 @@ class MainMenu(Menu):
             else:
                 self.timer = 5
                 self.sounds.add('static')
-                self.chromatic_aberration = 5.0
+                self.chromatic_aberration = 1.0
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
@@ -269,8 +155,8 @@ class MainMenu(Menu):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        self.title = camera.draw_text('FIGHTBATTLE', np.array([0, 3.5]), 2.2, 'CollegiateBlackFLF.ttf',
-                                      chromatic_aberration=self.chromatic_aberration, batch=batch, labels=self.title)
+        self.title.chromatic_aberration = self.chromatic_aberration
+        self.title.draw(batch, camera)
 
 
 class PlayerMenu(Menu):
@@ -295,15 +181,14 @@ class PlayerMenu(Menu):
         self.buttons.append(Button('Ready up', State.PLAY))
 
         self.update_buttons()
-        self.labels = 3 * [None]
+        self.text = Text('Press START to join', self.buttons[0].position, 0.45)
 
         self.joined = False
         self.ready = False
 
     def delete(self):
         super().delete()
-        for label in self.labels:
-            label.delete()
+        self.text.delete()
 
     def input(self, input_handler, controller_id=0):
         if self.controller_id is None:
@@ -338,22 +223,19 @@ class PlayerMenu(Menu):
 
     def draw(self, batch, camera, image_handler):
         if not self.joined:
-            self.labels = camera.draw_text('Press START to join', self.buttons[0].position, 0.45,
-                                           chromatic_aberration=1.0, batch=batch, labels=self.labels)
-            for b in self.buttons:
-                b.visible = False
+            self.text.string = 'Press START to join'
+            self.text.visible = True
+            self.visible = False
         elif self.ready:
-            self.labels = camera.draw_text('READY', self.buttons[0].position, 0.45, chromatic_aberration=1.0,
-                                           batch=batch, labels=self.labels)
-            for b in self.buttons:
-                b.visible = False
+            self.text.string = 'READY'
+            self.text.visible = True
+            self.visible = False
         else:
-            for b in self.buttons:
-                b.visible = True
-            for label in self.labels:
-                label.font_size = 0
+            self.text.visible = False
+            self.visible = True
 
         super().draw(batch, camera, image_handler)
+        self.text.draw(batch, camera)
 
 
 class OptionsMenu(Menu):
@@ -429,7 +311,8 @@ class LevelMenu(Menu):
         levels = [x.split('.')[0] for x in os.listdir(path)]
         self.level_slider = Slider('Level', levels, cyclic=False)
         self.buttons.append(self.level_slider)
-        self.buttons.append(Slider('Point limit', range(1, 11), cyclic=False, selection=2))
+        self.score_slider = Slider('Score limit', range(1, 11), cyclic=False, selection=2)
+        self.buttons.append(self.score_slider)
         self.buttons.append(Button('Start', State.PLAY))
         self.update_buttons()
         self.target_state = State.LEVEL_SELECT

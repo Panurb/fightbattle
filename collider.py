@@ -147,7 +147,13 @@ class Collider:
         cs = set()
         for i, j in self.occupied_squares:
             for c in colliders[i][j]:
+                if not c.parent:
+                    continue
+
                 if c.parent is self.parent:
+                    continue
+
+                if not c.parent.collision_enabled:
                     continue
 
                 if groups:
@@ -269,6 +275,8 @@ class Rectangle(Collider):
         self.width = width
         self.height = height
         self.vertex_list = None
+        self.angle = 0.0
+        self.ratio = self.width / self.height
 
     def corners(self):
         ur = self.position + self.half_width + self.half_height
@@ -300,15 +308,20 @@ class Rectangle(Collider):
         r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
         self.half_width = np.matmul(r, self.half_width)
         self.half_height = np.matmul(r, self.half_height)
-
-    def rotate_90(self):
-        self.half_width = perp(self.half_width)
-        self.half_height = perp(self.half_height)
+        self.angle += angle
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
         self.vertex_list = camera.draw_line(self.corners() + [self.corners()[0]], 0.05, image_handler.debug_color,
                                             batch=batch, layer=6, vertex_list=self.vertex_list)
+
+    def rest_angle(self):
+        if self.ratio > 1.5:
+            return np.round(self.angle / np.pi) * np.pi
+        elif self.ratio < 0.5:
+            return (np.round((self.angle + 0.5 * np.pi) / np.pi) - 0.5) * np.pi
+        else:
+            return np.round(self.angle / (0.5 * np.pi)) * 0.5 * np.pi
 
 
 class Circle(Collider):
