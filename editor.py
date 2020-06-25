@@ -8,7 +8,6 @@ from pyglet.window import key
 from pyglet.window import mouse
 
 from imagehandler import ImageHandler
-from inputhandler import InputHandler
 from optionhandler import OptionHandler
 from camera import Camera
 from level import Level, PlayerSpawn
@@ -21,7 +20,6 @@ class Editor(pyglet.window.Window):
     def __init__(self):
         self.option_handler = OptionHandler()
         self.image_handler = ImageHandler()
-        self.input_handler = InputHandler()
 
         width, height = self.option_handler.resolution
         super().__init__(width, height, vsync=self.option_handler.vsync, fullscreen=False)
@@ -46,9 +44,9 @@ class Editor(pyglet.window.Window):
 
         self.camera = Camera([0, 0], self.option_handler.resolution)
 
-    def on_key_press(self, symbol, modifiers):
-        self.input_handler.keys_pressed[symbol] = True
+        self.mouse_position = np.zeros(2)
 
+    def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
             for i, o in enumerate(self.level.objects.values()):
                 o.id = i
@@ -69,7 +67,7 @@ class Editor(pyglet.window.Window):
             else:
                 self.type_index += 1
 
-        pos = np.floor(self.input_handler.mouse_position) + np.array([0.5, 0.501])
+        pos = np.floor(self.mouse_position) + np.array([0.5, 0.501])
 
         if symbol == key.P:
             self.level.player_spawns.append(PlayerSpawn(pos))
@@ -84,14 +82,8 @@ class Editor(pyglet.window.Window):
         elif symbol == key.I:
             self.level.scoreboard = Scoreboard(pos)
 
-    def on_key_release(self, symbol, modifiers):
-        self.input_handler.keys_released[symbol] = True
-        self.input_handler.keys_down[symbol] = False
-
     def on_mouse_motion(self, x, y, dx, dy):
-        self.input_handler.mouse_position[:] = self.camera.screen_to_world([x, y])
-        self.input_handler.mouse_change[0] = dx / self.camera.zoom
-        self.input_handler.mouse_change[1] = dy / self.camera.zoom
+        self.mouse_position[:] = self.camera.screen_to_world([x, y])
 
     def get_objects(self):
         objects = self.level.walls + self.level.player_spawns + list(self.level.objects.values()) + self.level.goals
@@ -102,13 +94,13 @@ class Editor(pyglet.window.Window):
     def on_mouse_press(self, x, y, button, modifiers):
         if button == mouse.LEFT:
             for obj in self.get_objects():
-                if obj.collider.point_inside(self.input_handler.mouse_position):
+                if obj.collider.point_inside(self.mouse_position):
                     self.grabbed_object = obj
-                    self.grab_offset = self.grabbed_object.position - self.input_handler.mouse_position
-                    self.grab_start = np.round(self.input_handler.mouse_position)
+                    self.grab_offset = self.grabbed_object.position - self.mouse_position
+                    self.grab_start = np.round(self.mouse_position)
                     break
             else:
-                self.wall_start = np.round(self.input_handler.mouse_position)
+                self.wall_start = np.round(self.mouse_position)
 
     def on_mouse_release(self, x, y, button, modifiers):
         mouse_pos = self.camera.screen_to_world([x, y])
@@ -116,13 +108,13 @@ class Editor(pyglet.window.Window):
         if button == mouse.LEFT:
             if self.grabbed_object is not None:
                 if type(self.grabbed_object) in {PlayerSpawn, Basket}:
-                    if norm(np.round(self.input_handler.mouse_position) - self.grab_start) < 1.0:
+                    if norm(np.round(self.mouse_position) - self.grab_start) < 1.0:
                         self.grabbed_object.change_team()
                         return
 
                 self.grabbed_object = None
             else:
-                end = np.round(self.input_handler.mouse_position)
+                end = np.round(self.mouse_position)
                 pos = 0.5 * (self.wall_start + end)
                 size = np.abs(end - self.wall_start)
                 if np.all(size):
@@ -164,9 +156,7 @@ class Editor(pyglet.window.Window):
                 self.level.scoreboard = None
 
     def on_mouse_drag(self, x, y, dx, dy, button, modifiers):
-        self.input_handler.mouse_position[:] = self.camera.screen_to_world([x, y])
-        self.input_handler.mouse_change[0] = dx / self.camera.zoom
-        self.input_handler.mouse_change[1] = dy / self.camera.zoom
+        self.mouse_position[:] = self.camera.screen_to_world([x, y])
 
         if button == mouse.MIDDLE:
             self.camera.position[0] -= dx / self.camera.zoom
@@ -175,7 +165,7 @@ class Editor(pyglet.window.Window):
             if self.grabbed_object is not None:
                 w = self.grabbed_object.collider.half_width
                 h = self.grabbed_object.collider.half_height
-                pos = np.floor(self.input_handler.mouse_position + self.grab_offset - np.floor(w) - np.floor(h))
+                pos = np.floor(self.mouse_position + self.grab_offset - np.floor(w) - np.floor(h))
                 self.grabbed_object.set_position(pos + w + h)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
@@ -223,7 +213,7 @@ class Editor(pyglet.window.Window):
 
     def draw_selection(self):
         if self.wall_start is not None:
-            end = np.round(self.input_handler.mouse_position)
+            end = np.round(self.mouse_position)
             size = end - self.wall_start
             pos = (self.wall_start + end) / 2
             self.camera.draw_rectangle(pos, size[0], size[1], linewidth=0.1)

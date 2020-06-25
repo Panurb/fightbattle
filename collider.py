@@ -3,7 +3,7 @@ from numpy.linalg import norm
 import enum
 from numba import njit, prange
 
-from helpers import norm2, perp, basis, polar_angle
+from helpers import norm2, basis
 
 GRID_SIZE = 1
 
@@ -134,6 +134,8 @@ class Collider:
         self.occupied_squares = []
         self.half_width = np.zeros(2)
         self.half_height = np.zeros(2)
+        self.vertex_list = None
+        self.vertex_lists = 100 * [None]
 
     def set_position(self, position):
         self.position[:] = position
@@ -172,12 +174,19 @@ class Collider:
     def rotate(self, angle):
         pass
 
-    def draw(self, screen, camera, image_handler):
-        pass
-        #for i, j in self.occupied_squares:
-        #    x, y = camera.world_to_screen(np.array([GRID_SIZE * i, GRID_SIZE * (j + 1)]))
-        #    rect = pygame.rect.Rect(x, y, GRID_SIZE * camera.zoom, GRID_SIZE * camera.zoom)
-        #    pygame.draw.rect(screen, pygame.Color('white'), rect, 1)
+    def draw(self, batch, camera, image_handler):
+        k = 0
+        for i, j in self.occupied_squares:
+            self.vertex_lists[k] = camera.draw_rectangle(np.array([GRID_SIZE * (i + 0.5), GRID_SIZE * (j + 1.5)]), GRID_SIZE,
+                                                         GRID_SIZE, batch=batch, layer=8, linewidth=1/camera.zoom,
+                                                         vertex_list=self.vertex_lists[k])
+            k += 1
+
+        while k < len(self.vertex_lists):
+            if self.vertex_lists[k]:
+                self.vertex_lists[k].delete()
+            self.vertex_lists[k] = None
+            k += 1
 
     def overlap(self, other):
         pass
@@ -247,10 +256,6 @@ class ColliderGroup:
         for c in self.colliders:
             c.draw(screen, camera, image_handler)
 
-    def debug_draw(self, batch, camera, image_handler):
-        for c in self.colliders:
-            c.debug_draw(batch, camera, image_handler)
-
     def overlap(self, other):
         return sum(c.overlap(other) for c in self.colliders)
 
@@ -274,7 +279,6 @@ class Rectangle(Collider):
         self.half_height = np.array([0.0, 0.5 * height])
         self.width = width
         self.height = height
-        self.vertex_list = None
         self.angle = 0.0
         self.ratio = self.width / self.height
 
@@ -312,8 +316,8 @@ class Rectangle(Collider):
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        self.vertex_list = camera.draw_line(self.corners() + [self.corners()[0]], 0.05, image_handler.debug_color,
-                                            batch=batch, layer=6, vertex_list=self.vertex_list)
+        self.vertex_list = camera.draw_line(self.corners() + [self.corners()[0]], 1 / camera.zoom, image_handler.debug_color,
+                                            batch=batch, layer=8, vertex_list=self.vertex_list)
 
     def rest_angle(self):
         if self.ratio > 1.5:
@@ -353,6 +357,8 @@ class Circle(Collider):
     def point_inside(self, point):
         return norm2(self.position - point) <= self.radius**2
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-        camera.draw_circle(self.position, self.radius, image_handler.debug_color, linewidth=1)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        self.vertex_list = camera.draw_circle(self.position, self.radius, image_handler.debug_color,
+                                              linewidth=1 / camera.zoom, batch=batch, layer=8,
+                                              vertex_list=self.vertex_list)

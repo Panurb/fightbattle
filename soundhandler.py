@@ -20,16 +20,20 @@ class SoundHandler:
                 self.music[file.split('.')[0]] = pyglet.media.load(os.path.join(path, file))
 
         self.volume = 1.0
+        self.music_volume = 1.0
+
         self.set_volume(option_handler.sfx_volume)
         self.music_player = pyglet.media.player.Player()
         self.set_music_volume(option_handler.music_volume)
         self.tracklists = [['somber'], ['break', 'chaos', 'line', 'steady']]
         self.index = -1
+        self.paused = False
 
     def set_volume(self, vol):
         self.volume = vol / 100
 
     def set_music_volume(self, vol):
+        self.music_volume = vol / 100
         self.music_player.volume = vol / 100
 
     def set_music(self, index):
@@ -39,6 +43,7 @@ class SoundHandler:
         self.index = index
         self.music_player.delete()
         self.music_player = pyglet.media.player.Player()
+        self.music_player.volume = self.music_volume
 
         tracklist = self.tracklists[index]
         random.shuffle(tracklist)
@@ -47,6 +52,19 @@ class SoundHandler:
 
         self.music_player.on_player_eos = lambda: self.set_tracklist(tracklist)
 
+        self.music_player.play()
+
     def set_tracklist(self, tracklist):
         for track in tracklist:
             self.music_player.queue(self.music[track])
+        self.music_player.play()
+
+    def play(self):
+        if self.paused:
+            self.music_player.play()
+            self.paused = False
+
+    def pause(self):
+        if not self.paused:
+            self.music_player.pause()
+            self.paused = True

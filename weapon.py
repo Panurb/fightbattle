@@ -55,11 +55,6 @@ class Gun(Weapon):
         v[0] *= self.direction
         return self.position + rotate(v, self.angle)
 
-    def debug_draw(self, screen, camera, image_handler):
-        super().debug_draw(screen, camera, image_handler)
-
-        pygame.draw.circle(screen, image_handler.debug_color, camera.world_to_screen(self.get_hand_position()), 2)
-
     def attack(self):
         super().attack()
         v = self.direction * polar_to_cartesian(0.1, self.angle)
@@ -184,6 +179,7 @@ class Grenade(Destroyable):
         self.attacked = False
         self.camera_shake = np.zeros(2)
         self.roll = True
+        self.fall_damage = 0
 
     def delete(self):
         super().delete()

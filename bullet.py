@@ -28,7 +28,6 @@ class Bullet(PhysicsObject):
 
         if self.collider.collisions:
             self.destroy(Dust)
-            self.decal = 'blood'
         elif np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
@@ -47,12 +46,9 @@ class Bullet(PhysicsObject):
                         obj.parent.velocity += 0.1 * self.velocity
                     particle_type = obj.damage(self.dmg, colliders)
                     self.destroy(particle_type)
-                    if particle_type is BloodSplatter:
-                        self.decal = 'blood'
                 else:
                     obj.velocity += self.velocity
                     self.destroy(Dust)
-                    self.decal = 'blood'
 
                 return
 
@@ -65,6 +61,8 @@ class Bullet(PhysicsObject):
                 self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity))
             self.active = False
             self.sounds.add('gun')
+            if particle_type is BloodSplatter:
+                self.decal = 'blood'
 
     def draw(self, batch, camera, image_handler):
         if self.destroyed:

@@ -85,10 +85,10 @@ class Particle:
         self.size = self.start_size + self.time / self.lifetime * (self.end_size - self.start_size)
 
     def draw(self, batch, camera, image_handler):
-        self.sprite = camera.draw_image(image_handler, self.image_path, self.position, angle=self.angle,
-                                        batch=batch, layer=self.layer, sprite=self.sprite,
-                                        scale_x=(1 + self.stretch * norm(self.velocity)) * self.size,
-                                        scale_y=self.size)
+        self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, angle=self.angle,
+                                         batch=batch, layer=self.layer, sprite=self.sprite,
+                                         scale_x=(1 + self.stretch * norm(self.velocity)) * self.size,
+                                         scale_y=self.size)
         if self.end_size > 0:
             self.sprite.opacity = (1 - (self.time / self.lifetime)**4) * 255
 
@@ -127,9 +127,9 @@ class MuzzleFlash:
         self.size = (1 - (self.time / self.lifetime)**2) * self.initial_size
 
     def draw(self, batch, camera, image_handler):
-        self.sprite = camera.draw_image(image_handler, self.image_path, self.position, angle=self.angle,
-                                        batch=batch, layer=self.layer, sprite=self.sprite,
-                                        scale_x=self.initial_size, scale_y=self.size)
+        self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, angle=self.angle,
+                                         batch=batch, layer=self.layer, sprite=self.sprite,
+                                         scale_x=self.initial_size, scale_y=self.size)
 
 
 class Explosion(Cloud):

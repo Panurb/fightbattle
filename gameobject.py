@@ -9,14 +9,14 @@ MAX_SPEED = 5.0
 
 
 class GameObject:
-    def __init__(self, position, image_path='', size=1.0, layer=3):
+    def __init__(self, position, image_path='', size=1.0, layer=3, angle=0.0):
         super().__init__()
 
         self.position = np.array(position, dtype=float)
         self.collider = None
         self.collision_enabled = True
         self.direction = 1
-        self.angle = 0.0
+        self.angle = angle
 
         self.sprite = None
         self.image_path = image_path
@@ -79,8 +79,8 @@ class GameObject:
             return
 
         pos = self.position + rotate(self.image_position, self.angle)
-        self.sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction, self.angle,
-                                        batch=batch, layer=self.layer, sprite=self.sprite)
+        self.sprite = camera.draw_sprite(image_handler, self.image_path, pos, self.size, self.direction, self.angle,
+                                         batch=batch, layer=self.layer, sprite=self.sprite)
 
     def debug_draw(self, batch, camera, image_handler):
         camera.draw_circle(self.position, 0.1, image_handler.debug_color)
@@ -95,11 +95,11 @@ class GameObject:
         self.sounds.clear()
 
     def draw_shadow(self, batch, camera, image_handler, light):
-        r = self.position - light
+        r = self.position - light.position
         pos = self.position + 0.5 * r / norm(r) + rotate(self.image_position, self.angle)
 
-        self.shadow_sprite = camera.draw_image(image_handler, self.image_path, pos, self.size, self.direction,
-                                               self.angle, batch=batch, layer=2, sprite=self.shadow_sprite)
+        self.shadow_sprite = camera.draw_sprite(image_handler, self.image_path, pos, self.size, self.direction,
+                                                self.angle, batch=batch, layer=1, sprite=self.shadow_sprite)
         self.shadow_sprite.color = (0, 0, 0)
         self.shadow_sprite.opacity = 128
 
@@ -220,6 +220,7 @@ class PhysicsObject(GameObject):
 
             if self.collider.group is Group.THROWN:
                 if collider.parent is self.parent:
+                    self.collider.collisions.remove(collision)
                     continue
 
                 try:
@@ -287,6 +288,7 @@ class Destroyable(PhysicsObject):
         self.debris = []
         self.debris_size = debris_size
         self.parent = parent
+        self.fall_damage = 10
 
     def delete(self):
         super().delete()
@@ -331,6 +333,11 @@ class Destroyable(PhysicsObject):
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
+
+        if not self.destroyed:
+            if self.collider.collisions:
+                if self.speed > 0.5:
+                    self.damage(self.speed * self.fall_damage, colliders)
 
         if self.destroyed:
             for d in self.debris:

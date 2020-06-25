@@ -11,7 +11,8 @@ class OptionHandler:
         self.fullscreen = False
         self.sfx_volume = 100
         self.music_volume = 0
-        self.shadows = False
+        self.shadows = True
+        self.dust = True
 
         self.debug_draw = False
 
@@ -41,6 +42,7 @@ class OptionHandler:
             self.config.add_section('performance')
 
         self.config.set('performance', 'shadows', str(self.shadows))
+        self.config.set('performance', 'dust', str(self.dust))
 
         with open('config.ini', 'w') as f:
             self.config.write(f)
@@ -57,3 +59,4 @@ class OptionHandler:
         self.music_volume = self.config.getint('audio', 'music volume')
 
         self.shadows = self.config.getboolean('performance', 'shadows')
+        self.shadows = self.config.getboolean('performance', 'dust')

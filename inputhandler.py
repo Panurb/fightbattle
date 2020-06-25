@@ -1,12 +1,14 @@
 import numpy as np
-import pyglet
 from numpy.linalg import norm
+import pygame
 from pyglet.window import key, mouse
 
 
 class Controller:
-    def __init__(self, joystick):
-        self.joystick = joystick
+    def __init__(self, index):
+        if index != -1:
+            self.joystick = pygame.joystick.Joystick(index)
+            self.joystick.init()
 
         self.left_stick = np.zeros(2)
         self.right_stick = np.zeros(2)
@@ -14,12 +16,10 @@ class Controller:
         self.left_trigger = 0.0
         self.right_trigger = 0.0
 
-        self.buttons = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']
-
         self.button_down = {}
         self.button_pressed = {}
         self.button_released = {}
-        for b in self.buttons:
+        for b in ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']:
             self.button_down[b] = False
             self.button_pressed[b] = False
             self.button_released[b] = False
@@ -27,36 +27,21 @@ class Controller:
         self.stick_deadzone = 0.3
         self.trigger_deadzone = 0.01
 
-    def on_joybutton_press(self, joystick, button):
-        if button < len(self.buttons):
-            self.button_pressed[self.buttons[button]] = True
-
-    def on_joybutton_release(self, joystick, button):
-        if button < len(self.buttons):
-            self.button_released[self.buttons[button]] = True
-            self.button_down[self.buttons[button]] = False
-
     def update(self):
-        for b in self.buttons:
-            if self.button_pressed[b]:
-                if self.button_down[b]:
-                    self.button_pressed[b] = False
-                self.button_down[b] = True
+        self.left_stick[0] = self.joystick.get_axis(0)
+        self.left_stick[1] = -self.joystick.get_axis(1)
 
-        self.left_stick[0] = self.joystick.x
-        self.left_stick[1] = -self.joystick.y
-
-        self.right_stick[0] = self.joystick.rx
-        self.right_stick[1] = -self.joystick.ry
+        self.right_stick[0] = self.joystick.get_axis(4)
+        self.right_stick[1] = -self.joystick.get_axis(3)
 
         for stick in [self.left_stick, self.right_stick]:
             n = norm(stick)
             if n < self.stick_deadzone:
                 stick[:] = np.zeros(2)
-            elif n > 0.85:
+            elif n > 0.9:
                 stick[:] /= n
 
-        trigger = self.joystick.z
+        trigger = self.joystick.get_axis(2)
         if abs(trigger) < self.trigger_deadzone:
             trigger = 0
 
@@ -68,57 +53,58 @@ class Controller:
             self.left_trigger = 0
             self.right_trigger = 0
 
-
-class DualShock4(Controller):
-    def __init__(self, joystick):
-        super().__init__(joystick=joystick)
-        self.buttons = ['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']
-
-        self.button_down = {}
-        self.button_pressed = {}
-        self.button_released = {}
-        for b in self.buttons:
-            self.button_down[b] = False
+        for i, b in enumerate(['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']):
             self.button_pressed[b] = False
             self.button_released[b] = False
 
-    def update(self):
-        for b in self.buttons:
-            if self.button_pressed[b]:
+            if self.joystick.get_button(i):
+                if not self.button_down[b]:
+                    self.button_pressed[b] = True
+            else:
                 if self.button_down[b]:
-                    self.button_pressed[b] = False
-                self.button_down[b] = True
+                    self.button_released[b] = True
 
-        self.left_stick[0] = self.joystick.x
-        self.left_stick[1] = -self.joystick.y
+            self.button_down[b] = self.joystick.get_button(i)
 
-        self.right_stick[0] = self.joystick.z
-        self.right_stick[1] = -self.joystick.rz
+
+class DualShock4(Controller):
+    def update(self):
+        self.left_stick[0] = self.joystick.get_axis(0)
+        self.left_stick[1] = -self.joystick.get_axis(1)
+
+        self.right_stick[0] = self.joystick.get_axis(2)
+        self.right_stick[1] = -self.joystick.get_axis(3)
 
         for stick in [self.left_stick, self.right_stick]:
             n = norm(stick)
             if n < self.stick_deadzone:
                 stick[:] = np.zeros(2)
-            elif n > 0.85:
+            elif n > 0.9:
                 stick[:] /= n
 
-        left_trigger = self.joystick.rx
-        if abs(left_trigger) < self.trigger_deadzone:
-            left_trigger = 0
-
-        if left_trigger > 0:
-            self.left_trigger = left_trigger
-        else:
+        self.left_trigger = (self.joystick.get_axis(5) + 1) / 2
+        if abs(self.left_trigger) < self.trigger_deadzone:
             self.left_trigger = 0
 
-        right_trigger = self.joystick.ry
-        if abs(right_trigger) < self.trigger_deadzone:
-            right_trigger = 0
-
-        if right_trigger > 0:
-            self.right_trigger = right_trigger
-        else:
+        self.right_trigger = (self.joystick.get_axis(4) + 1) / 2
+        if abs(self.right_trigger) < self.trigger_deadzone:
             self.right_trigger = 0
+
+        for i, b in enumerate(['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']):
+            if not b:
+                continue
+
+            self.button_pressed[b] = False
+            self.button_released[b] = False
+
+            if self.joystick.get_button(i):
+                if not self.button_down[b]:
+                    self.button_pressed[b] = True
+            else:
+                if self.button_down[b]:
+                    self.button_released[b] = True
+
+            self.button_down[b] = self.joystick.get_button(i)
 
 
 class Keyboard(Controller):
@@ -149,9 +135,10 @@ class Keyboard(Controller):
         elif self.input_handler.keys_down.get(key.S):
             self.left_stick[1] = -1
 
-        n = norm(self.input_handler.mouse_position)
-        if n != 0:
-            self.right_stick[:] = self.input_handler.relative_mouse / n
+        self.right_stick += 2 * self.input_handler.mouse_change
+        n = norm(self.right_stick)
+        if n > 1:
+            self.right_stick /= n
 
         if self.input_handler.mouse_down[mouse.RIGHT]:
             self.left_trigger = 1
@@ -173,24 +160,16 @@ class InputHandler:
     def __init__(self):
         self.controllers = []
         self.controllers.append(Keyboard(self))
-
-        for joystick in pyglet.input.get_joysticks():
-            name = joystick.device.name.lower()
+        for i in range(pygame.joystick.get_count()):
+            name = pygame.joystick.Joystick(i).get_name().lower()
             if 'xbox' in name or 'xinput' in name:
-                controller = Controller(joystick)
+                self.controllers.append(Controller(i))
             else:
-                try:
-                    controller = DualShock4(joystick)
-                except:
-                    continue
+                self.controllers.append(DualShock4(i))
 
-            joystick.open()
-            joystick.push_handlers(controller)
-            self.controllers.append(controller)
-
-        self.keys_down = dict()
-        self.keys_pressed = dict()
-        self.keys_released = dict()
+        self.keys_down = {}
+        self.keys_pressed = {}
+        self.keys_released = {}
 
         self.mouse_position = np.zeros(2)
         self.relative_mouse = np.zeros(2)
@@ -202,6 +181,8 @@ class InputHandler:
         self.mouse_change = np.zeros(2)
 
     def update(self, camera):
+        pygame.event.get()
+
         for k in self.keys_pressed:
             if self.keys_pressed[k]:
                 if self.keys_down.get(k):

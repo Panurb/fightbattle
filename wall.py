@@ -79,7 +79,7 @@ class Wall(GameObject):
                     decal = decal.convert('L').point(lambda x: 0, mode='1').convert('RGBA')
                     decal.putalpha(128)
 
-                    shadow_offset = 0.5 * normalized(self.position - light)
+                    shadow_offset = 0.5 * normalized(self.position - light.position)
                     image.paste(decal, [int(p * 100) for p in pos + shadow_offset], mask)
                 else:
                     image.paste(decal, [int(p * 100) for p in pos], mask)
@@ -91,7 +91,7 @@ class Wall(GameObject):
             image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
             pos = self.position.copy()
-            self.position = self.collider.half_width + self.collider.half_height + 0.6 * basis(1) + 0.5
+            self.position = self.collider.half_width + self.collider.half_height + 0.6 * basis(1)
             self.blit_to_image(image, image_handler)
             self.position[:] = pos
 

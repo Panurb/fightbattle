@@ -2,6 +2,7 @@ from itertools import chain
 
 import numpy as np
 import pyglet
+from PIL import Image
 
 from helpers import basis, rotate
 from weapon import Grenade
@@ -21,6 +22,15 @@ class Camera:
         self.shake = np.zeros(2)
         self.velocity = np.zeros(2)
         self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(9)]
+
+        self.sprite = None
+
+    def draw(self, batch):
+        if not self.sprite:
+            image = Image.new('RGBA', [1, 1], (0, 0, 0))
+            image = pyglet.image.ImageData(1, 1, 'RGBA', image.tobytes())
+            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=self.layers[7])
+        self.sprite.update(scale_x=self.resolution[0], scale_y=self.resolution[1])
 
     def set_resolution(self, resolution):
         self.max_zoom = resolution[1] / 720 * 50.0
@@ -50,9 +60,11 @@ class Camera:
             eps = 1e-6
             x = max(abs(p.position[0] - cam_goal[0]) for p in players.values()) + eps
             y = max(abs(p.position[1] - cam_goal[1]) for p in players.values()) + eps
-            zoom_goal = min(500 / x, 250 / y)
+            zoom_goal = min(0.4 * self.resolution[0] / x, 0.4 * self.resolution[1] / y)
             zoom_goal = min(zoom_goal, self.max_zoom)
             self.zoom += time_step * (zoom_goal - self.zoom)
+        else:
+            self.zoom = self.max_zoom
 
         self.shake = sum(p.camera_shake for p in players.values())
 
@@ -74,8 +86,8 @@ class Camera:
 
         return pos
 
-    def draw_image(self, image_handler, image_path, position, scale=1, direction=1, angle=0.0, scale_x=None,
-                   scale_y=None, batch=None, layer=1, sprite=None):
+    def draw_sprite(self, image_handler, image_path, position, scale=1, direction=1, angle=0.0, scale_x=None,
+                    scale_y=None, batch=None, layer=1, sprite=None):
         if sprite is None:
             sprite = pyglet.sprite.Sprite(img=image_handler.images[image_path], batch=batch, group=self.layers[layer])
 
@@ -107,8 +119,8 @@ class Camera:
         x, y = self.world_to_screen(position)
         label.x = x
         label.y = y
-        if int(size * self.zoom) != label.font_size:
-            label.font_size = int(size * self.zoom)
+        if size * self.zoom != label.font_size:
+            label.font_size = size * self.zoom
 
         return label
 
@@ -126,7 +138,7 @@ class Camera:
                        linewidth=0):
         w = 0.5 * width * basis(0)
         h = 0.5 * height * basis(1)
-        vertices = [position + w + h, position - w + h, position - w - h, position + w - h]
+        vertices = [position + w + h, position - w + h, position - w - h, position + w - h, position + w + h]
         return self.draw_polygon(vertices, color, batch, layer, vertex_list, linewidth)
 
     def draw_polygon(self, points, color=(255, 255, 255), batch=None, layer=1, vertex_list=None, linewidth=0):
@@ -166,7 +178,7 @@ class Camera:
         return self.draw_polygon(points, color, batch=batch, layer=layer, vertex_list=vertex_list)
         
     def draw_line(self, points, linewidth=1, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
-        pyglet.gl.glLineWidth(linewidth * self.zoom)
+        pyglet.gl.glLineWidth(1)
 
         points = [points[0]] + [p for p in points[1:-1] for _ in range(2)] + [points[-1]]
         vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]

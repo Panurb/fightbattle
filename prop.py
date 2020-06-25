@@ -1,3 +1,5 @@
+import numpy as np
+
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
 from weapon import Revolver, Shotgun, Shield, Axe, Grenade, Bow
@@ -8,6 +10,10 @@ class Crate(Destroyable):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=100)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
         self.loot_list = [Revolver, Shotgun, Shield, Axe, Grenade, Bow]
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -45,4 +51,5 @@ class Ball(PhysicsObject):
                 c.collider.parent.score += 1
                 c.collider.parent.collider.colliders[-1].group = Group.NONE
                 self.scored = c.collider.parent.team
+                self.sounds.add('alarm')
                 break

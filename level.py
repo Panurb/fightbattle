@@ -6,6 +6,7 @@ from PIL import Image
 
 from collider import Rectangle, Group
 from gameobject import GameObject, Destroyable
+from helpers import basis
 from prop import Crate
 from wall import Wall, Platform, Scoreboard
 from weapon import Gun, Bullet, Grenade
@@ -22,6 +23,7 @@ class Level:
         self.scoreboard = None
         self.background = None
         self.walls_sprite = None
+        self.blood = []
 
         self.gravity = np.array([0, -0.1])
         self.id_count = 0
@@ -119,7 +121,7 @@ class Level:
 
         self.scoreboard.set_position(self.scoreboard.position + offset)
 
-        self.light = np.array([0.5 * self.width, self.height])
+        self.light = GameObject([0.5 * self.width, self.height - 2], 'lamp')
 
     def update_shape(self):
         x_min = np.inf
@@ -160,8 +162,8 @@ class Level:
             if type(obj) is Crate and obj.destroyed:
                 if obj.loot_list:
                     loot = np.random.choice(obj.loot_list)(obj.position)
-                    loot.velocity[:] = obj.velocity
-                    loot.angular_velocity = 0.5 * np.sign(obj.velocity[0])
+                    loot.velocity[:] = obj.velocity + 0.5 * basis(1)
+                    loot.angular_velocity = 0.5 * np.sign(obj.velocity[0] + 1e-3)
                     self.add_object(loot)
                     loot.collider.update_occupied_squares(colliders)
                     obj.loot_list.clear()
@@ -232,10 +234,17 @@ class Level:
 
         for obj in self.objects.values():
             if isinstance(obj, Bullet) and obj.decal:
-                #self.background.add_decal(image_handler, obj.decal, obj.position, obj.angle)
+                self.blood.append(GameObject(obj.position, 'bloodsplatter', layer=1, size=np.random.random() + 1,
+                                             angle=2*np.pi*np.random.random()))
                 obj.decal = ''
 
             obj.draw(batch, camera, image_handler)
+
+        for b in self.blood:
+            b.draw(batch, camera, image_handler)
+
+        if self.light:
+            self.light.draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler):
         for g in self.goals:
