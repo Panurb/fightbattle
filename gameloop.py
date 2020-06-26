@@ -31,7 +31,7 @@ class GameLoop:
         self.respawn_time = 50.0
 
         self.menu = MainMenu()
-        self.player_menus = [PlayerMenu(np.array([6 * i - 9, -14])) for i in range(4)]
+        self.player_menus = [PlayerMenu(np.array([6 * i - 9, -16])) for i in range(4)]
         self.options_menu = OptionsMenu()
         self.options_menu.set_values(self.option_handler)
         self.pause_menu = PauseMenu()
@@ -46,7 +46,7 @@ class GameLoop:
         self.score_limit = 0
         self.text = Text('', np.zeros(2), 2.0)
         self.timer = 0.0
-        self.delay = 50.0
+        self.delay = 3.0
 
     def load_level(self, name):
         self.level = Level(name)
@@ -97,9 +97,8 @@ class GameLoop:
                 self.load_level(self.level_menu.level_slider.get_value())
                 self.level_menu.set_visible(False)
                 self.score_limit = int(self.level_menu.score_slider.get_value())
-                self.camera.position = 0.5 * np.array([self.level.width, self.level.height])
                 zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
-                self.camera.zoom = min(zoom, self.camera.max_zoom)
+                self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
 
             self.text.position[:] = self.camera.position
 
@@ -115,7 +114,15 @@ class GameLoop:
                     self.reset_game()
                 elif 'WINS' in self.text.string:
                     self.state = State.LEVEL_SELECT
+                    for p in self.players.values():
+                        p.reset(self.colliders)
+                    self.level.delete()
+                    self.level = None
+
+                    self.timer = 0
+                    self.text.string = ''
                     self.camera.position[:] = self.level_menu.position
+                    self.camera.zoom = self.camera.max_zoom
                     return
                 self.text.string = ''
                 self.time_scale = 1.0
@@ -137,30 +144,30 @@ class GameLoop:
                         self.level.scoreboard.scores['red'] += 1
                         self.text.string = 'RED SCORES'
                         self.time_scale = 0.5
-                        self.timer = 50.0
+                        self.timer = self.delay
                     elif alive['blue'] and not alive['red']:
                         self.level.scoreboard.scores['blue'] += 1
                         self.text.string = 'BLLUE SCORES'
                         self.time_scale = 0.5
-                        self.timer = 50.0
+                        self.timer = self.delay
 
                 for team, score in self.level.scoreboard.scores.items():
                     if score == self.score_limit:
                         self.text.string = f'{team} wins'.upper()
                         self.time_scale = 0.5
-                        self.timer = 100.0
+                        self.timer = 2 * self.delay
                         break
                 else:
                     for o in self.level.objects.values():
                         if type(o) is Ball and o.scored:
                             self.text.string = f'{o.scored} scores'.upper()
                             self.time_scale = 0.5
-                            self.timer = 50.0
+                            self.timer = self.delay
 
-                self.camera.update(self.time_scale * time_step, self.players, self.level)
+                self.camera.set_target(self.players, self.level)
                 self.text.position[:] = self.camera.position
         elif self.state is State.MENU:
-            self.camera.position += 0.5 * time_step * (self.menu.position - self.camera.position)
+            self.camera.target_position[:] = self.menu.position
             self.menu.update(time_step)
             self.state = self.menu.target_state
             self.menu.target_state = State.MENU
@@ -169,8 +176,7 @@ class GameLoop:
                 self.option_handler.load()
                 self.options_menu.set_values(self.option_handler)
         elif self.state is State.PLAYER_SELECT:
-            pos = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
-            self.camera.position += 0.5 * time_step * (pos - self.camera.position)
+            self.camera.target_position[:] = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
 
             for pm in self.player_menus:
                 if pm.joined:
@@ -189,7 +195,7 @@ class GameLoop:
                 for pm in self.player_menus:
                     pm.ready = False
         elif self.state is State.LEVEL_SELECT:
-            self.camera.position += 0.5 * time_step * (self.level_menu.position - self.camera.position)
+            self.camera.target_position[:] = self.level_menu.position
             self.state = self.level_menu.target_state
             self.level_menu.target_state = State.LEVEL_SELECT
         elif self.state is State.LAN:
@@ -245,7 +251,7 @@ class GameLoop:
                     if obj.destroyed and not obj.particle_clouds:
                         del self.level.objects[i]
         elif self.state is State.OPTIONS:
-            self.camera.position[0] += 0.5 * time_step * (self.options_menu.position - self.camera.position)[0]
+            self.camera.target_position[:] = self.options_menu.position
             self.state = self.options_menu.target_state
             self.options_menu.target_state = State.OPTIONS
 
@@ -280,6 +286,8 @@ class GameLoop:
                 self.camera.zoom = self.camera.max_zoom
 
             self.pause_menu.target_state = State.PAUSED
+
+        self.camera.update(time_step)
 
     def input(self, input_handler):
         input_handler.update(self.camera)
@@ -403,11 +411,14 @@ class GameLoop:
             sound_handler.set_music(0)
 
         if self.state in {State.PLAY, State.LAN}:
-            sound_handler.set_music(1)
             for p in self.players.values():
                 p.play_sounds(sound_handler)
 
             if self.level:
+                if self.level.background:
+                    sound_handler.set_music(1)
+                else:
+                    sound_handler.pause()
                 self.level.play_sounds(sound_handler)
         elif self.state is State.OPTIONS:
             sound_handler.set_volume(self.options_menu.buttons[2].get_value())

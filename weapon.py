@@ -14,7 +14,7 @@ class Weapon(PhysicsObject):
         self.hand_position = np.zeros(2)
         self.attacked = False
         self.hit = False
-        self.attack_delay = 5.0
+        self.attack_delay = 0.5
         self.timer = 0.0
 
     def update(self, gravity, time_step, colliders):
@@ -31,7 +31,7 @@ class Gun(Weapon):
         super().__init__(position, image_path=image_path)
         self.barrel_position = np.array([1.0, 0.3])
         self.grip_position = None
-        self.bullet_speed = 3.0
+        self.bullet_speed = 45.0
 
     def get_data(self):
         return super().get_data() + (self.attacked, )
@@ -86,9 +86,10 @@ class Shotgun(Gun):
         self.size = 0.9
         self.image_position = np.array([0, -0.1])
         self.add_collider(Rectangle([0, 0.08], 1.8, 0.3, Group.GUNS))
-        self.bullet_speed = 2.0
+        self.bullet_speed = 30.0
         self.hand_position = np.array([-0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
+        self.attack_delay = 0.75
 
     def attack(self):
         bs = super().attack()
@@ -114,7 +115,7 @@ class Axe(Weapon):
         self.parent = None
         self.rest_angle = 0.5 * np.pi
         self.blunt_damage = 60
-        self.attack_delay = 5.0
+        self.attack_delay = 0.33
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -180,18 +181,15 @@ class Grenade(Destroyable):
         self.camera_shake = np.zeros(2)
         self.roll = True
         self.fall_damage = 0
+        self.delay = 3.0
 
     def delete(self):
         super().delete()
-        self.pin.delete()
+        if self.pin:
+            self.pin.delete()
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
-
-        if norm(self.camera_shake) < time_step:
-            self.camera_shake = np.zeros(2)
-        else:
-            self.camera_shake *= -0.5
 
         if self.primed:
             if self.pin:
@@ -247,10 +245,10 @@ class Grenade(Destroyable):
 
     def attack(self):
         if not self.primed:
-            self.pin.velocity[0] = self.velocity[0] - self.direction * 0.25
-            self.pin.velocity[1] = 0.5
+            self.pin.velocity[0] = self.velocity[0] - self.direction * 2.5
+            self.pin.velocity[1] = 5.0
             self.primed = True
-            self.timer = 50.0
+            self.timer = self.delay
             self.sounds.add('pin')
 
     def draw(self, batch, camera, image_handler):
@@ -265,7 +263,7 @@ class Bow(Gun):
         self.bump_sound = 'bump'
         self.image_path = 'bow'
         self.add_collider(Rectangle([0, 0], 0.5, 1.9, Group.GUNS))
-        self.bullet_speed = 2.0
+        self.bullet_speed = 30.0
         self.rotate(np.pi / 2)
         self.hand_position = -0.2 * basis(0)
         self.barrel_position = 0.5 * basis(0)
@@ -277,9 +275,10 @@ class Bow(Gun):
         self.string_width = 0.05
         self.string_color = (50, 50, 50)
         self.attack_charge = 0.0
-        self.rest_angle = -0.5 * np.pi
         self.string = None
         self.layer = 3
+        self.attack_delay = 0.67
+        self.charge_speed = 0.02
 
         self.arrow = GameObject(self.position, 'arrow', size=1.2, layer=5)
         self.arrow.image_position = 0.5 * basis(0)
@@ -321,7 +320,7 @@ class Bow(Gun):
             self.attacked = False
             self.sounds.add('bow_release')
             v = self.direction * self.attack_charge * self.bullet_speed * polar_to_cartesian(1, self.angle)
-            self.timer = 10.0
+            self.timer = self.attack_delay
             self.attack_charge = 0.0
             self.string_middle[0] = 0.5 * self.direction
 

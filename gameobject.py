@@ -5,7 +5,7 @@ from collider import Circle, Group, Rectangle
 from helpers import norm2, rotate, normalized, basis, random_unit
 from particle import Dust
 
-MAX_SPEED = 5.0
+MAX_SPEED = 75.0
 
 
 class GameObject:
@@ -131,8 +131,10 @@ class PhysicsObject(GameObject):
         self.group = None
 
         self.dust = dust
-        self.blunt_damage = 10
+        self.blunt_damage = 1
         self.roll = False
+
+        self.camera_shake = None
 
     def delete(self):
         super().delete()
@@ -215,31 +217,35 @@ class PhysicsObject(GameObject):
             if collider.group is Group.PLATFORMS:
                 bottom = self.collider.position[1] - delta_pos[1] - height
                 platform_top = collider.position[1] + collider.half_height[1]
-                if bottom < platform_top - 0.1:
+                if bottom < platform_top - 0.05:
+                    self.collider.collisions.remove(collision)
                     continue
 
             if self.collider.group is Group.THROWN:
+                # Can't hit self with thrown object
                 if collider.parent is self.parent:
                     self.collider.collisions.remove(collision)
                     continue
 
-                try:
+                # If hits another players's object, he drops it
+                if collider.parent.parent:
                     collider.parent.parent.throw_object()
-                except AttributeError:
-                    pass
+            else:
+                if collider.parent.parent:
+                    self.collider.collisions.remove(collision)
 
             if collision.overlap[1] > 0:
                 self.on_ground = True
                 if not self.parent:
                     if type(self.collider) is Rectangle:
-                        self.angular_velocity = 0.5 * (self.collider.rest_angle() - self.angle)
-                        if abs(self.angular_velocity) > 0.1:
+                        self.angular_velocity = 5.0 * (self.collider.rest_angle() - self.angle)
+                        if abs(self.angular_velocity) > 1.0:
                             self.sounds.add(self.bump_sound)
             elif collision.overlap[0] != 0:
                 self.angular_velocity *= -1
 
             if self.dust and self.gravity_scale:
-                n = min(int(self.speed * 5), 10)
+                n = min(int(self.speed / 3), 10)
                 if n > 1:
                     self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
                     self.sounds.add(self.bump_sound)
@@ -253,13 +259,12 @@ class PhysicsObject(GameObject):
             if self.gravity_scale:
                 if isinstance(collider.parent, PhysicsObject):
                     collider.parent.velocity[:] = -self.velocity
-                    if self.speed > 0.1:
+                    if self.speed > 1.0:
                         if isinstance(collider.parent, Destroyable):
                             particle_type = collider.parent.damage(self.speed * self.blunt_damage, colliders)
                             if particle_type:
                                 self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
-                            if self.parent:
-                                self.parent.camera_shake = int(self.speed * 10) * random_unit()
+                            self.camera_shake = int(self.speed) * random_unit()
 
         if self.collider:
             if self.collider.group is Group.THROWN and self.collider.collisions:
@@ -288,7 +293,8 @@ class Destroyable(PhysicsObject):
         self.debris = []
         self.debris_size = debris_size
         self.parent = parent
-        self.fall_damage = 10
+        self.fall_damage = 5
+        self.fall_damage_threshold = 10.0
 
     def delete(self):
         super().delete()
@@ -325,18 +331,20 @@ class Destroyable(PhysicsObject):
 
         if self.debris_path:
             for _ in range(3):
-                r = np.abs(np.random.normal(0.5, 0.2))
+                r = np.abs(np.random.normal(15, 1.0))
                 v = r * random_unit()
                 d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size, dust=False)
                 d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
+                d.angular_velocity = 10 * np.sign(d.velocity[0])
                 self.debris.append(d)
+        self.particle_clouds.append(Dust(self.position, np.zeros(2)))
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
         if not self.destroyed:
             if self.collider.collisions:
-                if self.speed > 0.5:
+                if self.speed > self.fall_damage_threshold:
                     self.damage(self.speed * self.fall_damage, colliders)
 
         if self.destroyed:
@@ -391,7 +399,7 @@ class Animation:
         self.xs = xs
         self.ys = ys
         self.angles = angles
-        self.times = np.arange(len(xs))
+        self.times = np.arange(len(xs)) / 15
         self.time = 0.0
         self.direction = 1
         self.image_path = image_path

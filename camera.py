@@ -3,9 +3,9 @@ from itertools import chain
 import numpy as np
 import pyglet
 from PIL import Image
+from pyglet.gl import *
 
-from helpers import basis, rotate
-from weapon import Grenade
+from helpers import basis, rotate, norm2
 
 
 UNIT_CIRCLE = [np.zeros(2)] + [np.array([np.cos(theta), np.sin(theta)]) for theta in np.linspace(0, 2 * np.pi, 20)]
@@ -20,10 +20,14 @@ class Camera:
         self.half_height = 0.5 * resolution[1] / self.zoom * basis(1)
         self.resolution = np.array(resolution, dtype=int)
         self.shake = np.zeros(2)
+        self.shake_velocity = np.zeros(2)
         self.velocity = np.zeros(2)
         self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(9)]
 
         self.sprite = None
+        self.target_position = self.position.copy()
+        self.target_zoom = self.max_zoom
+        self.speed = 10
 
     def draw(self, batch):
         if not self.sprite:
@@ -35,40 +39,70 @@ class Camera:
     def set_resolution(self, resolution):
         self.max_zoom = resolution[1] / 720 * 50.0
         self.zoom = self.max_zoom
+        self.target_zoom = self.zoom
         self.half_width = 0.5 * resolution[0] / self.zoom * basis(0)
         self.half_height = 0.5 * resolution[1] / self.zoom * basis(1)
         self.resolution[:] = resolution
 
-    def update(self, time_step, players, level):
-        cam_goal = sum(p.position for p in players.values()) / len(players)
+    def set_position_zoom(self, position, zoom):
+        self.position[:] = position
+        self.target_position[:] = position
+        self.zoom = min(zoom, self.max_zoom)
+        self.target_zoom = self.zoom
+
+    def set_target(self, players, level):
+        self.target_position = sum(p.position for p in players.values()) / len(players)
 
         if level.width < 2 * self.half_width[0]:
-            cam_goal[0] = 0.5 * level.width
+            self.target_position[0] = 0.5 * level.width
 
         if level.height < 2 * self.half_height[1]:
-            cam_goal[1] = 0.5 * level.height
+            self.target_position[1] = 0.5 * level.height
 
-        cam_goal[0] = max(cam_goal[0], self.half_width[0])
-        cam_goal[0] = min(cam_goal[0], level.width - self.half_width[0])
+        self.target_position[0] = max(self.target_position[0], self.half_width[0])
+        self.target_position[0] = min(self.target_position[0], level.width - self.half_width[0])
 
-        cam_goal[1] = max(cam_goal[1], self.half_height[1])
-        cam_goal[1] = min(cam_goal[1], level.height - self.half_height[1])
-
-        self.position[:] += time_step * (cam_goal - self.position)
+        self.target_position[1] = max(self.target_position[1], self.half_height[1])
+        self.target_position[1] = min(self.target_position[1], level.height - self.half_height[1])
 
         if len(players) > 1:
             eps = 1e-6
-            x = max(abs(p.position[0] - cam_goal[0]) for p in players.values()) + eps
-            y = max(abs(p.position[1] - cam_goal[1]) for p in players.values()) + eps
-            zoom_goal = min(0.4 * self.resolution[0] / x, 0.4 * self.resolution[1] / y)
-            zoom_goal = min(zoom_goal, self.max_zoom)
-            self.zoom += time_step * (zoom_goal - self.zoom)
+            x = max(abs(p.position[0] - self.target_position[0]) for p in players.values()) + eps
+            y = max(abs(p.position[1] - self.target_position[1]) for p in players.values()) + eps
+            self.target_zoom = min(0.4 * self.resolution[0] / x, 0.4 * self.resolution[1] / y)
+            self.target_zoom = min(self.target_zoom, self.max_zoom)
         else:
-            self.zoom = self.max_zoom
+            self.target_zoom = self.max_zoom
 
-        self.shake = sum(p.camera_shake for p in players.values())
+        for p in players.values():
+            if p.camera_shake is not None:
+                self.shake += p.camera_shake
+                p.camera_shake = None
 
-        self.shake += sum(o.camera_shake for o in level.objects.values() if type(o) is Grenade)
+        for o in level.objects.values():
+            if o.camera_shake is not None:
+                self.shake += o.camera_shake
+                o.camera_shake = None
+
+    def update(self, time_step):
+        delta_pos = self.target_position - self.position
+        if norm2(delta_pos) > 0.001:
+            self.position[:] += self.speed * time_step * delta_pos
+        else:
+            self.position[:] = self.target_position
+
+        delta_zoom = self.target_zoom - self.zoom
+        if abs(delta_zoom) > 0.01:
+            self.zoom += self.speed * time_step * delta_zoom
+        else:
+            self.zoom = self.target_zoom
+
+        if norm2(self.shake) < 0.01:
+            self.shake = np.zeros(2)
+        else:
+            # Damped harmonic oscillator
+            self.shake_velocity -= 5 * self.shake + 0.1 * self.shake_velocity
+            self.shake += self.shake_velocity * time_step
 
     def set_zoom(self, zoom):
         self.zoom = zoom

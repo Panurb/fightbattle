@@ -1,6 +1,7 @@
 import pygame
 import pyglet
 from pyglet.window import key
+from pyglet.gl import *
 
 from gameloop import GameLoop
 from imagehandler import ImageHandler
@@ -11,9 +12,9 @@ from soundhandler import SoundHandler
 
 
 # transparency stuff
-pyglet.gl.glEnable(pyglet.gl.GL_DEPTH_TEST)
-pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
-pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA, pyglet.gl.GL_SRC_ALPHA)
+glEnable(GL_BLEND)
+#glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+#glBlendEquation(GL_MAX_EXT)
 
 
 class GameWindow(pyglet.window.Window):
@@ -44,7 +45,7 @@ class GameWindow(pyglet.window.Window):
     def update(self, dt):
         self.set_exclusive_mouse(self.loop.state is State.PLAY)
         self.loop.input(self.input_handler)
-        self.loop.update(min(15.0 * dt, 0.5))
+        self.loop.update(min(dt, 0.03))
         self.loop.play_sounds(self.sound_handler)
         if self.loop.state is State.OPTIONS:
             if self.loop.options_menu.options_changed:

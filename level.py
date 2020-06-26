@@ -25,7 +25,7 @@ class Level:
         self.walls_sprite = None
         self.blood = []
 
-        self.gravity = np.array([0, -0.1])
+        self.gravity = np.array([0, -25.0])
         self.id_count = 0
 
         self.server = server
@@ -162,8 +162,8 @@ class Level:
             if type(obj) is Crate and obj.destroyed:
                 if obj.loot_list:
                     loot = np.random.choice(obj.loot_list)(obj.position)
-                    loot.velocity[:] = obj.velocity + 0.5 * basis(1)
-                    loot.angular_velocity = 0.5 * np.sign(obj.velocity[0] + 1e-3)
+                    loot.velocity[:] = obj.velocity + 10.0 * basis(1)
+                    loot.angular_velocity = 5.0 * np.sign(obj.velocity[0] + 1e-3)
                     self.add_object(loot)
                     loot.collider.update_occupied_squares(colliders)
                     obj.loot_list.clear()
@@ -302,6 +302,7 @@ class Background:
         self.image = None
         self.sprite = None
         self.layer = 0
+        self.number_of_decals = 0
 
     def draw(self, batch, camera, image_handler):
         if not self.image:
@@ -310,7 +311,7 @@ class Background:
             image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
             self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[self.layer])
 
-            for _ in range(10):
+            for _ in range(self.number_of_decals):
                 x = np.random.random() * self.width
                 y = np.random.random() * self.height
                 angle = 2 * np.pi * np.random.random()
@@ -318,7 +319,7 @@ class Background:
                 path = np.random.choice(['crack', 'crack2'])
                 self.add_decal(image_handler, path, [x, y], angle, scale)
 
-            for _ in range(10):
+            for _ in range(self.number_of_decals):
                 x = np.random.random() * self.width
                 y = np.random.random() * self.height
                 angle = 0.5 * (np.random.random() - 0.5)

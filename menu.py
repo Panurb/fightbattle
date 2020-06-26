@@ -30,6 +30,7 @@ class Menu:
         self.sounds = set()
         self.previous_state = State.MENU
         self.visible = True
+        self.button_offset = 0.0
 
     def set_visible(self, visible):
         for b in self.buttons:
@@ -39,9 +40,9 @@ class Menu:
         for b in self.buttons:
             b.delete()
 
-    def update_buttons(self, offset=0.0):
+    def update_buttons(self):
         for i, b in enumerate(self.buttons):
-            b.set_position(self.position + (offset - 1.5 * i) * basis(1))
+            b.set_position(self.position + (0.5 * len(self.buttons) + self.button_offset - 1.5 * i) * basis(1))
 
     def input(self, input_handler, controller_id=0):
         controller = input_handler.controllers[controller_id]
@@ -128,19 +129,20 @@ class Menu:
 class MainMenu(Menu):
     def __init__(self):
         super().__init__()
+        self.button_offset = -1.5
         self.buttons.append(Button('PLAY', State.PLAYER_SELECT))
         self.buttons.append(Button('LAN', State.LAN))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('CONTROLS', State.MENU))
         self.buttons.append(Button('CREDITS', State.MENU))
         self.buttons.append(Button('QUIT', State.QUIT))
-        self.update_buttons(1.5)
+        self.update_buttons()
         self.timer = 40.0
         self.chromatic_aberration = 0
         self.title = TitleText('FIGHTBATTLE', np.array([0, 4.5]), 2.2, 'CollegiateBlackFLF.ttf')
 
     def update(self, time_step):
-        self.chromatic_aberration = max(0, self.chromatic_aberration - 0.25 * time_step)
+        self.chromatic_aberration = max(0, self.chromatic_aberration - 5 * time_step)
 
     def input(self, input_handler, controller_id=0):
         selection = self.selection
@@ -163,6 +165,7 @@ class PlayerMenu(Menu):
         self.target_state = State.PLAYER_SELECT
         self.position = np.array(position, dtype=float)
         self.controller_id = None
+        self.button_offset = -2
 
         path = os.path.join('data', 'images', 'heads')
         heads = [x.split('.')[0] for x in os.listdir(path)]
@@ -242,7 +245,7 @@ class OptionsMenu(Menu):
     def __init__(self):
         super().__init__()
         self.position[0] = 25
-        self.position[1] = 3
+        self.position[1] = 0
         self.target_state = State.OPTIONS
         self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
         self.buttons.append(Slider('Resolution', [(1280, 720), (1360, 768), (1600, 900), (1920, 1080), (2560, 1440),
@@ -309,7 +312,7 @@ class PauseMenu(Menu):
 class LevelMenu(Menu):
     def __init__(self):
         super().__init__()
-        self.position = np.array([25, -14])
+        self.position = np.array([25, -16])
         path = os.path.join('data', 'levels')
         levels = [x.split('.')[0] for x in os.listdir(path)]
         self.level_slider = Slider('Level', levels, cyclic=False)

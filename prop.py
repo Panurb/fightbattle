@@ -15,14 +15,6 @@ class Crate(Destroyable):
         super().apply_data(data)
         self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
-
-        #if not self.destroyed:
-        #    if self.collider.collisions:
-        #        if self.speed > 0.1:
-        #            self.damage(self.speed * self.blunt_damage, colliders)
-
     def destroy(self, colliders):
         if not self.destroyed:
             self.sounds.add('crate_break')

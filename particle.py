@@ -19,7 +19,7 @@ class Cloud:
         v_norm = norm(velocity)
         for i in range(number):
             if angle is None:
-                v = 0.5 * random_unit()
+                v = 5.0 * random_unit()
             else:
                 theta = np.random.normal(angle, 1.0)
                 r = np.abs(np.random.normal(v_norm, v_norm))
@@ -95,7 +95,7 @@ class Particle:
 
 class BloodSplatter(Cloud):
     def __init__(self, position, direction, number=10):
-        super().__init__('blood', position, direction, number, 10.0, 3.0, stretch=5)
+        super().__init__('blood', position, direction, number, 0.67, 3.0, stretch=0.5)
 
 
 class MuzzleFlash:
@@ -104,7 +104,7 @@ class MuzzleFlash:
         self.position = np.zeros_like(position)
         self.velocity = velocity.copy()
         self.time = 0.0
-        self.lifetime = 5.0
+        self.lifetime = 0.33
         self.initial_size = 3.0
         self.initial_position = position.copy() + polar_to_cartesian(0.2 * self.initial_size, self.angle)
         self.size = self.initial_size
@@ -134,11 +134,11 @@ class MuzzleFlash:
 
 class Explosion(Cloud):
     def __init__(self, position):
-        super().__init__('smoke', position, 0.1 * basis(1), 5, 10.0, start_size=8.0, end_size=0.0, gravity_scale=-0.5)
-        self.particles.append(Particle('explosion', position, np.zeros(2), 5.0, start_size=4.0, end_size=5.0,
+        super().__init__('smoke', position, 1.0 * basis(1), 5, 1.0, start_size=8.0, end_size=0.0, gravity_scale=-0.5)
+        self.particles.append(Particle('explosion', position, np.zeros(2), 0.5, start_size=4.0, end_size=5.0,
                                        gravity_scale=0.0))
 
 
 class Dust(Cloud):
     def __init__(self, position, velocity, number=5):
-        super().__init__('dust', position, 0.2 * velocity, number, 5.0, 5.0, gravity_scale=0.5)
+        super().__init__('dust', position, 0.2 * velocity, number, 0.3, 5.0, gravity_scale=0.5)

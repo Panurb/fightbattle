@@ -7,7 +7,7 @@ from particle import BloodSplatter, Dust
 
 
 class Bullet(PhysicsObject):
-    def __init__(self, position, velocity=(0, 0), parent=None, lifetime=20, size=1.0, dmg=20):
+    def __init__(self, position, velocity=(0, 0), parent=None, lifetime=0.5, size=1.0, dmg=20):
         super().__init__(position, velocity)
         self.parent = parent
         self.add_collider(Circle(np.zeros(2), 0.2, Group.BULLETS))
@@ -41,6 +41,9 @@ class Bullet(PhysicsObject):
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
+                if obj is self.parent:
+                    continue
+
                 if isinstance(obj, Destroyable):
                     if obj.parent:
                         obj.parent.velocity += 0.1 * self.velocity
@@ -77,7 +80,19 @@ class Bullet(PhysicsObject):
 
 class Pellet(Bullet):
     def __init__(self, position, velocity=(0, 0), parent=None):
-        super().__init__(position, velocity, parent, 10, 0.5, 15)
+        super().__init__(position, velocity, parent, 0.3, 0.5, 15)
+
+    def destroy(self, particle_type=None):
+        if not self.destroyed:
+            self.sprite.delete()
+            self.sprite = None
+            self.destroyed = True
+            if particle_type is not None:
+                self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity, number=2))
+            self.active = False
+            self.sounds.add('gun')
+            if particle_type is BloodSplatter:
+                self.decal = 'blood'
 
 
 class Arrow(Bullet):
