@@ -9,6 +9,9 @@ class Controller:
         if index != -1:
             self.joystick = pygame.joystick.Joystick(index)
             self.joystick.init()
+            
+        self.sticks = [0, 1, 4, 3, 2, 2]
+        self.buttons = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']
 
         self.left_stick = np.zeros(2)
         self.right_stick = np.zeros(2)
@@ -19,7 +22,7 @@ class Controller:
         self.button_down = {}
         self.button_pressed = {}
         self.button_released = {}
-        for b in ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']:
+        for b in self.buttons:
             self.button_down[b] = False
             self.button_pressed[b] = False
             self.button_released[b] = False
@@ -28,11 +31,11 @@ class Controller:
         self.trigger_deadzone = 0.01
 
     def update(self):
-        self.left_stick[0] = self.joystick.get_axis(0)
-        self.left_stick[1] = -self.joystick.get_axis(1)
+        self.left_stick[0] = self.joystick.get_axis(self.sticks[0])
+        self.left_stick[1] = -self.joystick.get_axis(self.sticks[1])
 
-        self.right_stick[0] = self.joystick.get_axis(4)
-        self.right_stick[1] = -self.joystick.get_axis(3)
+        self.right_stick[0] = self.joystick.get_axis(self.sticks[2])
+        self.right_stick[1] = -self.joystick.get_axis(self.sticks[3])
 
         for stick in [self.left_stick, self.right_stick]:
             n = norm(stick)
@@ -41,19 +44,31 @@ class Controller:
             elif n > 0.9:
                 stick[:] /= n
 
-        trigger = self.joystick.get_axis(2)
-        if abs(trigger) < self.trigger_deadzone:
-            trigger = 0
+        if self.sticks[4] == self.sticks[5]:
+            trigger = self.joystick.get_axis(self.sticks[4])
+            if abs(trigger) < self.trigger_deadzone:
+                trigger = 0
 
-        if trigger > 0:
-            self.left_trigger = trigger
-        elif trigger < 0:
-            self.right_trigger = -trigger
+            if trigger > 0:
+                self.left_trigger = trigger
+            elif trigger < 0:
+                self.right_trigger = -trigger
+            else:
+                self.left_trigger = 0
+                self.right_trigger = 0
         else:
-            self.left_trigger = 0
-            self.right_trigger = 0
+            self.left_trigger = (self.joystick.get_axis(self.sticks[4]) + 1) / 2
+            if abs(self.left_trigger) < self.trigger_deadzone:
+                self.left_trigger = 0
 
-        for i, b in enumerate(['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']):
+            self.right_trigger = (self.joystick.get_axis(self.sticks[5]) + 1) / 2
+            if abs(self.right_trigger) < self.trigger_deadzone:
+                self.right_trigger = 0
+
+        for i, b in enumerate(self.buttons):
+            if b == '':
+                continue
+                
             self.button_pressed[b] = False
             self.button_released[b] = False
 
@@ -68,6 +83,12 @@ class Controller:
 
 
 class DualShock4(Controller):
+    def __init__(self, index):
+        super().__init__(index)
+        self.buttons = ['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']
+        self.sticks = [0, 1, 2, 3, 5, 4]
+        
+'''
     def update(self):
         self.left_stick[0] = self.joystick.get_axis(0)
         self.left_stick[1] = -self.joystick.get_axis(1)
@@ -90,7 +111,7 @@ class DualShock4(Controller):
         if abs(self.right_trigger) < self.trigger_deadzone:
             self.right_trigger = 0
 
-        for i, b in enumerate(['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']):
+        for i, b in enumerate(self.buttons):
             if not b:
                 continue
 
@@ -105,6 +126,7 @@ class DualShock4(Controller):
                     self.button_released[b] = True
 
             self.button_down[b] = self.joystick.get_button(i)
+'''
 
 
 class Keyboard(Controller):

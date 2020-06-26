@@ -7,7 +7,7 @@ from camera import Camera
 from gameobject import Destroyable
 from helpers import basis
 from level import Level
-from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu
+from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu
 from player import Player
 from network import Network
 from prop import Ball
@@ -36,6 +36,7 @@ class GameLoop:
         self.options_menu.set_values(self.option_handler)
         self.pause_menu = PauseMenu()
         self.level_menu = LevelMenu()
+        self.controls_menu = ControlsMenu()
 
         self.network = None
         self.network_id = -1
@@ -286,6 +287,10 @@ class GameLoop:
                 self.camera.zoom = self.camera.max_zoom
 
             self.pause_menu.target_state = State.PAUSED
+        elif self.state is State.CONTROLS:
+            self.camera.target_position[:] = self.controls_menu.position
+            self.state = self.controls_menu.target_state
+            self.controls_menu.target_state = State.CONTROLS
 
         self.camera.update(time_step)
 
@@ -350,6 +355,8 @@ class GameLoop:
             self.options_menu.input(input_handler)
         elif self.state is State.PAUSED:
             self.pause_menu.input(input_handler)
+        elif self.state is State.CONTROLS:
+            self.controls_menu.input(input_handler)
 
     def draw(self, batch, image_handler):
         self.text.draw(batch, self.camera)
@@ -370,7 +377,7 @@ class GameLoop:
 
             if self.option_handler.debug_draw:
                 self.debug_draw(batch, image_handler)
-        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT}:
+        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT, State.CONTROLS}:
             image_handler.set_clear_color((50, 50, 50))
 
             self.menu.draw(batch, self.camera, image_handler)
@@ -383,6 +390,7 @@ class GameLoop:
                     self.players[pm.controller_id].animate(0.0)
                     self.players[pm.controller_id].draw(batch, self.camera, image_handler)
             self.level_menu.draw(batch, self.camera, image_handler)
+            self.controls_menu.draw(batch, self.camera, image_handler)
         elif self.state is State.PAUSED:
             self.pause_menu.draw(batch, self.camera, image_handler)
 
@@ -436,6 +444,7 @@ class GameLoop:
             for pm in self.player_menus:
                 pm.play_sounds(sound_handler)
             self.level_menu.play_sounds(sound_handler)
+            self.controls_menu.play_sounds(sound_handler)
         self.pause_menu.play_sounds(sound_handler)
 
     def network_thread(self):

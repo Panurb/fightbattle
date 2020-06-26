@@ -17,6 +17,7 @@ class State(Enum):
     PAUSED = 6
     OPTIONS = 7
     LAN = 8
+    CONTROLS = 9
 
 
 class Menu:
@@ -133,7 +134,7 @@ class MainMenu(Menu):
         self.buttons.append(Button('PLAY', State.PLAYER_SELECT))
         self.buttons.append(Button('LAN', State.LAN))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
-        self.buttons.append(Button('CONTROLS', State.MENU))
+        self.buttons.append(Button('CONTROLS', State.CONTROLS))
         self.buttons.append(Button('CREDITS', State.MENU))
         self.buttons.append(Button('QUIT', State.QUIT))
         self.update_buttons()
@@ -248,7 +249,7 @@ class OptionsMenu(Menu):
         self.position[1] = 0
         self.target_state = State.OPTIONS
         self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
-        self.buttons.append(Slider('Resolution', [(1280, 720), (1360, 768), (1600, 900), (1920, 1080), (2560, 1440),
+        self.buttons.append(Slider('Resolution', [(1280, 720), (1360, 768), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440),
                                                   (3840, 2160)], False))
         self.buttons.append(Slider('SFX volume', range(0, 110, 10), False))
         self.buttons.append(Slider('Music volume', range(0, 110, 10), False))
@@ -327,3 +328,13 @@ class LevelMenu(Menu):
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
             super().input(input_handler, i)
+            
+            
+class ControlsMenu(Menu):
+    def __init__(self):
+        super().__init__()
+        self.target_state = State.CONTROLS
+        self.position = np.array([-25, 0])
+        self.buttons.append(Button('Rebind controls', State.CONTROLS))
+        self.buttons.append(Button('Back', State.MENU))
+        self.update_buttons()
