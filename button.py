@@ -35,6 +35,36 @@ class Button(GameObject):
 
         self.text.visible = self.visible
         self.text.draw(batch, camera)
+        
+        
+class RebindButton(Button):
+    def __init__(self, string):
+        super().__init__([0, 0], None)
+        self.add_collider(Rectangle([0, 0], 3, 1))
+        self.color = (150, 150, 150)
+        self.color_selected = (255, 255, 255)
+        self.selected = False
+        self.text = Text(f'{string}: Button 0', self.position, 0.45)
+        self.visible = True
+
+    def set_visible(self, visible):
+        self.visible = visible
+        self.text.set_visible(visible)
+
+    def delete(self):
+        self.text.delete()
+
+    def set_position(self, position):
+        super().set_position(position)
+        self.text.position[:] = position
+
+    def draw(self, batch, camera, image_handler):
+        if self.visible:
+            color = self.color_selected if self.selected else self.color
+            self.text.color = color
+
+        self.text.visible = self.visible
+        self.text.draw(batch, camera)
 
 
 class Slider(GameObject):

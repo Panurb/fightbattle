@@ -3,7 +3,7 @@ from enum import Enum
 
 import numpy as np
 
-from button import Button, Slider
+from button import Button, Slider, RebindButton
 from helpers import basis
 from text import Text, TitleText
 
@@ -32,6 +32,7 @@ class Menu:
         self.previous_state = State.MENU
         self.visible = True
         self.button_offset = 0.0
+        self.button_gap = 1.5
 
     def set_visible(self, visible):
         for b in self.buttons:
@@ -43,7 +44,8 @@ class Menu:
 
     def update_buttons(self):
         for i, b in enumerate(self.buttons):
-            b.set_position(self.position + (0.5 * len(self.buttons) + self.button_offset - 1.5 * i) * basis(1))
+            b.set_position(self.position + (0.5 * len(self.buttons)
+                                            + self.button_offset - self.button_gap * i) * basis(1))
 
     def input(self, input_handler, controller_id=0):
         controller = input_handler.controllers[controller_id]
@@ -162,9 +164,8 @@ class MainMenu(Menu):
 
 class PlayerMenu(Menu):
     def __init__(self, position):
-        super().__init__()
+        super().__init__(position)
         self.target_state = State.PLAYER_SELECT
-        self.position = np.array(position, dtype=float)
         self.controller_id = None
         self.button_offset = -2
 
@@ -249,8 +250,8 @@ class OptionsMenu(Menu):
         self.position[1] = 0
         self.target_state = State.OPTIONS
         self.buttons.append(Slider('Mode', ['windowed', 'fullscreen']))
-        self.buttons.append(Slider('Resolution', [(1280, 720), (1360, 768), (1366, 768), (1600, 900), (1920, 1080), (2560, 1440),
-                                                  (3840, 2160)], False))
+        self.buttons.append(Slider('Resolution', [(1280, 720), (1360, 768), (1366, 768), (1600, 900), (1920, 1080),
+                                                  (2560, 1440), (3840, 2160)], False))
         self.buttons.append(Slider('SFX volume', range(0, 110, 10), False))
         self.buttons.append(Slider('Music volume', range(0, 110, 10), False))
         self.buttons.append(Slider('Shadows', ['OFF', 'ON']))
@@ -332,9 +333,13 @@ class LevelMenu(Menu):
             
 class ControlsMenu(Menu):
     def __init__(self):
-        super().__init__()
+        super().__init__([-25, 0])
         self.target_state = State.CONTROLS
-        self.position = np.array([-25, 0])
-        self.buttons.append(Button('Rebind controls', State.CONTROLS))
-        self.buttons.append(Button('Back', State.MENU))
+        self.button_gap = 0.75
+        
+        for button in ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']:
+            self.buttons.append(RebindButton(button))
+            
+        self.buttons.append(Button('Apply', State.MENU))
+
         self.update_buttons()

@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from numpy.linalg import norm
 import pygame
@@ -9,9 +11,13 @@ class Controller:
         if index != -1:
             self.joystick = pygame.joystick.Joystick(index)
             self.joystick.init()
-            
-        self.sticks = [0, 1, 4, 3, 2, 2]
-        self.buttons = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']
+
+        if os.name == 'nt':
+            self.sticks = [0, 1, 4, 3, 2, 2]
+            self.buttons = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']
+        else:
+            self.sticks = [0, 1, 3, 4, 2, 5]
+            self.buttons = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']
 
         self.left_stick = np.zeros(2)
         self.right_stick = np.zeros(2)
@@ -85,8 +91,12 @@ class Controller:
 class DualShock4(Controller):
     def __init__(self, index):
         super().__init__(index)
-        self.buttons = ['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']
-        self.sticks = [0, 1, 2, 3, 5, 4]
+        if os.name == 'nt':
+            self.buttons = ['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']
+            self.sticks = [0, 1, 2, 3, 5, 4]
+        else:
+            self.sticks = [0, 1, 3, 4, 2, 5]
+            self.buttons = ['A', 'B', 'Y', 'X', 'LB', 'RB', 'SELECT', 'START']
 
 
 class Keyboard(Controller):
