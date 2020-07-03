@@ -14,7 +14,7 @@ class Weapon(PhysicsObject):
         self.hand_position = np.zeros(2)
         self.attacked = False
         self.hit = False
-        self.attack_delay = 0.5
+        self.attack_delay = 0.25
         self.timer = 0.0
 
     def update(self, gravity, time_step, colliders):
@@ -25,11 +25,13 @@ class Weapon(PhysicsObject):
         self.attacked = False
         self.timer = self.attack_delay
 
+        return []
+
 
 class Gun(Weapon):
     def __init__(self, position, image_path):
         super().__init__(position, image_path=image_path)
-        self.barrel_position = np.array([1.0, 0.3])
+        self.barrel_position = np.array([0.7, 0.3])
         self.grip_position = None
         self.bullet_speed = 45.0
 
@@ -77,6 +79,8 @@ class Revolver(Gun):
         self.sounds.add('revolver')
         v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
         bs.append(Bullet(self.get_barrel_position(), v, self.parent))
+        self.angular_velocity += self.direction * 15
+        self.velocity[0] -= self.direction * 10
         return bs
 
 
@@ -90,6 +94,7 @@ class Shotgun(Gun):
         self.hand_position = np.array([-0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
         self.attack_delay = 0.75
+        self.mass = 1.5
 
     def attack(self):
         bs = super().attack()
@@ -99,6 +104,9 @@ class Shotgun(Gun):
             theta += 0.1
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
             bs.append(Pellet(self.get_barrel_position(), v, self.parent))
+        self.angular_velocity += self.direction * 15
+        self.velocity[0] -= self.direction * 10
+        self.velocity[1] += 10
 
         return bs
 
@@ -157,6 +165,8 @@ class Axe(Weapon):
         super().attack()
         self.hit = False
         self.sounds.add('swing')
+        self.angular_velocity -= self.direction * 20
+        self.velocity[1] -= 10
 
 
 class Shield(PhysicsObject):
@@ -164,6 +174,7 @@ class Shield(PhysicsObject):
         super().__init__(position, image_path='shield', size=0.85, bump_sound='gun')
         self.add_collider(Rectangle([0, 0], 0.5, 2.0, Group.SHIELDS))
         self.rest_angle = 0.5 * np.pi
+        self.mass = 2.0
 
 
 class Grenade(Destroyable):
@@ -182,6 +193,7 @@ class Grenade(Destroyable):
         self.roll = True
         self.fall_damage = 0
         self.delay = 3.0
+        self.mass = 0.1
 
     def delete(self):
         super().delete()
@@ -233,7 +245,9 @@ class Grenade(Destroyable):
                     obj.velocity += 0.5 * r / r_norm
 
                 if isinstance(obj, Destroyable):
-                    obj.damage(int(abs(30 * (5 - r_norm))), colliders)
+                    particle_type = obj.damage(int(abs(30 * (5 - r_norm))), colliders)
+                    if particle_type:
+                        self.particle_clouds.append(particle_type(obj.position, 5 * r))
 
             self.particle_clouds.append(Explosion(self.position))
             self.sounds.add('grenade')
@@ -278,7 +292,7 @@ class Bow(Gun):
         self.string = None
         self.layer = 3
         self.attack_delay = 0.67
-        self.charge_speed = 0.02
+        self.charge_speed = 1.0
 
         self.arrow = GameObject(self.position, 'arrow', size=1.2, layer=5)
         self.arrow.image_position = 0.5 * basis(0)
@@ -286,6 +300,7 @@ class Bow(Gun):
     def delete(self):
         super().delete()
         self.string.delete()
+        self.arrow.delete()
 
     def get_data(self):
         return super().get_data() + (self.attack_charge, )

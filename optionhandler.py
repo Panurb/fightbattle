@@ -59,4 +59,4 @@ class OptionHandler:
         self.music_volume = self.config.getint('audio', 'music volume')
 
         self.shadows = self.config.getboolean('performance', 'shadows')
-        self.shadows = self.config.getboolean('performance', 'dust')
+        self.dust = self.config.getboolean('performance', 'dust')

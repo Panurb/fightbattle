@@ -36,6 +36,7 @@ class Level:
         self.position = np.zeros(2)
 
         self.light = None
+        self.dust = True
 
         if self.name:
             with open(f'data/levels/{self.name}.pickle', 'rb') as f:
@@ -61,6 +62,7 @@ class Level:
 
                 for o in self.objects.values():
                     o.set_position(o.position + offset)
+                    o.dust = self.dust
 
     def delete(self):
         for g in self.goals:
@@ -164,6 +166,7 @@ class Level:
                     loot = np.random.choice(obj.loot_list)(obj.position)
                     loot.velocity[:] = obj.velocity + 10.0 * basis(1)
                     loot.angular_velocity = 5.0 * np.sign(obj.velocity[0] + 1e-3)
+                    loot.dust = self.dust
                     self.add_object(loot)
                     loot.collider.update_occupied_squares(colliders)
                     obj.loot_list.clear()

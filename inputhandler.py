@@ -87,46 +87,6 @@ class DualShock4(Controller):
         super().__init__(index)
         self.buttons = ['X', 'A', 'B', 'Y', 'LB', 'RB', '', '', 'SELECT', 'START']
         self.sticks = [0, 1, 2, 3, 5, 4]
-        
-'''
-    def update(self):
-        self.left_stick[0] = self.joystick.get_axis(0)
-        self.left_stick[1] = -self.joystick.get_axis(1)
-
-        self.right_stick[0] = self.joystick.get_axis(2)
-        self.right_stick[1] = -self.joystick.get_axis(3)
-
-        for stick in [self.left_stick, self.right_stick]:
-            n = norm(stick)
-            if n < self.stick_deadzone:
-                stick[:] = np.zeros(2)
-            elif n > 0.9:
-                stick[:] /= n
-
-        self.left_trigger = (self.joystick.get_axis(5) + 1) / 2
-        if abs(self.left_trigger) < self.trigger_deadzone:
-            self.left_trigger = 0
-
-        self.right_trigger = (self.joystick.get_axis(4) + 1) / 2
-        if abs(self.right_trigger) < self.trigger_deadzone:
-            self.right_trigger = 0
-
-        for i, b in enumerate(self.buttons):
-            if not b:
-                continue
-
-            self.button_pressed[b] = False
-            self.button_released[b] = False
-
-            if self.joystick.get_button(i):
-                if not self.button_down[b]:
-                    self.button_pressed[b] = True
-            else:
-                if self.button_down[b]:
-                    self.button_released[b] = True
-
-            self.button_down[b] = self.joystick.get_button(i)
-'''
 
 
 class Keyboard(Controller):
@@ -135,7 +95,7 @@ class Keyboard(Controller):
 
         self.buttons = {'A': key.SPACE,
                         'B': key.ESCAPE,
-                        'X': key.Q,
+                        'X': key.LSHIFT,
                         'Y': key.F,
                         'LB': key.C,
                         'RB': key.E,

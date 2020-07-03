@@ -47,10 +47,11 @@ class GameLoop:
         self.score_limit = 0
         self.text = Text('', np.zeros(2), 2.0)
         self.timer = 0.0
-        self.delay = 3.0
+        self.delay = 0.0
 
     def load_level(self, name):
         self.level = Level(name)
+        self.level.dust = self.option_handler.dust
 
         self.colliders.clear()
 
@@ -85,6 +86,9 @@ class GameLoop:
 
         self.timer = self.delay
         self.time_scale = 1.0
+
+        zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
+        self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
 
     def add_player(self, controller_id, network_id=-1):
         if network_id == -1:
@@ -148,7 +152,7 @@ class GameLoop:
                         self.timer = self.delay
                     elif alive['blue'] and not alive['red']:
                         self.level.scoreboard.scores['blue'] += 1
-                        self.text.string = 'BLLUE SCORES'
+                        self.text.string = 'BLUE SCORES'
                         self.time_scale = 0.5
                         self.timer = self.delay
 
@@ -267,6 +271,7 @@ class GameLoop:
                 self.option_handler.resolution = self.options_menu.buttons[1].get_value()
 
                 self.option_handler.shadows = self.options_menu.buttons[4].get_value() == 'ON'
+                self.option_handler.dust = self.options_menu.buttons[5].get_value() == 'ON'
 
                 self.option_handler.save()
         elif self.state is State.PAUSED:
@@ -283,8 +288,7 @@ class GameLoop:
 
                 self.timer = 0
                 self.text.string = ''
-                self.camera.position[:] = self.level_menu.position
-                self.camera.zoom = self.camera.max_zoom
+                self.camera.set_position_zoom(self.level_menu.position, self.camera.max_zoom)
 
             self.pause_menu.target_state = State.PAUSED
         elif self.state is State.CONTROLS:

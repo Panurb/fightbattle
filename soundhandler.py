@@ -25,7 +25,7 @@ class SoundHandler:
         self.set_volume(option_handler.sfx_volume)
         self.music_player = pyglet.media.player.Player()
         self.set_music_volume(option_handler.music_volume)
-        self.tracklists = [['somber'], ['break', 'chaos', 'line', 'steady']]
+        self.tracklists = [['somber'], ['break', 'chaos', 'line', 'scatter', 'steady']]
         self.index = -1
         self.paused = False
 

@@ -133,6 +133,7 @@ class PhysicsObject(GameObject):
         self.dust = dust
         self.blunt_damage = 1
         self.roll = False
+        self.grabbed = False
 
         self.camera_shake = None
 
@@ -188,8 +189,6 @@ class PhysicsObject(GameObject):
 
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.set_position(self.position + delta_pos)
-        acc_old = self.acceleration.copy()
-        self.acceleration = self.get_acceleration(gravity)
 
         if self.roll:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
@@ -213,8 +212,13 @@ class PhysicsObject(GameObject):
 
         for collision in self.collider.collisions:
             collider = collision.collider
+            obj = collider.parent
 
             if collider.group is Group.PLATFORMS:
+                if self.grabbed:
+                    self.collider.collisions.remove(collision)
+                    continue
+
                 bottom = self.collider.position[1] - delta_pos[1] - height
                 platform_top = collider.position[1] + collider.half_height[1]
                 if bottom < platform_top - 0.05:
@@ -223,16 +227,13 @@ class PhysicsObject(GameObject):
 
             if self.collider.group is Group.THROWN:
                 # Can't hit self with thrown object
-                if collider.parent is self.parent:
+                if obj is self.parent:
                     self.collider.collisions.remove(collision)
                     continue
 
                 # If hits another players's object, he drops it
-                if collider.parent.parent:
-                    collider.parent.parent.throw_object()
-            else:
-                if collider.parent.parent:
-                    self.collider.collisions.remove(collision)
+                if obj.parent:
+                    obj.parent.drop_object()
 
             if collision.overlap[1] > 0:
                 self.on_ground = True
@@ -241,36 +242,43 @@ class PhysicsObject(GameObject):
                         self.angular_velocity = 5.0 * (self.collider.rest_angle() - self.angle)
                         if abs(self.angular_velocity) > 1.0:
                             self.sounds.add(self.bump_sound)
-            elif collision.overlap[0] != 0:
+            elif collision.overlap[0] < 0:
                 self.angular_velocity *= -1
 
-            if self.dust and self.gravity_scale:
+            if not self.grabbed:
                 n = min(int(self.speed / 3), 10)
                 if n > 1:
-                    self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
                     self.sounds.add(self.bump_sound)
+                    if self.dust:
+                        self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
 
             self.set_position(self.position + collision.overlap)
 
-            n = collision.overlap
-            self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
-            self.velocity *= self.bounce
+            if isinstance(collider.parent, PhysicsObject):
+                if not self.grabbed:
+                    obj.velocity[:] = 2 * self.mass / (self.mass + obj.mass) * self.velocity
+                if self.blunt_damage and self.speed > 1.0:
+                    if isinstance(collider.parent, Destroyable):
+                        particle_type = obj.damage(self.speed * self.blunt_damage, colliders)
+                        if particle_type:
+                            self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
+                        self.camera_shake = int(self.speed) * random_unit()
 
-            if self.gravity_scale:
-                if isinstance(collider.parent, PhysicsObject):
-                    collider.parent.velocity[:] = -self.velocity
-                    if self.speed > 1.0:
-                        if isinstance(collider.parent, Destroyable):
-                            particle_type = collider.parent.damage(self.speed * self.blunt_damage, colliders)
-                            if particle_type:
-                                self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
-                            self.camera_shake = int(self.speed) * random_unit()
+                n = collision.overlap
+                self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
+                self.velocity *= -(self.mass - obj.mass) / (self.mass + obj.mass)
+            else:
+                n = collision.overlap
+                self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
+                self.velocity *= self.bounce
 
         if self.collider:
             if self.collider.group is Group.THROWN and self.collider.collisions:
                 self.parent = None
                 self.collider.group = self.group
 
+        acc_old = self.acceleration.copy()
+        self.acceleration[:] = self.get_acceleration(gravity)
         self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
 
@@ -294,7 +302,7 @@ class Destroyable(PhysicsObject):
         self.debris_size = debris_size
         self.parent = parent
         self.fall_damage = 5
-        self.fall_damage_threshold = 10.0
+        self.fall_damage_speed = 10.0
 
     def delete(self):
         super().delete()
@@ -344,7 +352,7 @@ class Destroyable(PhysicsObject):
 
         if not self.destroyed:
             if self.collider.collisions:
-                if self.speed > self.fall_damage_threshold:
+                if self.speed > self.fall_damage_speed:
                     self.damage(self.speed * self.fall_damage, colliders)
 
         if self.destroyed:

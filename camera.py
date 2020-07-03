@@ -104,6 +104,9 @@ class Camera:
             self.shake_velocity -= 5 * self.shake + 0.1 * self.shake_velocity
             self.shake += self.shake_velocity * time_step
 
+        self.half_width = 0.5 * self.resolution[0] / self.zoom * basis(0)
+        self.half_height = 0.5 * self.resolution[1] / self.zoom * basis(1)
+
     def set_zoom(self, zoom):
         self.zoom = zoom
         self.half_width = 0.5 * self.resolution[0] / self.zoom * basis(0)

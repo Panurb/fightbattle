@@ -5,7 +5,7 @@ from gameobject import PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject, Ga
 from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized, polar_angle, random_unit, rotate
 from particle import BloodSplatter, Dust
-from weapon import Shotgun, Shield, Bow, Axe, Weapon, Grenade
+from weapon import Shotgun, Shield, Bow, Axe, Weapon, Grenade, Gun
 
 
 class Player(Destroyable):
@@ -16,6 +16,7 @@ class Player(Destroyable):
         self.walk_acceleration = 3.5
         self.air_acceleration = 2.0
         self.bounce = 0.0
+        self.friction = 7.0
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
@@ -30,7 +31,9 @@ class Player(Destroyable):
         self.back_foot = Foot(self.position - np.array([0.35, 1.4]), self)
         self.front_foot = Foot(self.position - np.array([0.55, 1.4]), self, True)
 
-        self.max_speed = 8.0
+        self.walk_speed = 5.0
+        self.run_speed = 8.0
+        self.running = False
 
         self.shoulder = self.position + 0.25 * 2 / 3 * self.collider.half_height \
             - 0.1 * self.direction * self.collider.half_width
@@ -52,17 +55,11 @@ class Player(Destroyable):
 
         self.throw_speed = 15.0
         self.throw_charge = 0.0
-        self.charge_speed = 0.03
+        self.charge_speed = 3.0
 
         self.controller_id = controller_id
         self.network_id = network_id
         self.timer = 0.0
-
-        self.walking = False
-
-        self.camera_shake = None
-
-        self.rest_angle = 0.5 * np.pi
 
         self.grab_delay = 1.0
         self.grab_timer = 0.0
@@ -70,7 +67,10 @@ class Player(Destroyable):
         self.jump_speed = 16.0
         self.team = 'blue'
         self.fall_damage = 10
-        self.fall_damage_threshold = 75.0
+        self.fall_damage_speed = 30.0
+
+        self.charging_attack = False
+        self.charging_throw = False
 
     def delete(self):
         super().delete()
@@ -122,7 +122,7 @@ class Player(Destroyable):
         self.collider.half_height = np.round(self.collider.half_height, 3)
         self.bounce = 0.0
         self.active = True
-        self.throw_object(0.0)
+        self.drop_object()
 
         for p in self.particle_clouds:
             p.delete()
@@ -160,16 +160,27 @@ class Player(Destroyable):
         self.front_foot.flip_horizontally()
 
     def get_acceleration(self, gravity):
-        return min(2, max(1, abs(2 * self.velocity[1]))) * self.gravity_scale * gravity
+        acceleration = min(2, max(1, abs(2 * self.velocity[1]))) * self.gravity_scale * gravity
+
+        if self.on_ground:
+            if np.any(self.goal_velocity[0]):
+                acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.walk_acceleration
+            else:
+                acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.friction
+        else:
+            if np.any(self.goal_velocity[0]):
+                acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.air_acceleration
+
+        return acceleration
 
     def update(self, gravity, time_step, colliders):
         if self.health <= 0:
             self.destroy(colliders)
 
-        for b in self.particle_clouds:
-            b.update(gravity, time_step)
-            if not b.active:
-                self.particle_clouds.remove(b)
+        for p in self.particle_clouds:
+            p.update(gravity, time_step)
+            if not p.active:
+                self.particle_clouds.remove(p)
 
         if self.destroyed:
             self.update_ragdoll(gravity, time_step, colliders)
@@ -181,14 +192,15 @@ class Player(Destroyable):
         if self.velocity[1] != 0:
             self.on_ground = False
 
+        self.speed = norm(self.velocity)
+        if self.speed > MAX_SPEED:
+            self.velocity *= MAX_SPEED / self.speed
+
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.position += delta_pos
-
         self.collider.position += delta_pos
 
         self.collider.update_occupied_squares(colliders)
-        self.head.collider.update_occupied_squares(colliders)
-        self.body.collider.update_occupied_squares(colliders)
 
         self.collider.update_collisions(colliders)
 
@@ -197,15 +209,11 @@ class Player(Destroyable):
 
         for collision in self.collider.collisions:
             collider = collision.collider
-            obj = collision.collider.parent
-            if not obj.collision_enabled:
-                continue
 
-            if obj.collider.group is Group.PLATFORMS:
-                bottom = self.collider.position[1] - delta_pos[1] - self.collider.half_height[1] \
-                         - 0.5 * self.gravity_scale * gravity[1] * time_step**2
+            if collider.group is Group.PLATFORMS:
+                bottom = self.collider.position[1] - delta_pos[1] - self.collider.half_height[1]
                 platform_top = collider.position[1] + collider.half_height[1]
-                if bottom < platform_top:
+                if bottom < platform_top - 0.05:
                     continue
 
             if collision.overlap[1] > 0:
@@ -216,9 +224,9 @@ class Player(Destroyable):
                     if self.dust:
                         self.particle_clouds.append(Dust(self.position - self.collider.half_height, -self.velocity, 5))
 
-                    if self.velocity[1] < -self.fall_damage_threshold:
+                    if self.velocity[1] < -self.fall_damage_speed:
                         self.sounds.add('hit')
-                        self.damage(self.fall_damage * self.velocity[1]**2, colliders)
+                        self.damage(self.fall_damage * self.velocity[1], colliders)
 
                 self.on_ground = True
                 if type(collision.collider) is not Circle:
@@ -229,28 +237,14 @@ class Player(Destroyable):
                 self.velocity[1] *= -1
 
             self.position += collision.overlap
-
             self.collider.position += collision.overlap
 
             if not collision.overlap[1]:
                 self.velocity[0] = 0.0
 
+        acc_old = self.acceleration.copy()
         self.acceleration[:] = self.get_acceleration(gravity)
-
-        if self.on_ground:
-            if np.any(self.goal_velocity[0]):
-                self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.walk_acceleration
-            else:
-                self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * 2 * self.walk_acceleration
-        else:
-            if np.any(self.goal_velocity[0]):
-                self.acceleration[0] = (self.goal_velocity[0] - self.velocity[0]) * self.air_acceleration
-
-        self.velocity += self.acceleration * time_step
-
-        self.speed = norm(self.velocity)
-        if self.speed > MAX_SPEED:
-            self.velocity *= MAX_SPEED / self.speed
+        self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
 
         self.crouched += (self.goal_crouched - self.crouched) * self.crouch_speed * time_step
         self.crouched = min(1, self.crouched)
@@ -259,19 +253,15 @@ class Player(Destroyable):
 
         self.update_joints()
 
+        self.head.collider.update_occupied_squares(colliders)
+        self.body.collider.update_occupied_squares(colliders)
+
         self.collider.position[1] = self.position[1] - 0.5 * self.crouched
         self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
 
         d = self.hand_goal[0]
         if abs(d) > 0.1 and np.sign(d) != self.direction:
             self.flip_horizontally()
-
-        r = self.hand.position - self.shoulder
-
-        if abs(r[0]) > 0.1:
-            self.hand.angular_velocity = 5 * (np.arctan(r[1] / r[0]) - self.hand.angle)
-        else:
-            self.hand.angular_velocity = 0.0
 
         self.animate(time_step)
 
@@ -280,49 +270,55 @@ class Player(Destroyable):
             self.back_hand.set_position(self.object.get_grip_position())
 
         if self.object:
-            self.object.set_position(self.object.position + time_step * self.velocity)
-            if self.object.collider:
-                self.object.collider.update_occupied_squares(colliders)
-            hand_pos = self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal
-            self.object.velocity = 7.5 * (hand_pos - self.object.position) - 0.01 * gravity * basis(1)
-
             if not self.object.collider:
-                self.throw_object()
+                self.drop_object()
                 return
 
-            if self.object.collider.group in {Group.GUNS, Group.SHIELDS, Group.SWORDS}:
-                if abs(d) > 0.1 and np.sign(d) != self.object.direction:
-                    self.object.flip_horizontally()
-                self.hand.set_position(hand_pos)
-                self.hand.velocity[:] = np.zeros(2)
+            if self.charging_throw:
+                self.throw_charge = min(1.0, self.throw_charge + self.charge_speed * time_step)
 
-                if type(self.object) not in {Bow, Shield, Grenade} and self.object.timer > 0:
-                    self.hand.animate(time_step)
-                    self.object.set_position(self.hand.position)
+            self.object.set_position(self.object.position + delta_pos)
+            hand_pos = self.shoulder + (1 - 0.5 * self.throw_charge) * self.hand_goal
+            self.object.acceleration = 100 / self.mass * (hand_pos - self.object.position) - 20 * self.mass * self.object.velocity
 
-                    # experimental
-                    PhysicsObject.update(self.object, gravity, time_step, colliders)
-                    self.hand.set_position(self.object.position)
-                    self.hand.velocity[:] = np.zeros(2)
+            r = self.object.position - self.shoulder
+            goal_angle = np.arctan(r[1] / r[0]) + self.direction * self.throw_charge
+            self.object.angular_acceleration = 100 * (goal_angle - self.object.angle) - 10 * self.object.angular_velocity
 
-                self.object.rotate(self.hand.angle - self.object.angle)
-                #self.object.rotate(self.hand.angle + self.direction * self.throw_charge - self.object.angle)
+            if abs(d) > 0.1 and np.sign(d) != self.object.direction:
+                self.object.flip_horizontally()
+                self.object.rotate(np.sign(self.hand_goal[1]) * self.direction * np.pi)
 
-            if norm(self.shoulder - self.object.position) > 1.6 * self.hand.length:
+            if self.object.group is not Group.PROPS:
+                if type(self.object) is Bow:
+                    if self.charging_attack:
+                        self.attack_charge = min(1.0, self.attack_charge + time_step * self.object.charge_speed)
+                        self.object.attack_charge = self.attack_charge
+
+            if norm2(self.shoulder - self.object.position) > (1.6 * self.hand.length)**2:
                 if isinstance(self.object, Weapon):
                     self.object.set_position(self.position)
                     self.object.collider.update_occupied_squares(colliders)
                     self.hand.set_position(self.object.position)
                     self.hand.velocity[:] = np.zeros(2)
                 else:
-                    self.throw_object(0.0)
+                    self.drop_object()
             else:
                 self.hand.set_position(self.object.position)
-                self.hand.velocity[:] = np.zeros(2)
-                self.hand.update(gravity, time_step, colliders)
+                self.hand.rotate(self.object.angle - self.hand.angle)
+                #self.hand.update(gravity, time_step, colliders)
         else:
-            self.hand.set_position(self.hand.position + time_step * self.velocity)
-            self.hand.velocity = 10 * (self.shoulder + self.hand_goal - self.hand.position) #- 0.185 * gravity * basis(1)
+            self.hand.set_position(self.hand.position + delta_pos)
+            self.hand.velocity = 10 * (self.shoulder + self.hand_goal - self.hand.position)
+            self.hand.velocity -= 0.008 * gravity * basis(1)
+
+            r = self.hand.position - self.shoulder
+            goal_angle = np.arctan(r[1] / r[0])
+            if abs(r[0]) > 0.1:
+                self.hand.angular_velocity = 5 * (goal_angle - self.hand.angle)
+            else:
+                self.hand.angular_velocity = 0.0
+
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_occupied_squares(colliders)
             self.hand.collider.update_collisions(colliders, {Group.PROPS, Group.GUNS, Group.SHIELDS, Group.SWORDS})
@@ -401,9 +397,9 @@ class Player(Destroyable):
             self.hand.image_position[:] = self.object.hand_position
             self.hand.image_position[0] *= self.direction
 
-            if self.object.attacked:
-                if self.object.image_path in self.hand.animations:
-                    self.hand.play_animation(self.object.image_path)
+            #if self.object.attacked:
+            #    if self.object.image_path in self.hand.animations:
+            #        self.hand.play_animation(self.object.image_path)
 
         if self.on_ground:
             if abs(self.goal_velocity[0]) > 0:
@@ -444,7 +440,7 @@ class Player(Destroyable):
                 self.hand.image_path = 'fist'
             elif self.object.collider.group is Group.GUNS:
                 self.hand.image_path = 'hand_trigger'
-            elif self.object.collider.group is Group.SWORDS:
+            elif self.object.collider.group in {Group.SWORDS, Group.SHIELDS}:
                 self.hand.image_path = 'fist'
             else:
                 self.hand.image_path = 'hand'
@@ -463,34 +459,22 @@ class Player(Destroyable):
 
     def draw(self, batch, camera, image_handler):
         self.back_foot.draw(batch, camera, image_handler)
-
         self.body.draw(batch, camera, image_handler)
-
         self.front_foot.draw(batch, camera, image_handler)
-
         self.head.draw(batch, camera, image_handler)
+        self.hand.draw(batch, camera, image_handler)
 
         if self.object and self.object.collider:
-            if self.object.collider.group is Group.SHIELDS:
-                self.hand.draw(batch, camera, image_handler)
-                self.object.draw(batch, camera, image_handler)
-            elif self.back_hand.image_path:
+            self.object.draw(batch, camera, image_handler)
+
+            if self.back_hand.image_path:
                 self.back_hand.set_visibility(True)
                 if type(self.object) is Bow:
                     if self.attack_charge:
                         self.object.arrow.draw(batch, camera, image_handler)
 
-                self.object.draw(batch, camera, image_handler)
-
                 self.back_hand.angle = self.object.angle
                 self.back_hand.draw(batch, camera, image_handler)
-
-                self.hand.draw(batch, camera, image_handler)
-            else:
-                self.object.draw(batch, camera, image_handler)
-                self.hand.draw(batch, camera, image_handler)
-        else:
-            self.hand.draw(batch, camera, image_handler)
 
         for b in self.particle_clouds:
             b.draw(batch, camera, image_handler)
@@ -523,66 +507,71 @@ class Player(Destroyable):
             if self.on_ground:
                 self.velocity[1] = self.jump_speed
                 self.sounds.add('jump')
-        elif controller.button_pressed['B']:
+        if controller.button_pressed['B']:
+            self.charging_throw = False
             if self.throw_charge:
                 self.throw_charge = 0.0
                 self.lt_pressed = True
+            self.charging_attack = False
             if self.attack_charge:
                 self.object.attack_charge = 0.0
                 self.attack_charge = 0.0
                 self.rt_pressed = True
-        elif controller.button_pressed['Y']:
-            self.health = 0
-
-        self.goal_velocity[0] = (5 - 2 * self.crouched) / 5 * self.max_speed * controller.left_stick[0]
-        if self.object:
-            self.goal_velocity[0] *= 0.9
-
-        if self.on_ground and controller.left_stick[1] < -0.5:
-            self.goal_crouched = 1.0
-        else:
-            self.goal_crouched = 0.0
 
         stick_norm = norm(controller.right_stick)
         if stick_norm != 0:
-            if not isinstance(self.object, Weapon) or type(self.object) in {Bow, Grenade} or self.object.timer == 0:
-                self.hand_goal = self.hand.length * controller.right_stick / stick_norm
+            self.hand_goal = self.hand.length * controller.right_stick / stick_norm
 
-        if controller.right_trigger > 0.5:
-            if self.object:
-                if not self.rt_pressed:
-                    if type(self.object) is Bow:
-                        # FIXME
-                        if self.object.timer == 0.0:
-                            if self.attack_charge == 0:
-                                self.sounds.add('bow_pull')
-                            self.attack_charge = min(1.0, self.attack_charge + self.object.charge_speed)
-                            self.object.attack_charge = self.attack_charge
-                    else:
-                        self.attack()
-                        self.rt_pressed = True
-            else:
-                self.attack_charge = 0.0
-                self.grab_object()
-                self.rt_pressed = True
+        if controller.button_down['X'] and not self.attack_charge:
+            self.goal_velocity[0] = self.run_speed * np.sign(controller.left_stick[0])
+            self.goal_crouched = 0.0
+            self.running = True
+            if self.direction != np.sign(controller.left_stick[0]) != 0:
+                self.flip_horizontally()
+            self.hand_goal[:] = 0.5 * self.direction * basis(0)
         else:
-            self.rt_pressed = False
-            if self.attack_charge:
-                self.attack()
-                self.attack_charge = 0.0
+            self.running = False
+            self.goal_velocity[0] = (5 - 2 * self.crouched) / 5 * self.walk_speed * controller.left_stick[0]
+            if self.on_ground and controller.left_stick[1] < -0.5:
+                self.goal_crouched = 1.0
+            else:
+                self.goal_crouched = 0.0
+
+            if controller.right_trigger > 0.5:
+                if self.object:
+                    if not self.rt_pressed:
+                        if type(self.object) is Bow:
+                            if self.object.timer == 0.0:
+                                if self.attack_charge == 0:
+                                    self.sounds.add('bow_pull')
+                                self.charging_attack = True
+                        else:
+                            self.attack()
+                            self.rt_pressed = True
+                else:
+                    self.charging_attack = False
+                    self.attack_charge = 0.0
+                    self.grab_object()
+                    self.rt_pressed = True
+            else:
+                self.rt_pressed = False
+                self.charging_attack = False
+                if self.attack_charge:
+                    self.attack()
+                    self.attack_charge = 0.0
 
         if self.object:
             if controller.left_trigger > 0.5:
                 if not self.lt_pressed:
-                    # FIXME
-                    self.throw_charge = min(1.0, self.throw_charge + self.charge_speed)
+                    self.charging_throw = True
             else:
                 self.lt_pressed = False
+                self.charging_throw = False
                 if self.throw_charge:
                     if self.throw_charge > 0.5:
                         self.throw_object(self.throw_charge)
                     else:
-                        self.throw_object(0.0)
+                        self.drop_object()
                     self.throw_charge = 0.0
         else:
             self.throw_charge = 0.0
@@ -632,13 +621,14 @@ class Player(Destroyable):
         if not self.object:
             return
 
-        self.object.velocity[:] = normalized(self.hand_goal) * charge * self.throw_speed
+        self.object.velocity[:] = normalized(self.hand_goal) * charge * self.throw_speed * (2 - self.object.mass)
         self.object.angular_velocity = -5.0 * self.direction * charge
 
         self.object.gravity_scale = 1.0
         self.object.layer = 3
         if self.object.collider:
             self.object.collider.group = Group.THROWN
+        self.object.grabbed = False
         self.object = None
 
         self.grab_timer = self.grab_delay
@@ -651,6 +641,7 @@ class Player(Destroyable):
         self.object.gravity_scale = 1.0
         self.object.layer = 3
         self.object.parent = None
+        self.object.grabbed = False
         self.object = None
 
         self.grab_timer = self.grab_delay
@@ -673,8 +664,10 @@ class Player(Destroyable):
                 if self.object.parent:
                     self.object.parent.drop_object()
                 self.object.parent = self
+                self.object.rotate(polar_angle(self.hand_goal))
                 self.object.angular_velocity = 0.0
                 self.object.layer = 6 if self.object.group is Group.SHIELDS else 5
+                self.object.grabbed = True
                 self.sounds.add('wear')
                 break
 
@@ -857,7 +850,7 @@ class Hand(Limb):
                          shaft_layer=shaft_layer)
 
         if self.front:
-            self.add_collider(Circle([0, 0], 0.2, Group.HANDS))
+            self.add_collider(Circle([0, 0], 0.3, Group.HANDS))
 
             self.add_animation(np.zeros(1), np.zeros(1), np.zeros(1), 'idle')
 

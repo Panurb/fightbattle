@@ -14,7 +14,7 @@ class Bullet(PhysicsObject):
         self.gravity_scale = 0
         self.image_path = 'bullet'
         self.size = size
-        self.bounce = 0.0
+        self.bounce = 1.0
 
         self.lifetime = lifetime
         self.time = 0
@@ -22,10 +22,18 @@ class Bullet(PhysicsObject):
         self.dmg = dmg
         self.decal = ''
         self.layer = 6
+        self.mass = 0
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
 
+        for c in self.collider.collisions:
+            if c.collider.parent:
+                self.parent = c.collider.parent
+            else:
+                self.parent = None
+
+        self.collider.update_collisions(colliders, {Group.WALLS})
         if self.collider.collisions:
             self.destroy(Dust)
         elif np.any(self.velocity):
@@ -41,7 +49,9 @@ class Bullet(PhysicsObject):
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
-                if obj is self.parent:
+
+                # Can't hit self with own bullets
+                if obj.parent is self.parent:
                     continue
 
                 if isinstance(obj, Destroyable):
@@ -97,13 +107,13 @@ class Pellet(Bullet):
 
 class Arrow(Bullet):
     def __init__(self, position, velocity=(0, 0), parent=None):
-        super().__init__(position, velocity, parent, lifetime=40, size=1.2)
+        super().__init__(position, velocity, parent, lifetime=10, size=1.2)
         self.gravity_scale = 1.0
         self.image_path = 'arrow'
-        self.bounce = 0.0
         self.hit = False
         self.angle = polar_angle(self.velocity)
         self.layer = 6
+        self.bounce = 1.0
 
     def update(self, gravity, time_step, colliders):
         if self.time < self.lifetime:
@@ -115,6 +125,8 @@ class Arrow(Bullet):
 
         if self.hit:
             return
+
+        self.collider.update_collisions(colliders, {Group.WALLS})
 
         if self.collider.collisions:
             self.hit = True
@@ -130,6 +142,9 @@ class Arrow(Bullet):
 
         for c in self.collider.collisions:
             obj = c.collider.parent
+            if obj is self.parent:
+                continue
+
             if isinstance(obj, Destroyable):
                 if obj.parent:
                     obj.parent.velocity += 0.1 * self.velocity

@@ -31,7 +31,7 @@ COLLIDES_WITH = {Group.NONE: set(),
                  Group.GUNS: {Group.WALLS, Group.PLATFORMS},
                  Group.HANDS: {Group.WALLS},
                  Group.PROPS: {Group.WALLS, Group.PROPS, Group.PLATFORMS},
-                 Group.BULLETS: {Group.WALLS, Group.SHIELDS},
+                 Group.BULLETS: {Group.SHIELDS},
                  Group.SHIELDS: {Group.WALLS, Group.PLATFORMS},
                  Group.DEBRIS: {Group.WALLS, Group.PLATFORMS},
                  Group.SWORDS: {Group.WALLS, Group.PLATFORMS},
@@ -39,8 +39,6 @@ COLLIDES_WITH = {Group.NONE: set(),
                  Group.PLATFORMS: set(),
                  Group.GOALS: set(),
                  Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.GUNS}}
-
-COLLISION_MATRIX = [[(j in gs) for j in COLLIDES_WITH.keys()] for i, gs in COLLIDES_WITH.items()]
 
 
 @njit(cache=True)
