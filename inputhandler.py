@@ -96,7 +96,7 @@ class DualShock4(Controller):
             self.sticks = [0, 1, 2, 3, 5, 4]
         else:
             self.sticks = [0, 1, 3, 4, 2, 5]
-            self.buttons = ['A', 'B', 'Y', 'X', 'LB', 'RB', 'SELECT', 'START']
+            self.buttons = ['A', 'B', 'Y', 'X', 'LB', 'RB', '', '', 'SELECT', 'START']
 
 
 class Keyboard(Controller):
