@@ -80,7 +80,7 @@ class Revolver(Gun):
         v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
         bs.append(Bullet(self.get_barrel_position(), v, self.parent))
         self.angular_velocity += self.direction * 15
-        self.velocity[0] -= self.direction * 10
+        self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 10
         return bs
 
 
@@ -105,8 +105,8 @@ class Shotgun(Gun):
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
             bs.append(Pellet(self.get_barrel_position(), v, self.parent))
         self.angular_velocity += self.direction * 15
-        self.velocity[0] -= self.direction * 10
-        self.velocity[1] += 10
+        self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 10
+        self.velocity += 2 * self.collider.half_height / self.collider.height * 10
 
         return bs
 
@@ -123,7 +123,7 @@ class Axe(Weapon):
         self.parent = None
         self.rest_angle = 0.5 * np.pi
         self.blunt_damage = 60
-        self.attack_delay = 0.33
+        self.attack_delay = 0.5
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -143,23 +143,22 @@ class Axe(Weapon):
             self.hit = True
             return
 
-        self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
+        if self.grabbed and self.timer > 0:
+            self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
 
-        if self.parent is not None:
-            if self.timer > 0:
-                for c in self.collider.collisions:
-                    obj = c.collider.parent
-                    if obj not in [self.parent.body, self.parent.head]:
-                        if isinstance(obj, PhysicsObject):
-                            r = normalized(self.collider.position - obj.collider.position)
-                            obj.velocity -= r
-                            if isinstance(obj, Destroyable):
-                                particle_type = obj.damage(50, colliders)
-                                if particle_type:
-                                    self.particle_clouds.append(particle_type(self.position, 0.2 * r))
-                        self.hit = True
-                        self.parent.camera_shake = 10 * random_unit()
-                        break
+            for c in self.collider.collisions:
+                obj = c.collider.parent
+                if obj not in {self.parent.body, self.parent.head}:
+                    if isinstance(obj, PhysicsObject):
+                        r = normalized(self.collider.position - obj.collider.position)
+                        obj.velocity -= r
+                        if isinstance(obj, Destroyable):
+                            particle_type = obj.damage(50, colliders)
+                            if particle_type:
+                                self.particle_clouds.append(particle_type(self.position, 0.2 * r))
+                    self.hit = True
+                    self.parent.camera_shake = 10 * random_unit()
+                    break
 
     def attack(self):
         super().attack()
@@ -229,7 +228,7 @@ class Grenade(Destroyable):
 
             explosion_collider = Circle(self.position, 3.0)
             explosion_collider.update_occupied_squares(colliders)
-            explosion_collider.update_collisions(colliders, {Group.HITBOXES, Group.PROPS})
+            explosion_collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS})
 
             for c in explosion_collider.collisions:
                 obj = c.collider.parent
@@ -239,10 +238,7 @@ class Grenade(Destroyable):
                 r = obj.position - self.position
                 r_norm = norm(r)
 
-                if obj.parent:
-                    obj.parent.velocity += 0.5 * r / r_norm
-                else:
-                    obj.velocity += 0.5 * r / r_norm
+                obj.velocity += 10 * (5 - r_norm) * r / r_norm
 
                 if isinstance(obj, Destroyable):
                     particle_type = obj.damage(int(abs(30 * (5 - r_norm))), colliders)

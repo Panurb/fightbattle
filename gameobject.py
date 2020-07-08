@@ -88,7 +88,7 @@ class GameObject:
             self.collider.draw(batch, camera, image_handler)
 
     def play_sounds(self, sound_handler):
-        for sound in self.sounds:
+        for sound in list(self.sounds):
             player = sound_handler.sounds[sound].play()
             player.volume = sound_handler.volume
 
@@ -147,7 +147,7 @@ class PhysicsObject(GameObject):
         self.group = collider.group
 
     def get_data(self):
-        return super().get_data() + (self.velocity[0], self.velocity[1], self.sounds)
+        return super().get_data() + (self.velocity[0], self.velocity[1], self.sounds, self.group, self.grabbed)
 
     def apply_data(self, data):
         super().apply_data(data)
@@ -156,6 +156,9 @@ class PhysicsObject(GameObject):
         self.sounds.clear()
         for s in data[8]:
             self.sounds.add(s)
+        if len(data) > 9:
+            self.group = data[9]
+            self.grabbed = data[10]
 
     def rotate(self, delta_angle):
         super().rotate(delta_angle)
@@ -190,7 +193,7 @@ class PhysicsObject(GameObject):
         delta_pos = self.velocity * time_step + 0.5 * self.acceleration * time_step**2
         self.set_position(self.position + delta_pos)
 
-        if self.roll:
+        if not self.grabbed and self.roll:
             self.angular_velocity = -self.gravity_scale * self.velocity[0]
 
         if self.collider:
@@ -277,9 +280,10 @@ class PhysicsObject(GameObject):
                 self.parent = None
                 self.collider.group = self.group
 
-        acc_old = self.acceleration.copy()
-        self.acceleration[:] = self.get_acceleration(gravity)
-        self.velocity += 0.5 * (acc_old + self.acceleration) * time_step
+        #acc_old = self.acceleration.copy()
+        self.acceleration += self.get_acceleration(gravity)
+        self.velocity += self.acceleration * time_step
+        self.acceleration[:] = 0
         self.angular_velocity += 0.5 * (ang_acc_old + self.angular_acceleration) * time_step
 
         if abs(self.velocity[0]) < 0.05:

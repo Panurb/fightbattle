@@ -4,7 +4,6 @@ import pickle
 
 import pygame
 
-from collider import Group
 from level import Level
 from player import Player
 from weapon import Gun
@@ -25,12 +24,24 @@ class Server:
         print("Server started, waiting for a connection")
 
         self.players = dict()
-        self.level = Level('lvl', True)
+        self.level = None
+        self.colliders = []
 
-        self.colliders = [[[] for _ in range(int(self.level.height + 1))] for _ in range(int(self.level.width + 1))]
+        self.load_level('bball')
+
+    def load_level(self, name):
+        self.level = Level(name, server=True)
+        self.level.dust = False
+
+        self.colliders.clear()
+
+        self.colliders = [[[] for _ in range(int(self.level.height))] for _ in range(int(self.level.width))]
 
         for wall in self.level.walls:
             wall.collider.update_occupied_squares(self.colliders)
+
+        for goal in self.level.goals:
+            goal.collider.update_occupied_squares(self.colliders)
 
         for obj in self.level.objects.values():
             obj.collider.update_occupied_squares(self.colliders)
@@ -53,6 +64,7 @@ class Server:
     def threaded_client(self, conn, p):
         self.add_player(p)
         data = [self.players[p].get_data(), self.level.get_data()]
+        print(len(pickle.dumps(data)))
         conn.send(pickle.dumps(data))
 
         while True:
@@ -97,7 +109,7 @@ class Server:
 
     def physics_thread(self):
         clock = pygame.time.Clock()
-        time_step = 15.0 / 60
+        time_step = 1.0 / 60
 
         while True:
             self.level.update(time_step, self.colliders)

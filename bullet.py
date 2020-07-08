@@ -23,6 +23,7 @@ class Bullet(PhysicsObject):
         self.decal = ''
         self.layer = 6
         self.mass = 0
+        self.blunt_damage = 0
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)

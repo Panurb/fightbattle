@@ -36,6 +36,13 @@ class TitleText(Text):
         self.label_red = None
         self.label_cyan = None
 
+    def set_visible(self, visible):
+        super().set_visible(visible)
+        if self.label_red:
+            self.label_red.font_size = visible * self.size
+        if self.label_cyan:
+            self.label_cyan.font_size = visible * self.size
+
     def delete(self):
         super().delete()
         if self.label_red:

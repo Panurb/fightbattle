@@ -43,7 +43,7 @@ class GameWindow(pyglet.window.Window):
         self.fps_display.draw()
 
     def update(self, dt):
-        self.set_exclusive_mouse(self.loop.state is State.PLAY)
+        self.set_exclusive_mouse(self.loop.state in {State.PLAY, State.LAN})
         self.loop.input(self.input_handler)
         self.loop.update(min(dt, 0.03))
         self.loop.play_sounds(self.sound_handler)

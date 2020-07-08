@@ -104,7 +104,7 @@ class MuzzleFlash:
         self.position = np.zeros_like(position)
         self.velocity = velocity.copy()
         self.time = 0.0
-        self.lifetime = 0.33
+        self.lifetime = 0.25
         self.initial_size = 3.0
         self.initial_position = position.copy() + polar_to_cartesian(0.2 * self.initial_size, self.angle)
         self.size = self.initial_size

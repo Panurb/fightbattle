@@ -144,6 +144,10 @@ class MainMenu(Menu):
         self.chromatic_aberration = 0
         self.title = TitleText('FIGHTBATTLE', np.array([0, 4.5]), 2.2, 'CollegiateBlackFLF.ttf')
 
+    def set_visible(self, visible):
+        super().set_visible(visible)
+        self.title.set_visible(visible)
+
     def update(self, time_step):
         self.chromatic_aberration = max(0, self.chromatic_aberration - 5 * time_step)
 

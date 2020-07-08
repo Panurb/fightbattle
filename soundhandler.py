@@ -16,7 +16,7 @@ class SoundHandler:
 
         path = os.path.join('data', 'music')
         for file in os.listdir(path):
-            if file.endswith('mp3'):
+            if file.endswith('ogg') or file.endswith('mp3'):
                 self.music[file.split('.')[0]] = pyglet.media.load(os.path.join(path, file))
 
         self.volume = 1.0
@@ -30,11 +30,11 @@ class SoundHandler:
         self.paused = False
 
     def set_volume(self, vol):
-        self.volume = vol / 100
+        self.volume = (vol / 100)**2
 
     def set_music_volume(self, vol):
-        self.music_volume = vol / 100
-        self.music_player.volume = vol / 100
+        self.music_volume = (vol / 100)**2
+        self.music_player.volume = self.music_volume
 
     def set_music(self, index):
         if index == self.index:

@@ -205,6 +205,8 @@ class GameLoop:
             self.level_menu.target_state = State.LEVEL_SELECT
         elif self.state is State.LAN:
             if self.network is None:
+                self.menu.set_visible(False)
+
                 self.network = Network()
                 data = self.network.data
 
@@ -216,14 +218,13 @@ class GameLoop:
 
                 self.network_id = data[0][0]
 
-                self.add_player(self.controller_id, data[0][0])
-                self.players[data[0][0]].apply_data(data[0])
+                self.add_player(self.controller_id, self.network_id)
+                self.players[self.network_id].apply_data(data[0])
 
-                self.level.clear()
+                self.level = Level()
                 self.level.apply_data(data[1])
 
-                self.colliders = [[[] for _ in range(int(self.level.height + 1))]
-                                  for _ in range(int(self.level.width + 1))]
+                self.colliders = [[[] for _ in range(int(self.level.height))] for _ in range(int(self.level.width))]
 
                 for wall in self.level.walls:
                     wall.collider.update_occupied_squares(self.colliders)
@@ -239,22 +240,22 @@ class GameLoop:
             player = self.players[self.network_id]
             player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
-            obj = self.players[self.network_id].object
-            if obj is not None:
-                obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            if player.object:
+                player.object.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
-            self.camera.update(time_step, self.players, self.level)
-
-            for i in list(self.level.objects):
-                obj = self.level.objects[i]
+            for i, obj in self.level.objects.items():
                 if isinstance(obj, Destroyable):
-                    obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-                    if obj.destroyed and not obj.debris:
-                        del self.level.objects[i]
+                    if obj.destroyed:
+                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+                        if not obj.debris:
+                            del self.level.objects[i]
                 elif isinstance(obj, Bullet):
-                    obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-                    if obj.destroyed and not obj.particle_clouds:
-                        del self.level.objects[i]
+                    if obj.destroyed:
+                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+                        if obj.destroyed and not obj.particle_clouds:
+                            del self.level.objects[i]
+
+            self.camera.target_position[:] = player.position
         elif self.state is State.OPTIONS:
             self.camera.target_position[:] = self.options_menu.position
             self.state = self.options_menu.target_state
@@ -476,7 +477,7 @@ class GameLoop:
 
             # kinda purkka
             ids = [p[0] for p in data[0]]
-            for k in list(self.players.keys()):
+            for k in self.players.keys():
                 if k != self.network_id and k not in ids:
                     del self.players[k]
 
