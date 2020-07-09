@@ -12,6 +12,7 @@ from weapon import Gun
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
+        server = '192.168.1.100'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -21,7 +22,7 @@ class Server:
             str(e)
 
         self.sock.listen(2)
-        print("Server started, waiting for a connection")
+        print(f'Server started, ip={server}, waiting for a connection')
 
         self.players = dict()
         self.level = None

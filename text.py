@@ -1,6 +1,16 @@
 import numpy as np
 
-from helpers import basis
+
+class Icon:
+    def __init__(self, image_path, position):
+        self.position = np.array(position, dtype=float)
+        self.sprite = None
+        self.image_path = image_path
+        self.size = 1.0
+
+    def draw(self, batch, camera, image_handler):
+        self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, scale=self.size,
+                                         batch=batch, layer=9, sprite=self.sprite)
 
 
 class Text:
@@ -13,6 +23,20 @@ class Text:
         self.label = None
         self.layer = layer
         self.visible = True
+        self.icons = []
+
+        for i in range(len(self.string)):
+            for char in 'ABCD':
+                if self.string[i:i+3] == f'({char})':
+                    pos = self.position + 0.2 * np.array([-0.5 * len(self.string) + 1.3 * i, -0.5])
+                    self.icons.append(Icon(char.lower(), pos))
+                self.string = self.string.replace(f'({char})', '   ')
+
+    def set_position(self, position):
+        delta_pos = position - self.position
+        self.position += delta_pos
+        for i in self.icons:
+            i.position += self.position
 
     def set_visible(self, visible):
         self.visible = visible
@@ -23,10 +47,12 @@ class Text:
         if self.label:
             self.label.delete()
 
-    def draw(self, batch, camera):
+    def draw(self, batch, camera, image_handler):
         string = self.string if self.visible else ''
         self.label = camera.draw_label(string, self.position, self.visible * self.size, self.font, self.color,
                                        batch=batch, layer=self.layer, label=self.label)
+        for icon in self.icons:
+            icon.draw(batch, camera, image_handler)
 
 
 class TitleText(Text):
@@ -50,11 +76,11 @@ class TitleText(Text):
         if self.label_cyan:
             self.label_cyan.delete()
 
-    def draw(self, batch, camera):
-        super().draw(batch, camera)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
         string = self.string if self.visible else ''
 
-        r = 0.05 * self.chromatic_aberration * self.size * basis(0)
+        r = 0.05 * self.chromatic_aberration * self.size * np.array([1, -1])
         self.label_red = camera.draw_label(string, self.position - r, self.size, self.font, (255, 0, 0),
                                            batch=batch, layer=self.layer-1, label=self.label_red)
         self.label_cyan = camera.draw_label(string, self.position + r, self.size, self.font, (0, 255, 255),

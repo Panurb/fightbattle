@@ -8,6 +8,18 @@ from pyglet.gl import *
 from helpers import basis, rotate, norm2
 
 
+# LAYERS
+# 1: background image
+# 2: shadows
+# 3: walls
+# 4:
+# 5:
+# 6:
+# 7:
+# 8: text
+# 9: icons
+
+
 UNIT_CIRCLE = [np.zeros(2)] + [np.array([np.cos(theta), np.sin(theta)]) for theta in np.linspace(0, 2 * np.pi, 20)]
 
 
@@ -22,7 +34,7 @@ class Camera:
         self.shake = np.zeros(2)
         self.shake_velocity = np.zeros(2)
         self.velocity = np.zeros(2)
-        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(9)]
+        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(10)]
 
         self.sprite = None
         self.target_position = self.position.copy()
@@ -143,10 +155,7 @@ class Camera:
 
     def draw_label(self, string, position, size, font=None, color=(255, 255, 255), batch=None, layer=6, label=None):
         if not label:
-            if font is not None:
-                pyglet.font.add_file(f'data/fonts/{font}')
-                font = font.split('.')[0]
-
+            font = 'Roboto' if font is None else font
             label = pyglet.text.Label(string, font_name=font, font_size=size*self.zoom,
                                       anchor_x='center', anchor_y='center', color=color + (255,),
                                       batch=batch, group=self.layers[layer])
@@ -215,7 +224,7 @@ class Camera:
         return self.draw_polygon(points, color, batch=batch, layer=layer, vertex_list=vertex_list)
         
     def draw_line(self, points, linewidth=1, color=(255, 255, 255), batch=None, layer=1, vertex_list=None):
-        pyglet.gl.glLineWidth(1)
+        pyglet.gl.glLineWidth(linewidth * self.zoom)
 
         points = [points[0]] + [p for p in points[1:-1] for _ in range(2)] + [points[-1]]
         vertices = [self.world_to_screen(p)[i] for p in points for i in range(2)]

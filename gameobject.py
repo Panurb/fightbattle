@@ -156,7 +156,7 @@ class PhysicsObject(GameObject):
         self.sounds.clear()
         for s in data[8]:
             self.sounds.add(s)
-        if len(data) > 9:
+        if len(data) > 10:
             self.group = data[9]
             self.grabbed = data[10]
 
@@ -280,7 +280,6 @@ class PhysicsObject(GameObject):
                 self.parent = None
                 self.collider.group = self.group
 
-        #acc_old = self.acceleration.copy()
         self.acceleration += self.get_acceleration(gravity)
         self.velocity += self.acceleration * time_step
         self.acceleration[:] = 0

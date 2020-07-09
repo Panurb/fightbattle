@@ -364,7 +364,7 @@ class GameLoop:
             self.controls_menu.input(input_handler)
 
     def draw(self, batch, image_handler):
-        self.text.draw(batch, self.camera)
+        self.text.draw(batch, self.camera, image_handler)
         if self.state in {State.PLAY, State.LAN}:
             image_handler.set_clear_color((113, 118, 131))
 
@@ -448,8 +448,8 @@ class GameLoop:
             self.options_menu.play_sounds(sound_handler)
             for pm in self.player_menus:
                 pm.play_sounds(sound_handler)
-            self.level_menu.play_sounds(sound_handler)
             self.controls_menu.play_sounds(sound_handler)
+        self.level_menu.play_sounds(sound_handler)
         self.pause_menu.play_sounds(sound_handler)
 
     def network_thread(self):
@@ -477,7 +477,7 @@ class GameLoop:
 
             # kinda purkka
             ids = [p[0] for p in data[0]]
-            for k in self.players.keys():
+            for k in list(self.players.keys()):
                 if k != self.network_id and k not in ids:
                     del self.players[k]
 

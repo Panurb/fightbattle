@@ -143,7 +143,9 @@ class Arrow(Bullet):
 
         for c in self.collider.collisions:
             obj = c.collider.parent
-            if obj is self.parent:
+
+            # Can't hit self with own bullets
+            if obj.parent is self.parent:
                 continue
 
             if isinstance(obj, Destroyable):

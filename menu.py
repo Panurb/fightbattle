@@ -142,7 +142,7 @@ class MainMenu(Menu):
         self.update_buttons()
         self.timer = 40.0
         self.chromatic_aberration = 0
-        self.title = TitleText('FIGHTBATTLE', np.array([0, 4.5]), 2.2, 'CollegiateBlackFLF.ttf')
+        self.title = TitleText('FIGHTBATTLE', np.array([0, 4.5]), 2.2, 'CollegiateBlackFLF')
 
     def set_visible(self, visible):
         super().set_visible(visible)
@@ -163,7 +163,7 @@ class MainMenu(Menu):
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
         self.title.chromatic_aberration = self.chromatic_aberration
-        self.title.draw(batch, camera)
+        self.title.draw(batch, camera, image_handler)
 
 
 class PlayerMenu(Menu):
@@ -244,7 +244,7 @@ class PlayerMenu(Menu):
             self.visible = True
 
         super().draw(batch, camera, image_handler)
-        self.text.draw(batch, camera)
+        self.text.draw(batch, camera, image_handler)
 
 
 class OptionsMenu(Menu):
@@ -264,10 +264,10 @@ class OptionsMenu(Menu):
         self.options_changed = False
 
         self.button_back = Button('(B) back', self.target_state)
-        self.button_back.set_position(self.position + np.array([-10, -8]))
+        self.button_back.set_position(self.position + np.array([-10, -6]))
 
         self.button_apply = Button('(A) apply', self.target_state)
-        self.button_apply.set_position(self.position + np.array([10, -8]))
+        self.button_apply.set_position(self.position + np.array([10, -6]))
 
     def set_values(self, option_handler):
         self.buttons[0].selection = 1 if option_handler.fullscreen else 0

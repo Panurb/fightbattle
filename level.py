@@ -198,9 +198,10 @@ class Level:
     def draw(self, batch, camera, image_handler):
         if not self.editor and self.width > 0 and self.height > 0:
             if self.background is None:
-                self.background = Background(int(self.width * 100), int(self.height * 100))
-
-            if self.background:
+                self.background = Background(self.width, self.height)
+                self.background.draw(batch, camera, image_handler)
+                self.background.add_decal(image_handler, 'light', self.light.position, scale=2)
+            else:
                 self.background.draw(batch, camera, image_handler)
 
             if self.walls_sprite is None:
@@ -300,18 +301,18 @@ class PlayerSpawn(GameObject):
 class Background:
     def __init__(self, width, height):
         self.position = 1.05 * np.ones(2)
-        self.width = width - 200
-        self.height = height - 200
-        self.image = None
+        self.width = width - 2
+        self.height = height - 2
+        self.resolution = [int(100 * self.width), int(100 * self.height)]
+        self.image = Image.new('RGBA', self.resolution, (150, 150, 150))
         self.sprite = None
         self.layer = 0
-        self.number_of_decals = 0
+        self.number_of_decals = 10
+        self.image_changed = False
 
     def draw(self, batch, camera, image_handler):
-        if not self.image:
-            self.image = Image.new('RGBA', (self.width, self.height), (150, 150, 150))
-
-            image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
+        if not self.sprite:
+            image = pyglet.image.ImageData(*self.resolution, 'RGBA', self.image.tobytes())
             self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[self.layer])
 
             for _ in range(self.number_of_decals):
@@ -329,12 +330,16 @@ class Background:
                 path = np.random.choice(['warning', 'poster', 'radioactive'])
                 self.add_decal(image_handler, path, [x, y], angle)
 
+        if self.image_changed:
+            image = pyglet.image.ImageData(*self.resolution, 'RGBA', self.image.tobytes())
+            self.sprite.image = image
+            self.image_changed = False
+
         self.sprite.update(*camera.world_to_screen(self.position), scale=camera.zoom / 100)
 
-    def add_decal(self, image_handler, path, position, angle, scale=1.0):
+    def add_decal(self, image_handler, path, position, angle=0, scale=1.0):
         decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)
         decal = decal.resize([int(scale * x) for x in decal.size], Image.ANTIALIAS)
-        pos = [int(position[0] - 0.5 * decal.width), int(position[1] - 0.5 * decal.height)]
+        pos = [int(100 * position[0] - 0.5 * decal.width - 100), int(100 * position[1] - 0.5 * decal.height - 100)]
         self.image.paste(decal, pos, decal.convert('RGBA'))
-        image = pyglet.image.ImageData(self.width, self.height, 'RGBA', self.image.tobytes())
-        self.sprite.image = image
+        self.image_changed = True

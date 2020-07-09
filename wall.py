@@ -158,7 +158,7 @@ class Scoreboard(GameObject):
         super().__init__(position, image_path='scoreboard', layer=1)
         self.add_collider(Rectangle([0, 0], 7, 4))
         self.scores = {'blue': 0, 'red': 0}
-        self.text = Text('00 - 00', self.position, 2, 'Seven Segment.ttf', (200, 255, 0), layer=self.layer+1)
+        self.text = Text('00 - 00', self.position, 2, 'Seven Segment', (200, 255, 0), layer=self.layer+1)
 
     def set_position(self, position):
         super().set_position(position)
@@ -177,4 +177,4 @@ class Scoreboard(GameObject):
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
         self.text.string = '-'.join(map(lambda x: str(x) if x > 9 else '0' + str(x), self.scores.values()))
-        self.text.draw(batch, camera)
+        self.text.draw(batch, camera, image_handler)

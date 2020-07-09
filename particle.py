@@ -142,3 +142,8 @@ class Explosion(Cloud):
 class Dust(Cloud):
     def __init__(self, position, velocity, number=5):
         super().__init__('dust', position, 0.2 * velocity, number, 0.3, 5.0, gravity_scale=0.5)
+
+
+class Sparks(Cloud):
+    def __init__(self, position, direction, number=5):
+        super().__init__('spark', position, direction, number, 0.67, 3.0, stretch=0.5)

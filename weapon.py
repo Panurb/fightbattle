@@ -5,7 +5,7 @@ from bullet import Pellet, Bullet, Arrow
 from gameobject import PhysicsObject, Destroyable, GameObject
 from collider import Rectangle, Circle, Group
 from helpers import basis, polar_to_cartesian, rotate, random_unit, normalized
-from particle import MuzzleFlash, Explosion, Dust
+from particle import MuzzleFlash, Explosion, Dust, Sparks
 
 
 class Weapon(PhysicsObject):
@@ -138,8 +138,8 @@ class Axe(Weapon):
             if self.parent is not None and self.timer > 0:
                 self.sounds.add('sword')
                 self.parent.camera_shake = 10 * random_unit()
-                self.particle_clouds.append(Dust(self.position + self.collider.half_height,
-                                                 -0.1 * self.direction * basis(0)))
+                v = -5 * self.direction * basis(0)
+                self.particle_clouds.append(Sparks(self.position + self.collider.half_height, v))
             self.hit = True
             return
 

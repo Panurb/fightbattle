@@ -328,8 +328,8 @@ class Player(Destroyable):
         h = normalized(self.body.collider.half_height)
 
         if self.on_ground:
-            foot_offset = 0.3 * ((self.front_foot.relative_position[1])
-                                 + (self.back_foot.relative_position[1])) * basis(1)
+            foot_offset = 0.5**self.running * 0.3 * (self.front_foot.relative_position[1]
+                                                     + self.back_foot.relative_position[1]) * basis(1)
         else:
             foot_offset = 0.0
 
@@ -389,8 +389,8 @@ class Player(Destroyable):
         self.back_foot.animate(time_step)
         self.front_foot.animate(time_step)
 
-        self.back_foot.animation_direction = 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
-        self.front_foot.animation_direction = 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
+        self.back_foot.animation_direction = 0.5**self.running * 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
+        self.front_foot.animation_direction = 0.5**self.running * 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
 
         self.hand.image_position = np.zeros(2)
         if isinstance(self.object, Weapon):
@@ -399,7 +399,7 @@ class Player(Destroyable):
 
         if self.on_ground:
             if abs(self.goal_velocity[0]) > 0:
-                if self.running:
+                if self.running and abs(self.velocity[0]) > self.walk_speed:
                     self.back_foot.loop_animation('run', 3.5)
                     self.front_foot.loop_animation('run')
                 else:
@@ -871,7 +871,7 @@ class Hand(Limb):
 
 class Foot(Limb):
     def __init__(self, position, parent, front=False):
-        super().__init__(position, image_path='foot', size=0.8, parent=parent, front=front, layer=4, length=0.95,
+        super().__init__(position, image_path='', size=0.8, parent=parent, front=front, layer=4, length=0.95,
                          joint_direction=-1)
         self.image_position = 0.15 * basis(0)
 
@@ -885,13 +885,13 @@ class Foot(Limb):
         self.add_animation(xs, ys, angles, 'jump')
 
         xs = 0.25 * np.array([3, 2, 1, 0, 0.5, 1, 2, 2.5, 3])
-        ys = 0.25 * np.array([0, 0, 0, 0, 0.5, 1, 1, 0.5, 0])
-        angles = 0.25 * np.array([0, 0, 0, 0, -1, -1, -1, 0, 0])
+        ys = 0.4 * np.array([0, 0, 0, 0, 0.5, 1, 1, 0.5, 0])
+        angles = 0.5 * np.array([0, 0, 0, 0, -1, -1, -1, 0, 0])
         self.add_animation(xs, ys, angles, 'walk')
 
         xs = 0.25 * np.array([4, 3.5, 2, -0.5, -1, -0.5, 0, 3.5, 4]) + 0.15
         ys = 0.25 * np.array([3, 2, 0, 1, 3, 3.5, 2.5, 2.75, 3])
-        angles = np.array([0.5, 0.25, 0, -0.5, -1, -1, -1, 0.25, 0.5])
+        angles = np.array([0.5, 0.25, 0, -0.5, -2, -1.5, -1, 0.25, 0.5])
         self.add_animation(xs, ys, angles, 'run')
 
         self.loop_animation('idle')

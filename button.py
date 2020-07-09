@@ -26,7 +26,7 @@ class Button(GameObject):
 
     def set_position(self, position):
         super().set_position(position)
-        self.text.position[:] = position
+        self.text.set_position(position)
 
     def draw(self, batch, camera, image_handler):
         if self.visible:
@@ -34,18 +34,13 @@ class Button(GameObject):
             self.text.color = color
 
         self.text.visible = self.visible
-        self.text.draw(batch, camera)
+        self.text.draw(batch, camera, image_handler)
         
         
 class RebindButton(Button):
     def __init__(self, string):
-        super().__init__([0, 0], None)
+        super().__init__(f'{string}: Button 0', None)
         self.add_collider(Rectangle([0, 0], 3, 1))
-        self.color = (150, 150, 150)
-        self.color_selected = (255, 255, 255)
-        self.selected = False
-        self.text = Text(f'{string}: Button 0', self.position, 0.45)
-        self.visible = True
 
     def set_visible(self, visible):
         self.visible = visible
@@ -56,7 +51,7 @@ class RebindButton(Button):
 
     def set_position(self, position):
         super().set_position(position)
-        self.text.position[:] = position
+        self.text.set_position(position)
 
     def draw(self, batch, camera, image_handler):
         if self.visible:
@@ -64,7 +59,7 @@ class RebindButton(Button):
             self.text.color = color
 
         self.text.visible = self.visible
-        self.text.draw(batch, camera)
+        self.text.draw(batch, camera, image_handler)
 
 
 class Slider(GameObject):
@@ -87,15 +82,13 @@ class Slider(GameObject):
         self.visible = visible
         self.text.set_visible(visible)
         self.value_text.set_visible(visible)
-        if self.triangle_left:
-            self.triangle_left.vertices = np.zeros_like(self.triangle_left.vertices)
-        if self.triangle_right:
-            self.triangle_right.vertices = np.zeros_like(self.triangle_right.vertices)
+        self.triangle_left.visible = visible
+        self.triangle_right.visible = visible
 
     def set_position(self, position):
         super().set_position(position)
-        self.text.position[:] = position + 0.63 * basis(1)
-        self.value_text.position[:] = position
+        self.text.set_position(position + 0.63 * basis(1))
+        self.value_text.set_position(position)
 
     def delete(self):
         self.text.delete()
@@ -124,12 +117,12 @@ class Slider(GameObject):
         self.text.visible = self.visible
         self.value_text.visible = self.visible
 
-        self.text.draw(batch, camera)
-        self.value_text.draw(batch, camera)
-        self.triangle_left = camera.draw_triangle(self.position - 1.5 * basis(0), 0.75,
-                                                  batch=batch, vertex_list=self.triangle_left)
-        self.triangle_right = camera.draw_triangle(self.position + 1.5 * basis(0), 0.75, np.pi,
-                                                   batch=batch, vertex_list=self.triangle_right)
+        self.text.draw(batch, camera, image_handler)
+        self.value_text.draw(batch, camera, image_handler)
+        self.triangle_left = camera.draw_sprite(image_handler, 'left', self.position - 2 * basis(0), 0.7,
+                                                batch=batch, sprite=self.triangle_left)
+        self.triangle_right = camera.draw_sprite(image_handler, 'right', self.position + 2 * basis(0), 0.7,
+                                                 batch=batch, sprite=self.triangle_right)
 
         if self.visible:
             color = self.color_selected if self.selected else self.color
@@ -140,13 +133,17 @@ class Slider(GameObject):
             val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
             self.value_text.string = val_str
 
-        if not self.visible or not self.selected or (not self.cyclic and self.selection == 0):
-            if self.triangle_left:
-                self.triangle_left.vertices = np.zeros_like(self.triangle_left.vertices)
+        if self.triangle_left:
+            if not self.visible or not self.selected or (not self.cyclic and self.selection == 0):
+                self.triangle_left.visible = False
+            else:
+                self.triangle_left.visible = True
 
-        if not self.visible or not self.selected or (not self.cyclic and self.selection == len(self.values) - 1):
-            if self.triangle_right:
-                self.triangle_right.vertices = np.zeros_like(self.triangle_right.vertices)
+        if self.triangle_right:
+            if not self.visible or not self.selected or (not self.cyclic and self.selection == len(self.values) - 1):
+                self.triangle_right.visible = False
+            else:
+                self.triangle_right.visible = True
 
     def randomize(self):
         self.selection = np.random.randint(len(self.values))

@@ -6,9 +6,6 @@ import numpy as np
 import pyglet
 
 
-SHADOW_COLOR = (80, 80, 80)
-
-
 class ImageHandler:
     def __init__(self):
         self.camera = np.zeros(2)
@@ -18,15 +15,21 @@ class ImageHandler:
         self.tiles = dict()
         self.debug_color = (255, 0, 255)
         pyglet.resource.path = ['data/images', 'data/images/bodies', 'data/images/hands', 'data/images/heads',
-                                'data/images/weapons', 'data/images/particles']
+                                'data/images/weapons', 'data/images/particles', 'data/images/icons']
         pyglet.resource.reindex()
 
         self.load_images()
+        self.load_fonts()
 
         self.set_clear_color((50, 50, 50))
 
     def set_clear_color(self, color):
         pyglet.gl.glClearColor(color[0] / 255, color[1] / 255, color[2] / 255, 1)
+
+    def load_fonts(self):
+        path = os.path.join('data', 'fonts')
+        for f in os.listdir(path):
+            pyglet.font.add_file(os.path.join(path, f))
 
     def load_images(self):
         path = os.path.join('data', 'images')
