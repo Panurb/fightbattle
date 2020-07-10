@@ -76,7 +76,7 @@ class Bullet(PhysicsObject):
             self.active = False
             self.sounds.add('gun')
             if particle_type is BloodSplatter:
-                self.decal = 'blood'
+                self.decal = 'bloodsplatter'
 
     def draw(self, batch, camera, image_handler):
         if self.destroyed:
@@ -103,7 +103,7 @@ class Pellet(Bullet):
             self.active = False
             self.sounds.add('gun')
             if particle_type is BloodSplatter:
-                self.decal = 'blood'
+                self.decal = 'bloodsplatter'
 
 
 class Arrow(Bullet):
@@ -115,6 +115,8 @@ class Arrow(Bullet):
         self.angle = polar_angle(self.velocity)
         self.layer = 6
         self.bounce = 1.0
+        self.blunt_damage = 0
+        self.dmg = 60
 
     def update(self, gravity, time_step, colliders):
         if self.time < self.lifetime:
@@ -124,7 +126,7 @@ class Arrow(Bullet):
 
         PhysicsObject.update(self, gravity, time_step, colliders)
 
-        if self.hit:
+        if self.hit or self.destroyed:
             return
 
         self.collider.update_collisions(colliders, {Group.WALLS})
@@ -154,7 +156,7 @@ class Arrow(Bullet):
                 particle_type = obj.damage(self.dmg, colliders)
                 self.destroy(particle_type)
                 if particle_type is BloodSplatter:
-                    self.decal = 'blood'
+                    self.decal = 'bloodsplatter'
             else:
                 obj.velocity += self.velocity
                 self.destroy()

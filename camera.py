@@ -9,15 +9,16 @@ from helpers import basis, rotate, norm2
 
 
 # LAYERS
-# 1: background image
+# 0: background image
+# 1: decals
 # 2: shadows
-# 3: walls
-# 4:
-# 5:
-# 6:
-# 7:
-# 8: text
-# 9: icons
+# 3: walls, items
+# 4: players
+# 5: player items
+# 6: player hands
+# 7: particles
+# 8: camera filter
+# 9: text, icons
 
 
 UNIT_CIRCLE = [np.zeros(2)] + [np.array([np.cos(theta), np.sin(theta)]) for theta in np.linspace(0, 2 * np.pi, 20)]
@@ -45,7 +46,7 @@ class Camera:
         if not self.sprite:
             image = Image.new('RGBA', [1, 1], (0, 0, 0))
             image = pyglet.image.ImageData(1, 1, 'RGBA', image.tobytes())
-            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=self.layers[7])
+            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=self.layers[8])
         self.sprite.update(scale_x=self.resolution[0], scale_y=self.resolution[1])
 
     def set_resolution(self, resolution):
@@ -145,9 +146,12 @@ class Camera:
         else:
             sprite.image = image_handler.images[image_path]
 
-        scale = 1.05 * self.zoom * scale / 100 if scale else None
-        scale_x = 1.05 * self.zoom * scale_x / 100 if scale_x else None
-        scale_y = 1.05 * self.zoom * scale_y / 100 if scale_y else None
+        if scale_x:
+            scale = None
+            scale_x = 1.05 * self.zoom * scale_x / 100
+            scale_y = 1.05 * self.zoom * scale_y / 100
+        else:
+            scale = 1.05 * self.zoom * scale / 100 if scale else None
         sprite.update(*self.world_to_screen(position), -np.rad2deg(angle), scale, scale_x, scale_y)
         sprite.group = self.layers[layer]
 

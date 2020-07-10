@@ -124,6 +124,7 @@ class Axe(Weapon):
         self.rest_angle = 0.5 * np.pi
         self.blunt_damage = 60
         self.attack_delay = 0.5
+        self.mass = 0.7
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -155,7 +156,7 @@ class Axe(Weapon):
                         if isinstance(obj, Destroyable):
                             particle_type = obj.damage(50, colliders)
                             if particle_type:
-                                self.particle_clouds.append(particle_type(self.position, 0.2 * r))
+                                self.particle_clouds.append(particle_type(self.position, 5.0 * r))
                     self.hit = True
                     self.parent.camera_shake = 10 * random_unit()
                     break
@@ -192,7 +193,8 @@ class Grenade(Destroyable):
         self.roll = True
         self.fall_damage = 0
         self.delay = 3.0
-        self.mass = 0.1
+        self.mass = 0.5
+        self.decal = ''
 
     def delete(self):
         super().delete()
@@ -252,6 +254,7 @@ class Grenade(Destroyable):
             self.collider = None
 
             self.camera_shake = 100 * random_unit()
+            self.decal = 'ash'
 
     def attack(self):
         if not self.primed:

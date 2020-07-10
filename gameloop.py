@@ -47,7 +47,7 @@ class GameLoop:
         self.score_limit = 0
         self.text = Text('', np.zeros(2), 2.0)
         self.timer = 0.0
-        self.delay = 0.0
+        self.delay = 3.0
 
     def load_level(self, name):
         self.level = Level(name)

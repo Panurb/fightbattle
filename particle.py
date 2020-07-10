@@ -93,11 +93,6 @@ class Particle:
             self.sprite.opacity = (1 - (self.time / self.lifetime)**4) * 255
 
 
-class BloodSplatter(Cloud):
-    def __init__(self, position, direction, number=10):
-        super().__init__('blood', position, direction, number, 0.67, 3.0, stretch=0.5)
-
-
 class MuzzleFlash:
     def __init__(self, position, velocity):
         self.angle = polar_angle(velocity)
@@ -105,9 +100,9 @@ class MuzzleFlash:
         self.velocity = velocity.copy()
         self.time = 0.0
         self.lifetime = 0.25
-        self.initial_size = 3.0
-        self.initial_position = position.copy() + polar_to_cartesian(0.2 * self.initial_size, self.angle)
-        self.size = self.initial_size
+        self.start_size = 1.5
+        self.initial_position = position.copy() + polar_to_cartesian(0.75 * self.start_size, self.angle)
+        self.size = self.start_size
         self.image_path = 'muzzleflash'
         self.layer = 7
         self.sprite = None
@@ -124,26 +119,31 @@ class MuzzleFlash:
             return
 
         self.position = self.initial_position + self.velocity * self.time
-        self.size = (1 - (self.time / self.lifetime)**2) * self.initial_size
+        self.size = (1 - (self.time / self.lifetime)**2) * self.start_size
 
     def draw(self, batch, camera, image_handler):
         self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, angle=self.angle,
                                          batch=batch, layer=self.layer, sprite=self.sprite,
-                                         scale_x=self.initial_size, scale_y=self.size)
+                                         scale_x=self.start_size, scale_y=self.size)
+
+
+class BloodSplatter(Cloud):
+    def __init__(self, position, direction, number=10):
+        super().__init__('blood', position, direction, number, 0.67, 1.5, stretch=0.5)
 
 
 class Explosion(Cloud):
     def __init__(self, position):
-        super().__init__('smoke', position, 1.0 * basis(1), 5, 1.0, start_size=8.0, end_size=0.0, gravity_scale=-0.5)
-        self.particles.append(Particle('explosion', position, np.zeros(2), 0.5, start_size=4.0, end_size=5.0,
+        super().__init__('smoke', position, 1.0 * basis(1), 5, 1.0, start_size=4.0, end_size=0.0, gravity_scale=-0.5)
+        self.particles.append(Particle('explosion', position, np.zeros(2), 0.5, start_size=2.0, end_size=2.5,
                                        gravity_scale=0.0))
 
 
 class Dust(Cloud):
     def __init__(self, position, velocity, number=5):
-        super().__init__('dust', position, 0.2 * velocity, number, 0.3, 5.0, gravity_scale=0.5)
+        super().__init__('dust', position, 0.2 * velocity, number, 0.3, 2.5, gravity_scale=0.5)
 
 
 class Sparks(Cloud):
     def __init__(self, position, direction, number=5):
-        super().__init__('spark', position, direction, number, 0.67, 3.0, stretch=0.5)
+        super().__init__('spark', position, direction, number, 0.67, 1.5, stretch=0.5)

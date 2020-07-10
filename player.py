@@ -616,14 +616,14 @@ class Player(Destroyable):
         if not self.object:
             return
 
-        self.object.velocity[:] = normalized(self.hand_goal) * charge * self.throw_speed * (2 - self.object.mass)
-        self.object.angular_velocity = -5.0 * self.direction * charge
+        self.object.velocity[:] = normalized(self.hand_goal) * charge * self.throw_speed / self.object.mass
+        self.object.angular_velocity = -10.0 * self.direction * charge
 
         self.object.gravity_scale = 1.0
         self.object.layer = 3
-        #if self.object.collider:
-        #    self.object.collider.group = Group.THROWN
-        self.object.parent = None
+        if self.object.collider:
+            self.object.collider.group = Group.THROWN
+        #self.object.parent = None
         self.object.grabbed = False
         self.object = None
 
@@ -660,7 +660,7 @@ class Player(Destroyable):
                 if self.object.parent:
                     self.object.parent.drop_object()
                 self.object.parent = self
-                self.object.rotate(polar_angle(self.hand_goal))
+                self.object.rotate(polar_angle(self.hand_goal) - self.object.angle)
                 self.object.angular_velocity = 0.0
                 self.object.layer = 6 if self.object.group is Group.SHIELDS else 5
                 self.object.grabbed = True

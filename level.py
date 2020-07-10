@@ -4,12 +4,25 @@ import numpy as np
 import pyglet
 from PIL import Image
 
-from collider import Rectangle, Group
+from collider import Rectangle
 from gameobject import GameObject, Destroyable
 from helpers import basis
 from prop import Crate
 from wall import Wall, Platform, Scoreboard
 from weapon import Gun, Bullet, Grenade
+
+
+class Decal:
+    def __init__(self, image_path, position, angle=0.0, size=1.0):
+        self.image_path = image_path
+        self.position = np.array(position, dtype=float)
+        self.angle = angle
+        self.size = size
+        self.sprite = None
+
+    def draw(self, batch, camera, image_handler):
+        self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, self.size, angle=self.angle,
+                                         batch=batch, layer=1, sprite=self.sprite)
 
 
 class Level:
@@ -23,7 +36,7 @@ class Level:
         self.scoreboard = None
         self.background = None
         self.walls_sprite = None
-        self.blood = []
+        self.decals = []
 
         self.gravity = np.array([0, -25.0])
         self.id_count = 0
@@ -237,14 +250,14 @@ class Level:
             self.scoreboard.draw(batch, camera, image_handler)
 
         for obj in self.objects.values():
-            if isinstance(obj, Bullet) and obj.decal:
-                self.blood.append(GameObject(obj.position, 'bloodsplatter', layer=1, size=np.random.random() + 1,
-                                             angle=2*np.pi*np.random.random()))
+            if (isinstance(obj, Bullet) or type(obj) is Grenade) and obj.decal:
+                self.decals.append(Decal(obj.decal, obj.position, size=np.random.random() + 1,
+                                         angle=2*np.pi*np.random.random()))
                 obj.decal = ''
 
             obj.draw(batch, camera, image_handler)
 
-        for b in self.blood:
+        for b in self.decals:
             b.draw(batch, camera, image_handler)
 
         if self.light:

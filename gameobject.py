@@ -95,11 +95,14 @@ class GameObject:
         self.sounds.clear()
 
     def draw_shadow(self, batch, camera, image_handler, light):
+        if not self.image_path:
+            return
+
         r = self.position - light.position
         pos = self.position + 0.5 * r / norm(r) + rotate(self.image_position, self.angle)
 
         self.shadow_sprite = camera.draw_sprite(image_handler, self.image_path, pos, self.size, self.direction,
-                                                self.angle, batch=batch, layer=1, sprite=self.shadow_sprite)
+                                                self.angle, batch=batch, layer=2, sprite=self.shadow_sprite)
         self.shadow_sprite.color = (0, 0, 0)
         self.shadow_sprite.opacity = 128
 

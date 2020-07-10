@@ -14,7 +14,7 @@ class Icon:
 
 
 class Text:
-    def __init__(self, string, position, size, font=None, color=(255, 255, 255), layer=8):
+    def __init__(self, string, position, size, font=None, color=(255, 255, 255), layer=9):
         self.string = string
         self.position = np.array(position, dtype=float)
         self.size = size
