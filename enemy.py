@@ -1,43 +1,149 @@
-import numpy as np
-from numpy.linalg import norm
+import os
+from enum import Enum
 
-from helpers import normalized
+import numpy as np
+
+from helpers import normalized, norm2, basis
 from player import Player
-from weapon import Axe
+from prop import Crate
+from weapon import Shield, Weapon, Axe
+
+path = os.path.join('data', 'images', 'heads')
+HEADS = [x.split('.')[0] for x in os.listdir(path)]
+
+path = os.path.join('data', 'images', 'bodies')
+BODIES = [x.split('.')[0] for x in os.listdir(path)]
+
+
+class EnemyState(Enum):
+    IDLE = 1
+    SEEK_WEAPON = 2
+    SEEK_CRATE = 3
+    HOLDING_CRATE = 4
+    SEEK_PLAYER = 5
+    PATROL = 6
+    RUN_AWAY = 7
 
 
 class Enemy(Player):
     def __init__(self, position):
-        super().__init__(position)
-        self.object = Axe(self.hand.position)
-        self.object.parent = self
+        super().__init__(position, controller_id=-1)
+        self.goal = None
+        self.body_type = np.random.choice(BODIES)
+        self.head_type = np.random.choice(HEADS)
+        self.state = EnemyState.IDLE
 
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
-        if self.object:
-            self.object.update(gravity, time_step, colliders)
+    def reset(self, colliders):
+        super().reset(colliders)
+        self.goal = None
+        self.state = EnemyState.IDLE
 
-    def seek_players(self, players):
-        if self.destroyed:
-            return
-
-        goal = None
-        dist = np.inf
-        for p in players:
-            if p.destroyed:
-                continue
-
-            d = norm(p.position - self.position)
-            if d < dist:
-                goal = p.position
-                dist = d
-
-        if goal is None:
-            return
-
-        if dist > 2.0:
-            self.goal_velocity[0] = 0.25 * normalized(goal - self.position)[0]
-        else:
+    def update_ai(self, objects, player):
+        if self.state is EnemyState.IDLE:
+            self.goal_crouched = 0.0
             self.goal_velocity[0] = 0.0
-            self.attack()
-        self.hand_goal[0] = np.sign(goal - self.position)[0]
+            if not self.object:
+                self.state = EnemyState.SEEK_WEAPON
+        elif self.state is EnemyState.SEEK_WEAPON:
+            if self.goal is None:
+                for obj in sorted(objects.values(), key=lambda x: norm2(self.position - x.position)):
+                    if obj.parent:
+                        continue
+
+                    if isinstance(obj, Weapon):
+                        self.goal = objects[obj.id]
+                        break
+                else:
+                    self.state = EnemyState.SEEK_CRATE
+                    return
+
+            r = self.goal.position - self.position
+            self.hand_goal = normalized(r)
+
+            if abs(r[0]) < 0.25:
+                self.goal_velocity[0] = 0.0
+                if abs(r[1]) > 0.5:
+                    self.goal_crouched = 1.0
+                self.grab_object()
+            else:
+                self.goal_velocity[0] = np.sign(r[0]) * self.walk_speed
+
+            if self.object:
+                self.goal_velocity[0] = 0.0
+                self.state = EnemyState.PATROL
+                self.goal = None
+                self.goal_crouched = 0.0
+        elif self.state is EnemyState.SEEK_CRATE:
+            if self.goal is None:
+                for obj in sorted(objects.values(), key=lambda x: norm2(self.position - x.position)):
+                    if obj.parent:
+                        continue
+
+                    if type(obj) is Crate:
+                        self.goal = objects[obj.id]
+                        break
+                else:
+                    self.state = EnemyState.RUN_AWAY
+                    return
+
+            r = self.goal.position - self.position
+            self.hand_goal = normalized(r)
+
+            if abs(r[0]) < 0.25:
+                self.goal_velocity[0] = 0.0
+                if abs(r[1]) > 0.5:
+                    self.goal_crouched = 1.0
+                self.grab_object()
+            else:
+                self.goal_velocity[0] = np.sign(r[0]) * self.walk_speed
+
+            if self.object:
+                self.state = EnemyState.HOLDING_CRATE
+                self.goal_crouched = 0.0
+        elif self.state is EnemyState.HOLDING_CRATE:
+            self.hand_goal = -basis(1)
+            self.goal_velocity[0] = 0.0
+            if self.throw_charge == 1:
+                self.throw_object()
+                self.charging_throw = False
+            else:
+                self.charging_throw = True
+
+            if self.goal.destroyed:
+                self.goal = None
+                self.state = EnemyState.SEEK_WEAPON
+        elif self.state is EnemyState.SEEK_PLAYER:
+            r = player.position - self.position
+            self.hand_goal = normalized(r)
+
+            if type(self.object) is Axe:
+                if abs(r[0]) > 1.0:
+                    self.goal_velocity[0] = np.sign(r[0]) * self.run_speed
+                else:
+                    self.goal_velocity[0] = 0.0
+                    self.attack()
+            elif abs(r[0]) > 10.0:
+                self.goal_velocity[0] = np.sign(r[0]) * self.run_speed
+            else:
+                self.goal_velocity[0] = 0.0
+                if abs(self.hand.angle - np.arctan(r[1] / (r[0] + 1e-3))) < 0.1:
+                    self.attack()
+
+            if player.destroyed:
+                self.state = EnemyState.IDLE
+        elif self.state is EnemyState.PATROL:
+            if not self.goal_velocity[0]:
+                self.goal_velocity[0] = 0.5 * self.walk_speed
+
+            for c in self.collider.collisions:
+                if c.overlap[0]:
+                    self.goal_velocity[0] = np.sign(c.overlap[0]) * 0.5 * self.walk_speed
+                    break
+
+            self.hand_goal = np.sign(self.goal_velocity[0]) * basis(0)
+
+            if not self.object:
+                self.state = EnemyState.SEEK_WEAPON
+
+            if (player.position[0] - self.position[0]) * self.direction > 0:
+                self.state = EnemyState.SEEK_PLAYER

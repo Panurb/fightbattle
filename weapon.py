@@ -40,7 +40,7 @@ class Gun(Weapon):
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.attacked = data[9]
+        self.attacked = data[-1]
 
     def get_hand_position(self):
         v = self.hand_position.copy()
@@ -72,7 +72,7 @@ class Revolver(Gun):
     def __init__(self, position):
         super().__init__(position, 'revolver')
         self.image_position = np.array([0.35, 0.15])
-        self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.GUNS))
+        self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.WEAPONS))
 
     def attack(self):
         bs = super().attack()
@@ -89,7 +89,7 @@ class Shotgun(Gun):
         super().__init__(position, 'shotgun')
         self.size = 0.9
         self.image_position = np.array([0, -0.1])
-        self.add_collider(Rectangle([0, 0.08], 1.8, 0.3, Group.GUNS))
+        self.add_collider(Rectangle([0, 0.08], 1.8, 0.3, Group.WEAPONS))
         self.bullet_speed = 30.0
         self.hand_position = np.array([-0.7, -0.2])
         self.grip_position = np.array([0.45, -0.05])
@@ -115,7 +115,7 @@ class Axe(Weapon):
     def __init__(self, position):
         super().__init__(position, image_path='axe')
         self.bump_sound = 'sword'
-        self.add_collider(Rectangle([0.25, 0.2], 0.6, 1.5, Group.SWORDS))
+        self.add_collider(Rectangle([0.25, 0.2], 0.6, 1.5, Group.SHIELDS))
         self.image_position = np.array([0.25, 0.2])
         self.rotate(np.pi / 2)
         self.hit = False
@@ -275,7 +275,7 @@ class Bow(Gun):
         super().__init__(position, 'bow')
         self.bump_sound = 'bump'
         self.image_path = 'bow'
-        self.add_collider(Rectangle([0, 0], 0.5, 1.9, Group.GUNS))
+        self.add_collider(Rectangle([0, 0], 0.5, 1.9, Group.WEAPONS))
         self.bullet_speed = 30.0
         self.rotate(np.pi / 2)
         self.hand_position = -0.2 * basis(0)

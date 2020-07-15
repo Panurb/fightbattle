@@ -5,24 +5,12 @@ import pyglet
 from PIL import Image
 
 from collider import Rectangle
+from drawable import Decal
 from gameobject import GameObject, Destroyable
 from helpers import basis
 from prop import Crate
 from wall import Wall, Platform, Scoreboard
 from weapon import Gun, Bullet, Grenade
-
-
-class Decal:
-    def __init__(self, image_path, position, angle=0.0, size=1.0):
-        self.image_path = image_path
-        self.position = np.array(position, dtype=float)
-        self.angle = angle
-        self.size = size
-        self.sprite = None
-
-    def draw(self, batch, camera, image_handler):
-        self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, self.size, angle=self.angle,
-                                         batch=batch, layer=1, sprite=self.sprite)
 
 
 class Level:
@@ -80,16 +68,24 @@ class Level:
     def delete(self):
         for g in self.goals:
             g.delete()
-        self.scoreboard.delete()
+        if self.scoreboard:
+            self.scoreboard.delete()
         for obj in self.objects.values():
             obj.delete()
         for w in self.walls:
             w.delete()
+        if self.light:
+            self.light.delete()
+        for p in self.player_spawns:
+            p.delete()
 
     def clear(self):
+        self.delete()
         self.player_spawns.clear()
         self.walls.clear()
         self.objects.clear()
+        self.light = None
+        self.scoreboard = None
 
     def get_data(self):
         data = (tuple(p.get_data() for p in self.player_spawns), tuple(w.get_data() for w in self.walls),
@@ -99,8 +95,8 @@ class Level:
         return data
 
     def apply_data(self, data):
-        for p in data[0]:
-            self.player_spawns.append(PlayerSpawn(p))
+        for d in data[0]:
+            self.player_spawns.append(PlayerSpawn(d[0:2], d[2]))
 
         for d in data[1]:
             w = d[0]([d[1], d[2]], *d[3:])
@@ -136,7 +132,7 @@ class Level:
 
         self.scoreboard.set_position(self.scoreboard.position + offset)
 
-        self.light = GameObject([0.5 * self.width, self.height - 2], 'lamp')
+        self.light = GameObject([0.5 * self.width, self.height - 2], 'lamp', layer=3)
 
     def update_shape(self):
         x_min = np.inf
@@ -172,7 +168,8 @@ class Level:
 
     def update(self, time_step, colliders):
         for k, obj in list(self.objects.items()):
-            obj.update(self.gravity, time_step, colliders)
+            if not obj.grabbed:
+                obj.update(self.gravity, time_step, colliders)
 
             if type(obj) is Crate and obj.destroyed:
                 if obj.loot_list:
@@ -236,7 +233,7 @@ class Level:
 
                 image = pyglet.image.ImageData(width, height, 'RGBA', image.tobytes())
 
-                self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[2])
+                self.walls_sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=camera.layers[3])
 
             self.walls_sprite.update(*camera.world_to_screen(np.zeros(2)), scale=camera.zoom / 100)
         else:
@@ -251,7 +248,7 @@ class Level:
 
         for obj in self.objects.values():
             if (isinstance(obj, Bullet) or type(obj) is Grenade) and obj.decal:
-                self.decals.append(Decal(obj.decal, obj.position, size=np.random.random() + 1,
+                self.decals.append(Decal(obj.position, obj.decal, size=np.random.random() + 1,
                                          angle=2*np.pi*np.random.random()))
                 obj.decal = ''
 
@@ -296,11 +293,16 @@ class PlayerSpawn(GameObject):
         self.add_collider(Rectangle([0, 0], 1, 3))
         self.vertex_list = None
 
+    def delete(self):
+        if self.vertex_list:
+            self.vertex_list.delete()
+
     def get_data(self):
-        return tuple(self.position)
+        return tuple(self.position) + (self.team,)
 
     def apply_data(self, data):
-        self.set_position(np.array(data))
+        self.set_position(np.array(data[0:2]))
+        self.team = data[2]
 
     def change_team(self):
         self.team = 'blue' if self.team == 'red' else 'red'

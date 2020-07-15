@@ -12,7 +12,7 @@ class Group(enum.IntEnum):
     NONE = 0
     PLAYERS = 1
     WALLS = 2
-    GUNS = 3
+    WEAPONS = 3
     HANDS = 4
     PROPS = 5
     BULLETS = 6
@@ -26,19 +26,18 @@ class Group(enum.IntEnum):
 
 
 COLLIDES_WITH = {Group.NONE: set(),
-                 Group.PLAYERS: {Group.WALLS, Group.PLATFORMS},
+                 Group.PLAYERS: {Group.WALLS, Group.PLATFORMS, Group.PROPS},
                  Group.WALLS: set(),
-                 Group.GUNS: {Group.WALLS, Group.PLATFORMS},
+                 Group.WEAPONS: {Group.WALLS, Group.PLATFORMS},
                  Group.HANDS: {Group.WALLS},
                  Group.PROPS: {Group.WALLS, Group.PROPS, Group.PLATFORMS},
                  Group.BULLETS: {Group.SHIELDS},
                  Group.SHIELDS: {Group.WALLS, Group.PLATFORMS},
                  Group.DEBRIS: {Group.WALLS, Group.PLATFORMS},
-                 Group.SWORDS: {Group.WALLS, Group.PLATFORMS},
                  Group.HITBOXES: set(),
                  Group.PLATFORMS: set(),
                  Group.GOALS: set(),
-                 Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.GUNS}}
+                 Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.WEAPONS}}
 
 
 @njit(cache=True)
@@ -299,10 +298,13 @@ class Rectangle(Collider):
         return np.zeros(2)
 
     def point_inside(self, point):
-        # TODO
-        if -self.half_width[0] < point[0] - self.position[0] < self.half_width[0]:
-            if -self.half_height[1] < point[1] - self.position[1] < self.half_height[1]:
-                return True
+        m = 2 * np.array([self.half_width, self.half_height]).T
+
+        r = point - self.position + self.half_width + self.half_height
+        p = np.linalg.solve(m, r)
+
+        if np.all(0 < p) and np.all(p < 1):
+            return True
 
         return False
 

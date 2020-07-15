@@ -12,8 +12,9 @@ from optionhandler import OptionHandler
 from camera import Camera
 from level import Level, PlayerSpawn
 from prop import Crate, Ball
-from wall import Basket, Scoreboard
-from weapon import Weapon, Revolver, Shotgun
+from text import Text
+from wall import Basket, Scoreboard, Wall, Platform
+from weapon import Weapon, Revolver, Shotgun, Bow, Grenade, Axe, Shield
 
 
 class Editor(pyglet.window.Window):
@@ -35,52 +36,43 @@ class Editor(pyglet.window.Window):
 
         self.grid_color = (150, 150, 150)
 
+        self.camera = Camera([0, 0], self.option_handler.resolution)
+
         self.wall_start = None
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
         self.grab_start = np.zeros(2)
-        self.object_types = ['wall', 'platform']
+        self.object_types = [Wall, Platform, Scoreboard, PlayerSpawn, Basket, Crate, Ball,
+                             Revolver, Shotgun, Bow, Grenade, Axe, Shield]
         self.type_index = 0
-
-        self.camera = Camera([0, 0], self.option_handler.resolution)
+        self.type_text = Text('', np.zeros(2), 0.5)
 
         self.mouse_position = np.zeros(2)
+
+        self.type_select = False
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
             for i, o in enumerate(self.level.objects.values()):
                 o.id = i
-
-            with open('data/levels/lvl.pickle', 'wb') as f:
+            with open('data/levels/aaa.pickle', 'wb') as f:
                 pickle.dump(self.level.get_data(), f)
-        elif symbol == key.L:
-            self.batch = pyglet.graphics.Batch()
-            with open('data/levels/lvl.pickle', 'rb') as f:
+
+        if symbol == key.L:
+            with open('data/levels/aaa.pickle', 'rb') as f:
                 data = pickle.load(f)
                 self.level.clear()
                 self.level.apply_data(data)
-        elif symbol == key.DELETE:
+
+        if symbol == key.DELETE:
             self.level.clear()
-        elif symbol == key.W:
-            if self.type_index == len(self.object_types) - 1:
-                self.type_index = 0
-            else:
-                self.type_index += 1
 
-        pos = np.floor(self.mouse_position) + np.array([0.5, 0.501])
+        if symbol == key.SPACE:
+            self.type_select = True
 
-        if symbol == key.P:
-            self.level.player_spawns.append(PlayerSpawn(pos))
-        elif symbol == key.C:
-            self.level.add_object(Crate(pos))
-        elif symbol == key.B:
-            self.level.add_object(Ball(pos))
-        elif symbol == key.G:
-            self.level.add_object(Shotgun(pos))
-        elif symbol == key.T:
-            self.level.goals.append(Basket(pos))
-        elif symbol == key.I:
-            self.level.scoreboard = Scoreboard(pos)
+    def on_key_release(self, symbol, modifiers):
+        if symbol == key.SPACE:
+            self.type_select = False
 
     def on_mouse_motion(self, x, y, dx, dy):
         self.mouse_position[:] = self.camera.screen_to_world([x, y])
@@ -100,7 +92,19 @@ class Editor(pyglet.window.Window):
                     self.grab_start = np.round(self.mouse_position)
                     break
             else:
-                self.wall_start = np.round(self.mouse_position)
+                if self.type_index < 2:
+                    self.wall_start = np.round(self.mouse_position)
+                else:
+                    pos = np.floor(self.mouse_position) + np.array([0.5, 0.501])
+                    obj = self.object_types[self.type_index](pos)
+                    self.grabbed_object = obj
+
+                    if self.type_index == 2:
+                        self.level.scoreboard = obj
+                    elif self.type_index == 3:
+                        self.level.player_spawns.append(obj)
+                    else:
+                        self.level.add_object(obj)
 
     def on_mouse_release(self, x, y, button, modifiers):
         mouse_pos = self.camera.screen_to_world([x, y])
@@ -120,29 +124,23 @@ class Editor(pyglet.window.Window):
                 if np.all(size):
                     if self.type_index == 0:
                         self.level.add_wall(pos, size[0], size[1])
-                    else:
+                    elif self.type_index == 1:
                         self.level.add_platform(pos, size[0])
                 self.wall_start = None
         elif button == mouse.RIGHT:
             for w in self.level.walls:
                 if w.collider.point_inside(mouse_pos):
-                    w.sprite.delete()
-                    if w.collider.vertex_list:
-                        w.collider.vertex_list.delete()
+                    w.delete()
                     self.level.walls.remove(w)
 
             for p in self.level.player_spawns:
                 if p.collider.point_inside(mouse_pos):
-                    if p.collider.vertex_list:
-                        p.collider.vertex_list.delete()
-                    p.vertex_list.delete()
+                    p.delete()
                     self.level.player_spawns.remove(p)
 
             for k in list(self.level.objects.keys()):
                 if self.level.objects[k].collider.point_inside(mouse_pos):
-                    self.level.objects[k].sprite.delete()
-                    if self.level.objects[k].collider.vertex_list:
-                        self.level.objects[k].collider.vertex_list.delete()
+                    self.level.objects[k].delete()
                     del self.level.objects[k]
 
             for g in self.level.goals:
@@ -169,7 +167,10 @@ class Editor(pyglet.window.Window):
                 self.grabbed_object.set_position(pos + w + h)
 
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        self.camera.set_zoom(self.camera.zoom * 1.5**scroll_y)
+        if self.type_select:
+            self.type_index = (self.type_index - int(scroll_y)) % len(self.object_types)
+        else:
+            self.camera.set_zoom(self.camera.zoom * 1.5**scroll_y)
 
     def on_draw(self):
         self.clear()
@@ -185,9 +186,11 @@ class Editor(pyglet.window.Window):
 
         self.draw_selection()
 
-        pos = self.camera.half_width + self.camera.half_height - 50 * np.ones(2)
-        pos = self.camera.position - pos / self.camera.zoom
-        #self.camera.draw_text(self.object_types[self.type_index], pos, 32 / self.camera.zoom)
+        self.type_text.string = str(self.object_types[self.type_index]).split('.')[1].replace("'>", "")
+        self.type_text.size = 20 / self.camera.zoom
+        pos = self.camera.position + 3 * self.type_text.size - self.camera.half_width - self.camera.half_height
+        self.type_text.set_position(pos)
+        self.type_text.draw(self.batch, self.camera, self.image_handler)
 
         self.batch.draw()
 

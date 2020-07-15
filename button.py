@@ -74,16 +74,16 @@ class Slider(GameObject):
         self.cyclic = cyclic
         self.text = Text(string, self.position + 0.63 * basis(1), 0.45)
         self.value_text = Text('', self.position, 0.45)
-        self.triangle_left = None
-        self.triangle_right = None
+        self.left_arrow = None
+        self.right_arrow = None
         self.visible = True
 
     def set_visible(self, visible):
         self.visible = visible
         self.text.set_visible(visible)
         self.value_text.set_visible(visible)
-        self.triangle_left.visible = visible
-        self.triangle_right.visible = visible
+        self.left_arrow.visible = visible
+        self.right_arrow.visible = visible
 
     def set_position(self, position):
         super().set_position(position)
@@ -93,10 +93,10 @@ class Slider(GameObject):
     def delete(self):
         self.text.delete()
         self.value_text.delete()
-        if self.triangle_left:
-            self.triangle_left.delete()
-        if self.triangle_right:
-            self.triangle_right.delete()
+        if self.left_arrow:
+            self.left_arrow.delete()
+        if self.right_arrow:
+            self.right_arrow.delete()
 
     def get_value(self):
         return self.values[self.selection]
@@ -119,10 +119,10 @@ class Slider(GameObject):
 
         self.text.draw(batch, camera, image_handler)
         self.value_text.draw(batch, camera, image_handler)
-        self.triangle_left = camera.draw_sprite(image_handler, 'left', self.position - 2 * basis(0), 0.7,
-                                                batch=batch, sprite=self.triangle_left)
-        self.triangle_right = camera.draw_sprite(image_handler, 'right', self.position + 2 * basis(0), 0.7,
-                                                 batch=batch, sprite=self.triangle_right)
+        self.left_arrow = camera.draw_sprite(image_handler, 'left', self.position - 2 * basis(0), 0.7,
+                                             batch=batch, sprite=self.left_arrow)
+        self.right_arrow = camera.draw_sprite(image_handler, 'right', self.position + 2 * basis(0), 0.7,
+                                              batch=batch, sprite=self.right_arrow)
 
         if self.visible:
             color = self.color_selected if self.selected else self.color
@@ -133,17 +133,17 @@ class Slider(GameObject):
             val_str = str(self.values[self.selection]).replace(', ', 'x').strip('()')
             self.value_text.string = val_str
 
-        if self.triangle_left:
+        if self.left_arrow:
             if not self.visible or not self.selected or (not self.cyclic and self.selection == 0):
-                self.triangle_left.visible = False
+                self.left_arrow.visible = False
             else:
-                self.triangle_left.visible = True
+                self.left_arrow.visible = True
 
-        if self.triangle_right:
+        if self.right_arrow:
             if not self.visible or not self.selected or (not self.cyclic and self.selection == len(self.values) - 1):
-                self.triangle_right.visible = False
+                self.right_arrow.visible = False
             else:
-                self.triangle_right.visible = True
+                self.right_arrow.visible = True
 
     def randomize(self):
         self.selection = np.random.randint(len(self.values))

@@ -12,7 +12,7 @@ from soundhandler import SoundHandler
 
 
 # transparency stuff
-glEnable(GL_BLEND)
+#glEnable(GL_BLEND)
 #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 #glBlendEquation(GL_MAX_EXT)
 
@@ -43,7 +43,7 @@ class GameWindow(pyglet.window.Window):
         self.fps_display.draw()
 
     def update(self, dt):
-        self.set_exclusive_mouse(self.loop.state in {State.PLAY, State.LAN})
+        self.set_exclusive_mouse(self.loop.state in {State.SINGLEPLAYER, State.MULTIPLAYER, State.LAN})
         self.loop.input(self.input_handler)
         self.loop.update(min(dt, 0.03))
         self.loop.play_sounds(self.sound_handler)
@@ -56,8 +56,13 @@ class GameWindow(pyglet.window.Window):
             self.close()
 
 
-pygame.init()
-window = GameWindow()
-window.push_handlers(window.input_handler)
-pyglet.clock.schedule_interval(window.update, 1.0 / window.option_handler.fps)
-pyglet.app.run()
+def main():
+    pygame.init()
+    window = GameWindow()
+    window.push_handlers(window.input_handler)
+    pyglet.clock.schedule_interval(window.update, 1.0 / window.option_handler.fps)
+    pyglet.app.run()
+
+
+if __name__ == '__main__':
+    main()

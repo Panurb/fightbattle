@@ -2,8 +2,8 @@ import numpy as np
 
 from collider import Circle, Group
 from gameobject import PhysicsObject, Destroyable
-from helpers import polar_angle
-from particle import BloodSplatter, Dust
+from helpers import polar_angle, basis
+from particle import BloodSplatter, Dust, Sparks
 
 
 class Bullet(PhysicsObject):
@@ -24,6 +24,7 @@ class Bullet(PhysicsObject):
         self.layer = 6
         self.mass = 0
         self.blunt_damage = 0
+        self.dust_particle = Sparks
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -72,7 +73,8 @@ class Bullet(PhysicsObject):
             self.sprite = None
             self.destroyed = True
             if particle_type is not None:
-                self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity))
+                self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity,
+                                                          number=int(self.size * 5)))
             self.active = False
             self.sounds.add('gun')
             if particle_type is BloodSplatter:
@@ -91,19 +93,7 @@ class Bullet(PhysicsObject):
 
 class Pellet(Bullet):
     def __init__(self, position, velocity=(0, 0), parent=None):
-        super().__init__(position, velocity, parent, 0.3, 0.5, 15)
-
-    def destroy(self, particle_type=None):
-        if not self.destroyed:
-            self.sprite.delete()
-            self.sprite = None
-            self.destroyed = True
-            if particle_type is not None:
-                self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity, number=2))
-            self.active = False
-            self.sounds.add('gun')
-            if particle_type is BloodSplatter:
-                self.decal = 'bloodsplatter'
+        super().__init__(position, velocity, parent, 0.5, 0.5, 15)
 
 
 class Arrow(Bullet):
@@ -116,7 +106,8 @@ class Arrow(Bullet):
         self.layer = 6
         self.bounce = 1.0
         self.blunt_damage = 0
-        self.dmg = 60
+        self.dmg = 2
+        self.image_position = -0.4 * basis(0)
 
     def update(self, gravity, time_step, colliders):
         if self.time < self.lifetime:
@@ -132,6 +123,7 @@ class Arrow(Bullet):
         self.collider.update_collisions(colliders, {Group.WALLS})
 
         if self.collider.collisions:
+            self.particle_clouds.append(Dust(self.position, -0.5 * self.velocity))
             self.hit = True
             self.sounds.add('gun')
             self.velocity[:] = np.zeros(2)
@@ -153,12 +145,12 @@ class Arrow(Bullet):
             if isinstance(obj, Destroyable):
                 if obj.parent:
                     obj.parent.velocity += 0.1 * self.velocity
-                particle_type = obj.damage(self.dmg, colliders)
+                particle_type = obj.damage(min(self.speed * self.dmg, 60), colliders)
                 self.destroy(particle_type)
                 if particle_type is BloodSplatter:
                     self.decal = 'bloodsplatter'
             else:
                 obj.velocity += self.velocity
-                self.destroy()
+                self.destroy(Dust)
 
             return

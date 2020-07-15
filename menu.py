@@ -10,7 +10,7 @@ from text import Text, TitleText
 
 class State(Enum):
     QUIT = 1
-    PLAY = 2
+    MULTIPLAYER = 2
     MENU = 3
     PLAYER_SELECT = 4
     LEVEL_SELECT = 5
@@ -18,6 +18,8 @@ class State(Enum):
     OPTIONS = 7
     LAN = 8
     CONTROLS = 9
+    SINGLEPLAYER = 10
+    CAMPAIGN = 11
 
 
 class Menu:
@@ -116,10 +118,10 @@ class Menu:
         for i, b in enumerate(self.buttons):
             b.selected = True if i == self.selection else False
 
-    def draw(self, screen, camera, image_handler):
+    def draw(self, batch, camera, image_handler):
         for b in self.buttons:
             b.visible = self.visible
-            b.draw(screen, camera, image_handler)
+            b.draw(batch, camera, image_handler)
 
     def play_sounds(self, sound_handler):
         for sound in self.sounds:
@@ -133,10 +135,10 @@ class MainMenu(Menu):
     def __init__(self):
         super().__init__()
         self.button_offset = -1.5
-        self.buttons.append(Button('PLAY', State.PLAYER_SELECT))
+        self.buttons.append(Button('SINGLEPLAYER', State.CAMPAIGN))
+        self.buttons.append(Button('MULTIPLAYER', State.PLAYER_SELECT))
         self.buttons.append(Button('LAN', State.LAN))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
-        self.buttons.append(Button('CONTROLS', State.CONTROLS))
         self.buttons.append(Button('CREDITS', State.MENU))
         self.buttons.append(Button('QUIT', State.QUIT))
         self.update_buttons()
@@ -185,7 +187,7 @@ class PlayerMenu(Menu):
 
         self.team_slider = Slider('Team', ['blue', 'red'], False)
         self.buttons.append(self.team_slider)
-        self.buttons.append(Button('Ready up', State.PLAY))
+        self.buttons.append(Button('Ready up', State.MULTIPLAYER))
 
         self.update_buttons()
         self.text = Text('Press START to join', self.buttons[0].position, 0.45)
@@ -226,7 +228,7 @@ class PlayerMenu(Menu):
                     self.joined = False
             else:
                 super().input(input_handler, self.controller_id)
-                if self.target_state is State.PLAY:
+                if self.target_state is State.MULTIPLAYER:
                     self.ready = True
                     self.target_state = State.PLAYER_SELECT
 
@@ -260,6 +262,7 @@ class OptionsMenu(Menu):
         self.buttons.append(Slider('Music volume', range(0, 110, 10), False))
         self.buttons.append(Slider('Shadows', ['OFF', 'ON']))
         self.buttons.append(Slider('Dust', ['OFF', 'ON']))
+        self.buttons.append(Button('CONTROLS', State.CONTROLS))
         self.update_buttons()
         self.options_changed = False
 
@@ -300,10 +303,10 @@ class PauseMenu(Menu):
     def __init__(self):
         super().__init__()
         self.target_state = State.PAUSED
-        self.buttons.append(Button('Resume', State.PLAY))
+        self.buttons.append(Button('Resume', State.MULTIPLAYER))
         self.buttons.append(Button('Quit', State.LEVEL_SELECT))
         self.update_buttons()
-        self.previous_state = State.PLAY
+        self.previous_state = State.MULTIPLAYER
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
@@ -317,15 +320,14 @@ class PauseMenu(Menu):
 
 class LevelMenu(Menu):
     def __init__(self):
-        super().__init__()
-        self.position = np.array([25, -16])
+        super().__init__([25, -16])
         path = os.path.join('data', 'levels')
         levels = [x.split('.')[0] for x in os.listdir(path)]
         self.level_slider = Slider('Level', levels, cyclic=False)
         self.buttons.append(self.level_slider)
         self.score_slider = Slider('Score limit', range(1, 11), cyclic=False, selection=2)
         self.buttons.append(self.score_slider)
-        self.buttons.append(Button('Start', State.PLAY))
+        self.buttons.append(Button('Start', State.MULTIPLAYER))
         self.update_buttons()
         self.target_state = State.LEVEL_SELECT
         self.previous_state = State.PLAYER_SELECT
@@ -333,17 +335,44 @@ class LevelMenu(Menu):
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
             super().input(input_handler, i)
-            
+
+
+class CampaignMenu(Menu):
+    def __init__(self):
+        super().__init__([-25, 0])
+        path = os.path.join('data', 'levels')
+        levels = [x.split('.')[0] for x in os.listdir(path)]
+        self.level_slider = Slider('Level', levels, cyclic=False)
+        self.buttons.append(self.level_slider)
+        self.buttons.append(Button('Start', State.SINGLEPLAYER))
+        self.update_buttons()
+        self.target_state = State.CAMPAIGN
+        self.previous_state = State.MENU
+
+    def input(self, input_handler, controller_id=0):
+        for i in range(len(input_handler.controllers)):
+            super().input(input_handler, i)
+
             
 class ControlsMenu(Menu):
     def __init__(self):
-        super().__init__([-25, 0])
+        super().__init__([50, 0])
         self.target_state = State.CONTROLS
-        self.button_gap = 0.75
+        self.previous_state = State.OPTIONS
+        self.button_gap = 1.0
         
         for button in ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']:
             self.buttons.append(RebindButton(button))
-            
-        self.buttons.append(Button('Apply', State.MENU))
+
+        self.button_back = Button('(B) back', self.target_state)
+        self.button_back.set_position(self.position + np.array([-10, -6]))
 
         self.update_buttons()
+
+    def input(self, input_handler, controller_id=0):
+        for i in range(len(input_handler.controllers)):
+            super().input(input_handler, i)
+
+    def draw(self, screen, camera, image_handler):
+        super().draw(screen, camera, image_handler)
+        self.button_back.draw(screen, camera, image_handler)

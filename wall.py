@@ -11,7 +11,7 @@ from text import Text
 
 class Wall(GameObject):
     def __init__(self, position, width, height):
-        super().__init__(position, image_path='wall', layer=2)
+        super().__init__(position, image_path='wall', layer=3)
         self.add_collider(Rectangle([0, 0], width, height, Group.WALLS))
         self.size = 1.0
         self.vertical = 0
@@ -25,10 +25,6 @@ class Wall(GameObject):
             self.image_path = 'wall_horizontal'
 
         self.border = False
-
-    def delete(self):
-        if self.shadow_sprite:
-            self.shadow_sprite.delete()
 
     def get_data(self):
         return (type(self), self.position[0], self.position[1],
@@ -157,7 +153,8 @@ class Scoreboard(GameObject):
     def __init__(self, position):
         super().__init__(position, image_path='scoreboard', layer=1)
         self.add_collider(Rectangle([0, 0], 7, 4))
-        self.scores = {'blue': 0, 'red': 0}
+        self.teams = ['blue', 'red']
+        self.scores = {t: 0 for t in self.teams}
         self.text = Text('00 - 00', self.position, 2, 'Seven Segment', (200, 255, 0), layer=self.layer+1)
 
     def set_position(self, position):

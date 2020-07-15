@@ -2,40 +2,23 @@ import numpy as np
 from numpy.linalg import norm
 
 from collider import Circle, Group, Rectangle
+from drawable import Drawable
 from helpers import norm2, rotate, normalized, basis, random_unit
 from particle import Dust
 
 MAX_SPEED = 75.0
 
 
-class GameObject:
-    def __init__(self, position, image_path='', size=1.0, layer=3, angle=0.0):
-        super().__init__()
+class GameObject(Drawable):
+    def __init__(self, position, image_path='', size=1.0, layer=4, angle=0.0):
+        super().__init__(position, image_path, size, angle, layer)
 
-        self.position = np.array(position, dtype=float)
         self.collider = None
         self.collision_enabled = True
-        self.direction = 1
-        self.angle = angle
 
-        self.sprite = None
-        self.image_path = image_path
-        self.size = size
-        self.image_position = np.zeros(2)
         self.parent = None
-
         self.sounds = set()
-
         self.id = None
-
-        self.shadow_sprite = None
-        self.layer = layer
-
-    def delete(self):
-        if self.sprite:
-            self.sprite.delete()
-        if self.shadow_sprite:
-            self.shadow_sprite.delete()
 
     def get_data(self):
         data = (self.id, type(self), self.position[0], self.position[1], self.direction, self.angle)
@@ -49,17 +32,13 @@ class GameObject:
             self.flip_horizontally()
         self.rotate(data[5] - self.angle)
 
-    def rotate(self, delta_angle):
-        self.angle += delta_angle
-
     def flip_horizontally(self):
+        super().flip_horizontally()
+
         if type(self.collider) is Rectangle:
             w = 2 * self.collider.half_width / self.collider.width
             r = self.collider.position - self.position
             self.collider.position -= 2 * np.dot(r, w) * w
-
-        self.direction *= -1
-        self.image_position[0] *= -1
 
     def set_position(self, position):
         delta_pos = position - self.position
@@ -73,15 +52,6 @@ class GameObject:
         collider.parent = self
         collider.position += self.position
 
-    def draw(self, batch, camera, image_handler):
-        if not self.image_path:
-            self.debug_draw(batch, camera, image_handler)
-            return
-
-        pos = self.position + rotate(self.image_position, self.angle)
-        self.sprite = camera.draw_sprite(image_handler, self.image_path, pos, self.size, self.direction, self.angle,
-                                         batch=batch, layer=self.layer, sprite=self.sprite)
-
     def debug_draw(self, batch, camera, image_handler):
         camera.draw_circle(self.position, 0.1, image_handler.debug_color)
         if self.collider:
@@ -93,18 +63,6 @@ class GameObject:
             player.volume = sound_handler.volume
 
         self.sounds.clear()
-
-    def draw_shadow(self, batch, camera, image_handler, light):
-        if not self.image_path:
-            return
-
-        r = self.position - light.position
-        pos = self.position + 0.5 * r / norm(r) + rotate(self.image_position, self.angle)
-
-        self.shadow_sprite = camera.draw_sprite(image_handler, self.image_path, pos, self.size, self.direction,
-                                                self.angle, batch=batch, layer=2, sprite=self.shadow_sprite)
-        self.shadow_sprite.color = (0, 0, 0)
-        self.shadow_sprite.opacity = 128
 
 
 class PhysicsObject(GameObject):
@@ -134,7 +92,8 @@ class PhysicsObject(GameObject):
         self.group = None
 
         self.dust = dust
-        self.blunt_damage = 1
+        self.dust_particle = Dust
+        self.blunt_damage = 0.5
         self.roll = False
         self.grabbed = False
 
@@ -252,11 +211,12 @@ class PhysicsObject(GameObject):
                 self.angular_velocity *= -1
 
             if not self.grabbed:
-                n = min(int(self.speed / 3), 10)
+                n = min(int(self.speed / 3), 5)
                 if n > 1:
                     self.sounds.add(self.bump_sound)
                     if self.dust:
-                        self.particle_clouds.append(Dust(self.position, self.speed * normalized(collision.overlap), n))
+                        v = min(0.2 * self.speed, 5.0) * normalized(collision.overlap)
+                        self.particle_clouds.append(self.dust_particle(self.position, v, n))
 
             self.set_position(self.position + collision.overlap)
 
@@ -268,7 +228,6 @@ class PhysicsObject(GameObject):
                         particle_type = obj.damage(self.speed * self.blunt_damage, colliders)
                         if particle_type:
                             self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
-                        self.camera_shake = int(self.speed) * random_unit()
 
                 n = collision.overlap
                 self.velocity -= 2 * self.velocity.dot(n) * n / norm2(n)
@@ -307,8 +266,8 @@ class Destroyable(PhysicsObject):
         self.debris = []
         self.debris_size = debris_size
         self.parent = parent
-        self.fall_damage = 5
-        self.fall_damage_speed = 10.0
+        self.fall_damage = 2
+        self.fall_damage_speed = 15.0
 
     def delete(self):
         super().delete()
@@ -342,6 +301,8 @@ class Destroyable(PhysicsObject):
 
         self.collider.clear_occupied_squares(colliders)
         self.collider = None
+
+        self.camera_shake = self.speed * random_unit()
 
         if self.debris_path:
             for _ in range(3):

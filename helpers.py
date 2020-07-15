@@ -21,7 +21,11 @@ def projection(v, a, b):
 
 
 def normalized(v):
-    return v / norm(v)
+    v_norm = norm(v)
+    if v_norm:
+        return v / v_norm
+    else:
+        return v.copy()
 
 
 def random_unit():

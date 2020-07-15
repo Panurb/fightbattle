@@ -10,15 +10,16 @@ from helpers import basis, rotate, norm2
 
 # LAYERS
 # 0: background image
-# 1: decals
+# 1: decals, lamp
 # 2: shadows
-# 3: walls, items
-# 4: players
-# 5: player items
-# 6: player hands
-# 7: particles
-# 8: camera filter
-# 9: text, icons
+# 3: walls
+# 4: items
+# 5: players
+# 6: player items
+# 7: player hands
+# 8: particles
+# 9: camera filter
+# 10: text, icons
 
 
 UNIT_CIRCLE = [np.zeros(2)] + [np.array([np.cos(theta), np.sin(theta)]) for theta in np.linspace(0, 2 * np.pi, 20)]
@@ -66,17 +67,17 @@ class Camera:
     def set_target(self, players, level):
         self.target_position = sum(p.position for p in players.values()) / len(players)
 
-        if level.width < 2 * self.half_width[0]:
-            self.target_position[0] = 0.5 * level.width
-
-        if level.height < 2 * self.half_height[1]:
-            self.target_position[1] = 0.5 * level.height
-
         self.target_position[0] = max(self.target_position[0], self.half_width[0])
         self.target_position[0] = min(self.target_position[0], level.width - self.half_width[0])
 
         self.target_position[1] = max(self.target_position[1], self.half_height[1])
         self.target_position[1] = min(self.target_position[1], level.height - self.half_height[1])
+
+        if level.width < 2 * self.half_width[0]:
+            self.target_position[0] = 0.5 * level.width
+
+        if level.height < 2 * self.half_height[1]:
+            self.target_position[1] = 0.5 * level.height
 
         if len(players) > 1:
             eps = 1e-6

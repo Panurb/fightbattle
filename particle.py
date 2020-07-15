@@ -96,12 +96,12 @@ class Particle:
 class MuzzleFlash:
     def __init__(self, position, velocity):
         self.angle = polar_angle(velocity)
-        self.position = np.zeros_like(position)
+        self.start_size = 1.5
+        self.initial_position = position + polar_to_cartesian(0.75 * self.start_size, self.angle)
+        self.position = self.initial_position.copy()
         self.velocity = velocity.copy()
         self.time = 0.0
         self.lifetime = 0.25
-        self.start_size = 1.5
-        self.initial_position = position.copy() + polar_to_cartesian(0.75 * self.start_size, self.angle)
         self.size = self.start_size
         self.image_path = 'muzzleflash'
         self.layer = 7
@@ -141,7 +141,7 @@ class Explosion(Cloud):
 
 class Dust(Cloud):
     def __init__(self, position, velocity, number=5):
-        super().__init__('dust', position, 0.2 * velocity, number, 0.3, 2.5, gravity_scale=0.5)
+        super().__init__('dust', position, velocity, number, 0.3, 2.5, gravity_scale=0.5)
 
 
 class Sparks(Cloud):

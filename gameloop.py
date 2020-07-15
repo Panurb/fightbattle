@@ -4,10 +4,11 @@ import numpy as np
 from pyglet.window import key
 
 from camera import Camera
+from enemy import Enemy
 from gameobject import Destroyable
 from helpers import basis
 from level import Level
-from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu
+from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu, CampaignMenu
 from player import Player
 from network import Network
 from prop import Ball
@@ -21,7 +22,7 @@ class GameLoop:
         self.state = State.MENU
 
         self.level = None
-        self.players = dict()
+        self.players = {}
         self.colliders = []
 
         self.time_scale = 1.0
@@ -31,6 +32,7 @@ class GameLoop:
         self.respawn_time = 50.0
 
         self.menu = MainMenu()
+        self.campaign_menu = CampaignMenu()
         self.player_menus = [PlayerMenu(np.array([6 * i - 9, -16])) for i in range(4)]
         self.options_menu = OptionsMenu()
         self.options_menu.set_values(self.option_handler)
@@ -42,7 +44,7 @@ class GameLoop:
         self.network_id = -1
         self.obj_id = -1
 
-        self.controller_id = 0
+        self.controller_id = 1
 
         self.score_limit = 0
         self.text = Text('', np.zeros(2), 2.0)
@@ -97,15 +99,37 @@ class GameLoop:
         self.players[network_id] = player
 
     def update(self, time_step):
-        if self.state is State.PLAY:
+        if self.state is State.SINGLEPLAYER:
+            if not self.level:
+                self.load_level(self.level_menu.level_slider.get_value())
+                self.timer = 0
+                self.campaign_menu.set_visible(False)
+                self.score_limit = int(self.level_menu.score_slider.get_value())
+                zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
+                self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
+                for p in self.level.player_spawns:
+                    if p.team == 'red':
+                        player = Enemy(p.position)
+                        self.players[len(self.players)] = player
+
+            self.text.position[:] = self.camera.position
+
+            for player in self.players.values():
+                player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+                if player.controller_id == -1:
+                    player.update_ai(self.level.objects, list(self.players.values())[0])
+
+            self.level.update(self.time_scale * time_step, self.colliders)
+
+            self.camera.set_target(self.players, self.level)
+            self.text.position[:] = self.camera.position
+        if self.state is State.MULTIPLAYER:
             if not self.level:
                 self.load_level(self.level_menu.level_slider.get_value())
                 self.level_menu.set_visible(False)
                 self.score_limit = int(self.level_menu.score_slider.get_value())
                 zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
                 self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
-
-            self.text.position[:] = self.camera.position
 
             if self.timer > 0:
                 if self.level.background:
@@ -296,13 +320,33 @@ class GameLoop:
             self.camera.target_position[:] = self.controls_menu.position
             self.state = self.controls_menu.target_state
             self.controls_menu.target_state = State.CONTROLS
+        elif self.state is State.CAMPAIGN:
+            if not self.players:
+                self.add_player(0)
+            self.camera.target_position[:] = self.campaign_menu.position
+            self.state = self.campaign_menu.target_state
+            self.campaign_menu.set_visible(self.state is State.SINGLEPLAYER)
+            self.campaign_menu.target_state = State.CAMPAIGN
 
         self.camera.update(time_step)
 
     def input(self, input_handler):
         input_handler.update(self.camera)
 
-        if self.state is State.PLAY:
+        if self.state is State.SINGLEPLAYER:
+            if self.controller_id == 0:
+                input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
+
+            if input_handler.keys_pressed.get(key.R):
+                self.reset_game()
+
+            for i, c in enumerate(input_handler.controllers):
+                self.players[0].controller_id = self.controller_id
+                self.players[0].input(input_handler)
+                if c.button_pressed['START']:
+                    self.state = State.PAUSED
+                    self.pause_menu.selection = 0
+        elif self.state is State.MULTIPLAYER:
             if 0 in self.players:
                 input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
 
@@ -362,27 +406,43 @@ class GameLoop:
             self.pause_menu.input(input_handler)
         elif self.state is State.CONTROLS:
             self.controls_menu.input(input_handler)
+        elif self.state is State.CAMPAIGN:
+            self.campaign_menu.input(input_handler)
 
     def draw(self, batch, image_handler):
         self.text.draw(batch, self.camera, image_handler)
-        if self.state in {State.PLAY, State.LAN}:
+        if self.state is State.SINGLEPLAYER:
             image_handler.set_clear_color((113, 118, 131))
-
-            if self.option_handler.shadows:
-                if self.level:
-                    self.level.draw_shadow(batch, self.camera, image_handler)
-                    for p in self.players.values():
-                        p.draw_shadow(batch, self.camera, image_handler, self.level.light)
 
             if self.level:
                 self.level.draw(batch, self.camera, image_handler)
+                if self.option_handler.shadows:
+                    self.level.draw_shadow(batch, self.camera, image_handler)
 
             for player in self.players.values():
                 player.draw(batch, self.camera, image_handler)
+                if self.level and self.option_handler.shadows:
+                    player.draw_shadow(batch, self.camera, image_handler, self.level.light)
 
             if self.option_handler.debug_draw:
                 self.debug_draw(batch, image_handler)
-        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT, State.CONTROLS}:
+        elif self.state in {State.MULTIPLAYER, State.LAN}:
+            image_handler.set_clear_color((113, 118, 131))
+
+            if self.level:
+                self.level.draw(batch, self.camera, image_handler)
+                if self.option_handler.shadows:
+                    self.level.draw_shadow(batch, self.camera, image_handler)
+
+            for player in self.players.values():
+                player.draw(batch, self.camera, image_handler)
+                if self.option_handler.shadows:
+                    player.draw_shadow(batch, self.camera, image_handler, self.level.light)
+
+            if self.option_handler.debug_draw:
+                self.debug_draw(batch, image_handler)
+        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT, State.CONTROLS,
+                            State.CAMPAIGN}:
             image_handler.set_clear_color((50, 50, 50))
 
             self.menu.draw(batch, self.camera, image_handler)
@@ -396,6 +456,7 @@ class GameLoop:
                     self.players[pm.controller_id].draw(batch, self.camera, image_handler)
             self.level_menu.draw(batch, self.camera, image_handler)
             self.controls_menu.draw(batch, self.camera, image_handler)
+            self.campaign_menu.draw(batch, self.camera, image_handler)
         elif self.state is State.PAUSED:
             self.pause_menu.draw(batch, self.camera, image_handler)
 
@@ -423,7 +484,7 @@ class GameLoop:
         if self.state in {State.MENU, State.PLAYER_SELECT, State.LEVEL_SELECT}:
             sound_handler.set_music(0)
 
-        if self.state in {State.PLAY, State.LAN}:
+        if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER, State.LAN}:
             for p in self.players.values():
                 p.play_sounds(sound_handler)
 
