@@ -305,9 +305,16 @@ class GameLoop:
             self.pause_menu.set_visible(self.state is State.PAUSED)
             self.text.set_visible(self.state is not State.PAUSED)
 
-            if self.state is State.LEVEL_SELECT:
-                for p in self.players.values():
-                    p.reset(self.colliders)
+            if self.state in {State.CAMPAIGN, State.LEVEL_SELECT}:
+                if self.state is State.CAMPAIGN:
+                    print('asd')
+                    for p in self.players.values():
+                        p.delete()
+                    self.players.clear()
+                else:
+                    for p in self.players.values():
+                        p.reset(self.colliders)
+
                 self.level.delete()
                 self.level = None
 
@@ -345,6 +352,7 @@ class GameLoop:
                 self.players[0].input(input_handler)
                 if c.button_pressed['START']:
                     self.state = State.PAUSED
+                    self.pause_menu.previous_state = State.SINGLEPLAYER
                     self.pause_menu.selection = 0
         elif self.state is State.MULTIPLAYER:
             if 0 in self.players:
@@ -359,6 +367,7 @@ class GameLoop:
             for c in input_handler.controllers:
                 if c.button_pressed['START']:
                     self.state = State.PAUSED
+                    self.pause_menu.previous_state = State.MULTIPLAYER
                     self.pause_menu.selection = 0
         elif self.state is State.MENU:
             self.menu.input(input_handler)

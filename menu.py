@@ -309,6 +309,11 @@ class PauseMenu(Menu):
         self.previous_state = State.MULTIPLAYER
 
     def input(self, input_handler, controller_id=0):
+        self.buttons[0].target_state = self.previous_state
+        if self.previous_state is State.SINGLEPLAYER:
+            self.buttons[1].target_state = State.CAMPAIGN
+        else:
+            self.buttons[1].target_state = State.LEVEL_SELECT
         for i in range(len(input_handler.controllers)):
             super().input(input_handler, i)
 

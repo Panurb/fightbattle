@@ -132,7 +132,6 @@ class Collider:
         self.half_width = np.zeros(2)
         self.half_height = np.zeros(2)
         self.vertex_list = None
-        self.vertex_lists = 100 * [None]
 
     def set_position(self, position):
         self.position[:] = position
@@ -172,18 +171,7 @@ class Collider:
         pass
 
     def draw(self, batch, camera, image_handler):
-        k = 0
-        for i, j in self.occupied_squares:
-            self.vertex_lists[k] = camera.draw_rectangle(np.array([GRID_SIZE * (i + 0.5), GRID_SIZE * (j + 1.5)]), GRID_SIZE,
-                                                         GRID_SIZE, batch=batch, layer=8, linewidth=1/camera.zoom,
-                                                         vertex_list=self.vertex_lists[k])
-            k += 1
-
-        while k < len(self.vertex_lists):
-            if self.vertex_lists[k]:
-                self.vertex_lists[k].delete()
-            self.vertex_lists[k] = None
-            k += 1
+        pass
 
     def overlap(self, other):
         pass

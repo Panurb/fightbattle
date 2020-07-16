@@ -3,6 +3,7 @@ from enum import Enum
 
 import numpy as np
 
+from collider import Circle, Group
 from helpers import normalized, norm2, basis
 from player import Player
 from prop import Crate
@@ -32,15 +33,26 @@ class Enemy(Player):
         self.body_type = np.random.choice(BODIES)
         self.head_type = np.random.choice(HEADS)
         self.state = EnemyState.IDLE
+        self.vision_collider = Circle(self.position, 1)
 
     def reset(self, colliders):
         super().reset(colliders)
         self.goal = None
         self.state = EnemyState.IDLE
 
+    def update(self, gravity, time_step, colliders):
+        super().update(gravity, time_step, colliders)
+
+        self.vision_collider.set_position(self.position + np.array([2 * self.direction, -1]))
+        self.vision_collider.update_occupied_squares(colliders)
+        self.vision_collider.update_collisions(colliders, {Group.WALLS, Group.PLATFORMS})
+
     def update_ai(self, objects, player):
+        print(self.state)
+
+        self.goal_crouched = 0.0
+
         if self.state is EnemyState.IDLE:
-            self.goal_crouched = 0.0
             self.goal_velocity[0] = 0.0
             if not self.object:
                 self.state = EnemyState.SEEK_WEAPON
@@ -72,7 +84,6 @@ class Enemy(Player):
                 self.goal_velocity[0] = 0.0
                 self.state = EnemyState.PATROL
                 self.goal = None
-                self.goal_crouched = 0.0
         elif self.state is EnemyState.SEEK_CRATE:
             if self.goal is None:
                 for obj in sorted(objects.values(), key=lambda x: norm2(self.position - x.position)):
@@ -129,8 +140,13 @@ class Enemy(Player):
                 if abs(self.hand.angle - np.arctan(r[1] / (r[0] + 1e-3))) < 0.1:
                     self.attack()
 
+            if not self.vision_collider.collisions:
+                self.goal_velocity[0] = 0.0
+
             if player.destroyed:
                 self.state = EnemyState.IDLE
+            elif not self.object:
+                self.state = EnemyState.SEEK_WEAPON
         elif self.state is EnemyState.PATROL:
             if not self.goal_velocity[0]:
                 self.goal_velocity[0] = 0.5 * self.walk_speed
@@ -140,10 +156,25 @@ class Enemy(Player):
                     self.goal_velocity[0] = np.sign(c.overlap[0]) * 0.5 * self.walk_speed
                     break
 
+            if not self.vision_collider.collisions:
+                self.goal_velocity[0] *= -1
+
             self.hand_goal = np.sign(self.goal_velocity[0]) * basis(0)
 
             if not self.object:
                 self.state = EnemyState.SEEK_WEAPON
 
-            if (player.position[0] - self.position[0]) * self.direction > 0:
+            r = player.position - self.position
+            if r[0] * self.direction > 0 and abs(r[1]) < 0.5:
                 self.state = EnemyState.SEEK_PLAYER
+
+            if player.object and player.object.attacked:
+                self.direction = np.sign(r)
+                self.state = EnemyState.SEEK_PLAYER
+        elif self.state is EnemyState.RUN_AWAY:
+            r = player.position - self.position
+            self.goal_velocity[0] = -np.sign(r[0]) * self.run_speed
+            self.direction = -np.sign(r[0])
+
+            if not self.vision_collider.collisions:
+                self.goal_velocity[0] = 0.0

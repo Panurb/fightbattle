@@ -864,7 +864,7 @@ class Hand(Limb):
 
     def delete(self):
         super().delete()
-        if self.front:
+        if self.band:
             self.band.delete()
 
     def draw(self, batch, camera, image_handler):
