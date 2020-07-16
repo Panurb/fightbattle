@@ -660,7 +660,7 @@ class Player(Destroyable):
             return
 
         for c in self.hand.collider.collisions:
-            if c.collider.group in {Group.THROWN, Group.PROPS, Group.WEAPONS, Group.SHIELDS, Group.SWORDS}:
+            if c.collider.group in {Group.THROWN, Group.PROPS, Group.WEAPONS, Group.SHIELDS}:
                 if norm2(self.shoulder - c.collider.position) > 1.5**2:
                     continue
 

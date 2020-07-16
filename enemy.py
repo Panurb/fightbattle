@@ -24,6 +24,7 @@ class EnemyState(Enum):
     SEEK_PLAYER = 5
     PATROL = 6
     RUN_AWAY = 7
+    DEAD = 8
 
 
 class Enemy(Player):
@@ -48,8 +49,6 @@ class Enemy(Player):
         self.vision_collider.update_collisions(colliders, {Group.WALLS, Group.PLATFORMS})
 
     def update_ai(self, objects, player):
-        print(self.state)
-
         self.goal_crouched = 0.0
 
         if self.state is EnemyState.IDLE:
@@ -117,6 +116,7 @@ class Enemy(Player):
             if self.throw_charge == 1:
                 self.throw_object()
                 self.charging_throw = False
+                self.throw_charge = 0.0
             else:
                 self.charging_throw = True
 
@@ -168,13 +168,16 @@ class Enemy(Player):
             if r[0] * self.direction > 0 and abs(r[1]) < 0.5:
                 self.state = EnemyState.SEEK_PLAYER
 
-            if player.object and player.object.attacked:
+            if player.object and isinstance(player.object, Weapon) and player.object.attacked:
                 self.direction = np.sign(r)
                 self.state = EnemyState.SEEK_PLAYER
         elif self.state is EnemyState.RUN_AWAY:
             r = player.position - self.position
             self.goal_velocity[0] = -np.sign(r[0]) * self.run_speed
-            self.direction = -np.sign(r[0])
+            self.hand_goal = -np.sign(r) * basis(0)
 
             if not self.vision_collider.collisions:
                 self.goal_velocity[0] = 0.0
+        
+        if self.destroyed:
+            self.state = EnemyState.DEAD

@@ -307,7 +307,6 @@ class GameLoop:
 
             if self.state in {State.CAMPAIGN, State.LEVEL_SELECT}:
                 if self.state is State.CAMPAIGN:
-                    print('asd')
                     for p in self.players.values():
                         p.delete()
                     self.players.clear()
@@ -346,6 +345,12 @@ class GameLoop:
 
             if input_handler.keys_pressed.get(key.R):
                 self.reset_game()
+                for k, player in self.players.items():
+                    if k == 0:
+                        continue
+                        
+                    player.set_position(self.level.player_spawns[k].position)
+                self.timer = 0.0
 
             for i, c in enumerate(input_handler.controllers):
                 self.players[0].controller_id = self.controller_id

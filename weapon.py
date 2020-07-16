@@ -230,7 +230,7 @@ class Grenade(Destroyable):
 
             explosion_collider = Circle(self.position, 3.0)
             explosion_collider.update_occupied_squares(colliders)
-            explosion_collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS})
+            explosion_collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS, Group.WEAPONS})
 
             for c in explosion_collider.collisions:
                 obj = c.collider.parent
