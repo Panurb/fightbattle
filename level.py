@@ -1,3 +1,4 @@
+import os
 import pickle
 
 import numpy as np
@@ -7,6 +8,7 @@ from PIL import Image
 from collider import Rectangle
 from drawable import Decal
 from gameobject import GameObject, Destroyable
+from goal import Basket
 from helpers import basis
 from prop import Crate
 from wall import Wall, Platform, Scoreboard
@@ -40,7 +42,7 @@ class Level:
         self.dust = True
 
         if self.name:
-            with open(f'data/levels/{self.name}.pickle', 'rb') as f:
+            with open(os.path.join('data', 'levels', self.name) + '.pickle', 'rb') as f:
                 self.apply_data(pickle.load(f))
 
     def reset(self):
@@ -52,7 +54,7 @@ class Level:
         self.objects.clear()
 
         if self.name:
-            with open(f'data/levels/{self.name}.pickle', 'rb') as f:
+            with open(os.path.join('data', 'levels', self.name) + '.pickle', 'rb') as f:
                 data = pickle.load(f)
                 for o in data[2]:
                     self.id_count += 1
@@ -89,8 +91,10 @@ class Level:
 
     def get_data(self):
         data = (tuple(p.get_data() for p in self.player_spawns), tuple(w.get_data() for w in self.walls),
-                tuple(o.get_data() for o in self.objects.values()), tuple(g.get_data() for g in self.goals),
-                self.scoreboard.get_data())
+                tuple(o.get_data() for o in self.objects.values()), tuple(g.get_data() for g in self.goals))
+
+        if self.scoreboard:
+            data += (self.scoreboard.get_data(),)
 
         return data
 
@@ -111,8 +115,9 @@ class Level:
             goal = d[0]([d[1], d[2]], d[3])
             self.goals.append(goal)
 
-        self.scoreboard = Scoreboard([0, 0])
-        self.scoreboard.apply_data(data[4])
+        if len(data) == 5:
+            self.scoreboard = Scoreboard([0, 0])
+            self.scoreboard.apply_data(data[4])
 
         self.update_shape()
 
@@ -130,7 +135,8 @@ class Level:
         for g in self.goals:
             g.set_position(g.position + offset)
 
-        self.scoreboard.set_position(self.scoreboard.position + offset)
+        if self.scoreboard:
+            self.scoreboard.set_position(self.scoreboard.position + offset)
 
         self.light = GameObject([0.5 * self.width, self.height - 2], 'lamp', layer=3)
 
@@ -202,8 +208,9 @@ class Level:
                     del self.objects[k]
                     continue
 
-        for g in self.goals:
-            self.scoreboard.scores[g.team] = g.score
+        if self.scoreboard:
+            for g in self.goals:
+                self.scoreboard.scores[g.team] = g.score
 
     def draw(self, batch, camera, image_handler):
         if not self.editor and self.width > 0 and self.height > 0:
@@ -211,6 +218,10 @@ class Level:
                 self.background = Background(self.width, self.height)
                 self.background.draw(batch, camera, image_handler)
                 self.background.add_decal(image_handler, 'light', self.light.position, scale=2)
+                for p in self.player_spawns:
+                    self.background.add_decal(image_handler, 'door', p.position + p.image_position)
+                for g in self.goals:
+                    self.background.add_decal(image_handler, g.image_path, g.position + g.image_position)
             else:
                 self.background.draw(batch, camera, image_handler)
 
@@ -241,7 +252,8 @@ class Level:
                 w.draw(batch, camera, image_handler)
 
         for g in self.goals:
-            g.draw(batch, camera, image_handler)
+            if type(g) is Basket:
+                g.front.draw(batch, camera, image_handler)
 
         if self.scoreboard:
             self.scoreboard.draw(batch, camera, image_handler)
@@ -288,14 +300,10 @@ class Level:
 
 class PlayerSpawn(GameObject):
     def __init__(self, position, team='blue'):
-        super().__init__(position)
+        super().__init__(position, image_path='door')
         self.team = team
         self.add_collider(Rectangle([0, 0], 1, 3))
-        self.vertex_list = None
-
-    def delete(self):
-        if self.vertex_list:
-            self.vertex_list.delete()
+        self.image_position = 0.45 * basis(1)
 
     def get_data(self):
         return tuple(self.position) + (self.team,)
@@ -306,11 +314,6 @@ class PlayerSpawn(GameObject):
 
     def change_team(self):
         self.team = 'blue' if self.team == 'red' else 'red'
-
-    def draw(self, batch, camera, image_handler):
-        color = (0, 0, 255) if self.team == 'blue' else (255, 0, 0)
-        self.vertex_list = camera.draw_rectangle(self.collider.position, self.collider.width, self.collider.height,
-                                                 color, batch=batch, layer=6, vertex_list=self.vertex_list)
 
 
 class Background:

@@ -3,7 +3,7 @@ from enum import Enum
 
 import numpy as np
 
-from collider import Circle, Group
+from collider import Circle, Group, GRID_SIZE
 from helpers import normalized, norm2, basis
 from player import Player
 from prop import Crate
@@ -41,15 +41,13 @@ class Enemy(Player):
         self.goal = None
         self.state = EnemyState.IDLE
 
-    def update(self, gravity, time_step, colliders):
-        super().update(gravity, time_step, colliders)
+    def update_ai(self, objects, player, colliders):
+        self.grabbing = False
+        self.goal_crouched = 0.0
 
         self.vision_collider.set_position(self.position + np.array([2 * self.direction, -1]))
         self.vision_collider.update_occupied_squares(colliders)
         self.vision_collider.update_collisions(colliders, {Group.WALLS, Group.PLATFORMS})
-
-    def update_ai(self, objects, player):
-        self.goal_crouched = 0.0
 
         if self.state is EnemyState.IDLE:
             self.goal_velocity[0] = 0.0
@@ -75,7 +73,7 @@ class Enemy(Player):
                 self.goal_velocity[0] = 0.0
                 if abs(r[1]) > 0.5:
                     self.goal_crouched = 1.0
-                self.grab_object()
+                self.grabbing = True
             else:
                 self.goal_velocity[0] = np.sign(r[0]) * self.walk_speed
 
@@ -165,11 +163,12 @@ class Enemy(Player):
                 self.state = EnemyState.SEEK_WEAPON
 
             r = player.position - self.position
-            if r[0] * self.direction > 0 and abs(r[1]) < 0.5:
-                self.state = EnemyState.SEEK_PLAYER
+            if r[0] * self.direction > 0:
+                if self.raycast(self.position, r, colliders):
+                    self.state = EnemyState.SEEK_PLAYER
 
             if player.object and isinstance(player.object, Weapon) and player.object.attacked:
-                self.direction = np.sign(r)
+                self.direction = np.sign(r[0])
                 self.state = EnemyState.SEEK_PLAYER
         elif self.state is EnemyState.RUN_AWAY:
             r = player.position - self.position
@@ -178,6 +177,40 @@ class Enemy(Player):
 
             if not self.vision_collider.collisions:
                 self.goal_velocity[0] = 0.0
+        elif self.state is EnemyState.DEAD:
+            self.goal_velocity[0] = 0.0
         
         if self.destroyed:
             self.state = EnemyState.DEAD
+
+    def raycast(self, origin, velocity, colliders):
+        position = np.floor(origin / GRID_SIZE)
+        step = np.sign(velocity + 1e-3)
+
+        t_max = (GRID_SIZE - (origin * step) % GRID_SIZE) / np.abs(velocity + 1e-3)
+        t_delta = GRID_SIZE / np.abs(velocity + 1e-3)
+
+        while True:
+
+            if t_max[0] < t_max[1]:
+                t_max[0] += t_delta[0]
+                position[0] += step[0]
+            else:
+                t_max[1] += t_delta[1]
+                position[1] += step[1]
+
+            for c in colliders[int(position[0])][int(position[1])]:
+                if c.parent is self:
+                    continue
+                if c.group is Group.WALLS:
+                    return False
+                if c.group is Group.PLAYERS:
+                    return True
+
+            if not 0 <= position[0] <= len(colliders[0]) - 1:
+                break
+
+            if not 0 <= position[1] <= len(colliders) - 1:
+                break
+
+        return False

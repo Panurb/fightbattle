@@ -1,7 +1,6 @@
 import numpy as np
 import pyglet
 from PIL import Image
-from numpy.linalg import norm
 
 from gameobject import GameObject
 from collider import Rectangle, Group, ColliderGroup, Circle
@@ -13,9 +12,6 @@ class Wall(GameObject):
     def __init__(self, position, width, height):
         super().__init__(position, image_path='wall', layer=3)
         self.add_collider(Rectangle([0, 0], width, height, Group.WALLS))
-        self.size = 1.0
-        self.vertical = 0
-
         self.image_position = np.array([0.0, -0.2])
 
         if width == 1:
@@ -107,46 +103,6 @@ class Platform(Wall):
 
     def get_data(self):
         return type(self), self.position[0], self.position[1], 2 * self.collider.half_width[0]
-
-
-class Basket(GameObject):
-    def __init__(self, position, team='blue'):
-        super().__init__(position, image_path='basket')
-        self.image_position = np.array([0.4, -0.15])
-        self.add_collider(ColliderGroup([0, 0]))
-        self.collider.add_collider(Circle([-0.3, 0.0], 0.1, Group.WALLS))
-        self.collider.add_collider(Circle([1.3, 0.0], 0.1, Group.WALLS))
-        self.collider.add_collider(Circle([0.5, -0.5], 0.2, Group.GOALS))
-        self.collider.add_collider(Rectangle([0.5, -0.9], 1.4, -0.5, Group.WALLS))
-        self.team = team
-        self.score = 0
-        self.front = GameObject(self.position, 'basket_front', layer=4)
-        self.front.image_position = np.array([0.4, -0.72])
-
-    def reset(self):
-        self.collider.colliders[-1].group = Group.WALLS
-
-    def delete(self):
-        super().delete()
-        self.front.delete()
-
-    def change_team(self):
-        self.team = 'blue' if self.team == 'red' else 'red'
-
-    def set_position(self, position):
-        super().set_position(position)
-        self.front.set_position(position)
-
-    def get_data(self):
-        return type(self), self.position[0], self.position[1], self.team
-
-    def draw(self, batch, camera, image_handler):
-        super().draw(batch, camera, image_handler)
-        self.front.draw(batch, camera, image_handler)
-
-    def draw_shadow(self, batch, camera, image_handler, light):
-        super().draw_shadow(batch, camera, image_handler, light)
-        self.front.draw_shadow(batch, camera, image_handler, light)
 
 
 class Scoreboard(GameObject):

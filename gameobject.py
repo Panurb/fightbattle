@@ -10,7 +10,7 @@ MAX_SPEED = 75.0
 
 
 class GameObject(Drawable):
-    def __init__(self, position, image_path='', size=1.0, layer=4, angle=0.0):
+    def __init__(self, position, image_path='', size=1.05, layer=4, angle=0.0):
         super().__init__(position, image_path, size, angle, layer)
 
         self.collider = None
@@ -53,7 +53,6 @@ class GameObject(Drawable):
         collider.position += self.position
 
     def debug_draw(self, batch, camera, image_handler):
-        camera.draw_circle(self.position, 0.1, image_handler.debug_color)
         if self.collider:
             self.collider.draw(batch, camera, image_handler)
 
@@ -66,7 +65,7 @@ class GameObject(Drawable):
 
 
 class PhysicsObject(GameObject):
-    def __init__(self, position, velocity=(0, 0), image_path='', size=1.0, gravity_scale=1.0, bump_sound='bump',
+    def __init__(self, position, velocity=(0, 0), image_path='', size=1.05, gravity_scale=1.0, bump_sound='bump',
                  dust=True):
         super().__init__(position, image_path, size)
         self.velocity = np.array(velocity, dtype=float)
@@ -257,7 +256,7 @@ class PhysicsObject(GameObject):
 
 
 class Destroyable(PhysicsObject):
-    def __init__(self, position, velocity=(0, 0), image_path='', debris_path='', size=1.0, debris_size=1.0,
+    def __init__(self, position, velocity=(0, 0), image_path='', debris_path='', size=1.05, debris_size=1.0,
                  health=100, parent=None, bump_sound='bump'):
         super().__init__(position, velocity, image_path, size, bump_sound=bump_sound)
         self.health = health

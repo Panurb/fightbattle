@@ -15,7 +15,8 @@ class ImageHandler:
         self.tiles = dict()
         self.debug_color = (255, 0, 255)
         pyglet.resource.path = ['data/images', 'data/images/bodies', 'data/images/hands', 'data/images/heads',
-                                'data/images/weapons', 'data/images/particles', 'data/images/icons']
+                                'data/images/weapons', 'data/images/particles', 'data/images/icons',
+                                'data/images/decals']
         pyglet.resource.reindex()
 
         self.load_images()
@@ -35,18 +36,15 @@ class ImageHandler:
         path = os.path.join('data', 'images')
 
         for r, d, f in os.walk(path):
-            if 'decals' in r:
+            if r.endswith('decals'):
                 for file in f:
-                    if '.png' in file:
+                    if file.endswith('png'):
                         name = file.replace('.png', '')
                         img = Image.open(os.path.join(r, file))
                         self.decals[name] = ImageOps.mirror(img)
-
-                continue
-
-            if 'tiles' in r:
+            elif r.endswith('tiles'):
                 for file in f:
-                    if '.png' in file:
+                    if file.endswith('png'):
                         name = file.replace('.png', '')
                         img = Image.open(os.path.join(r, file))
                         img = ImageOps.mirror(img)
@@ -67,18 +65,13 @@ class ImageHandler:
                 suffix = ''
 
             for file in f:
-                if '.png' in file:
+                if file.endswith('png'):
                     name = file.replace('.png', '') + suffix
 
                     image = pyglet.resource.image(prefix + file)
                     image.anchor_x = image.width // 2
                     image.anchor_y = image.height // 2
                     self.images[name] = image
-
-                    image = pyglet.resource.image(prefix + file, flip_x=True)
-                    image.anchor_x = image.width // 2
-                    image.anchor_y = image.height // 2
-                    self.images[name + '_flipped'] = image
 
     def image_to_tiles(self, image, nx, ny):
         width = image.width

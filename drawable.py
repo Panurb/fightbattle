@@ -1,7 +1,8 @@
 import numpy as np
+from PIL import Image
 from numpy.linalg import norm
 
-from helpers import rotate
+from helpers import rotate, normalized
 
 
 class Decal:
@@ -12,10 +13,27 @@ class Decal:
         self.size = size
         self.sprite = None
         self.layer = layer
+        self.image_position = np.zeros(2)
 
     def draw(self, batch, camera, image_handler):
         self.sprite = camera.draw_sprite(image_handler, self.image_path, self.position, self.size, angle=self.angle,
                                          batch=batch, layer=self.layer, sprite=self.sprite)
+
+    def blit_to_image(self, image, image_handler, light=None):
+        pos = self.position + self.image_position
+        decal = image_handler.tiles[self.image_path]
+        size = [int(1.05 * s) for s in decal.size]
+        decal = decal.resize(size, Image.ANTIALIAS)
+        mask = decal.convert('RGBA')
+
+        if light is not None:
+            decal = decal.convert('L').point(lambda x: 0, mode='1').convert('RGBA')
+            decal.putalpha(128)
+
+            shadow_offset = 0.5 * normalized(self.position - light.position)
+            image.paste(decal, [int(p * 100) for p in pos + shadow_offset], mask)
+        else:
+            image.paste(decal, [int(p * 100) for p in pos], mask)
 
 
 class Drawable(Decal):
@@ -23,7 +41,6 @@ class Drawable(Decal):
         super().__init__(position, image_path, size, angle, layer)
         self.direction = 1
         self.angle = angle
-        self.image_position = np.zeros(2)
         self.shadow_sprite = None
 
     def delete(self):

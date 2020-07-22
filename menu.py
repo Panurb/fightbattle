@@ -326,7 +326,7 @@ class PauseMenu(Menu):
 class LevelMenu(Menu):
     def __init__(self):
         super().__init__([25, -16])
-        path = os.path.join('data', 'levels')
+        path = os.path.join('data', 'levels', 'multiplayer')
         levels = [x.split('.')[0] for x in os.listdir(path)]
         self.level_slider = Slider('Level', levels, cyclic=False)
         self.buttons.append(self.level_slider)
@@ -345,14 +345,28 @@ class LevelMenu(Menu):
 class CampaignMenu(Menu):
     def __init__(self):
         super().__init__([-25, 0])
-        path = os.path.join('data', 'levels')
+        self.target_state = State.CAMPAIGN
+        self.previous_state = State.MENU
+        self.button_offset = -2
+
+        path = os.path.join('data', 'images', 'heads')
+        heads = [x.split('.')[0] for x in os.listdir(path)]
+        self.head_slider = Slider('Head', heads)
+        self.buttons.append(self.head_slider)
+
+        path = os.path.join('data', 'images', 'bodies')
+        bodies = [x.split('.')[0] for x in os.listdir(path)]
+        self.body_slider = Slider('Body', bodies)
+        self.buttons.append(self.body_slider)
+
+        path = os.path.join('data', 'levels', 'singleplayer')
         levels = [x.split('.')[0] for x in os.listdir(path)]
         self.level_slider = Slider('Level', levels, cyclic=False)
         self.buttons.append(self.level_slider)
+
         self.buttons.append(Button('Start', State.SINGLEPLAYER))
+
         self.update_buttons()
-        self.target_state = State.CAMPAIGN
-        self.previous_state = State.MENU
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):

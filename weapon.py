@@ -16,6 +16,7 @@ class Weapon(PhysicsObject):
         self.hit = False
         self.attack_delay = 0.25
         self.timer = 0.0
+        self.automatic = False
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -108,6 +109,70 @@ class Shotgun(Gun):
         self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 10
         self.velocity += 2 * self.collider.half_height / self.collider.height * 10
 
+        return bs
+
+
+class SawedOff(Gun):
+    def __init__(self, position):
+        super().__init__(position, 'revolver')
+        self.image_position = np.array([0.35, 0.15])
+        self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.WEAPONS))
+        self.bullet_speed = 30.0
+        self.attack_delay = 1.5
+        self.mass = 1.5
+
+    def attack(self):
+        bs = super().attack()
+        self.sounds.add('revolver')
+        theta = self.angle - 0.5
+        for _ in range(4):
+            theta += 0.25
+            v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
+            bs.append(Pellet(self.get_barrel_position(), v, self.parent))
+        self.angular_velocity += self.direction * 15
+        self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 10
+        self.velocity += 2 * self.collider.half_height / self.collider.height * 10
+
+        return bs
+
+
+class Sniper(Gun):
+    def __init__(self, position):
+        super().__init__(position, 'shotgun')
+        self.size = 0.9
+        self.image_position = np.array([0, -0.1])
+        self.add_collider(Rectangle([0, 0.08], 1.8, 0.3, Group.WEAPONS))
+        self.hand_position = np.array([-0.7, -0.2])
+        self.grip_position = np.array([0.45, -0.05])
+        self.attack_delay = 2.0
+        self.bullet_speed = 60.0
+
+    def attack(self):
+        bs = super().attack()
+        self.sounds.add('shotgun')
+        v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
+        bs.append(Bullet(self.get_barrel_position(), v, self.parent))
+        self.angular_velocity += self.direction * 15
+        self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 10
+        self.velocity += 2 * self.collider.half_height / self.collider.height * 10
+        return bs
+
+
+class MachineGun(Gun):
+    def __init__(self, position):
+        super().__init__(position, 'revolver')
+        self.image_position = np.array([0.35, 0.15])
+        self.add_collider(Rectangle([0.35, 0.29], 1.1, 0.3, Group.WEAPONS))
+        self.automatic = True
+        self.attack_delay = 0.1
+
+    def attack(self):
+        bs = super().attack()
+        self.sounds.add('revolver')
+        v = self.direction * self.bullet_speed * polar_to_cartesian(1, self.angle)
+        bs.append(Bullet(self.get_barrel_position(), v, self.parent))
+        self.angular_velocity += self.direction * 5
+        self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 5
         return bs
 
 

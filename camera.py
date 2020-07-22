@@ -65,7 +65,27 @@ class Camera:
         self.target_zoom = self.zoom
 
     def set_target(self, players, level):
-        self.target_position = sum(p.position for p in players.values()) / len(players)
+        alive = 0
+
+        x_min = np.inf
+        x_max = -np.inf
+        y_min = np.inf
+        y_max = -np.inf
+        for p in players.values():
+            if p.camera_shake is not None:
+                self.shake += p.camera_shake
+                p.camera_shake = None
+
+            if p.destroyed:
+                continue
+
+            alive += 1
+            x_min = min(x_min, p.position[0])
+            x_max = max(x_max, p.position[0])
+            y_min = min(y_min, p.position[1])
+            y_max = max(y_max, p.position[1])
+
+        self.target_position[:] = [0.5 * (x_max + x_min), 0.5 * (y_max + y_min)]
 
         self.target_position[0] = max(self.target_position[0], self.half_width[0])
         self.target_position[0] = min(self.target_position[0], level.width - self.half_width[0])
@@ -79,19 +99,13 @@ class Camera:
         if level.height < 2 * self.half_height[1]:
             self.target_position[1] = 0.5 * level.height
 
-        if len(players) > 1:
-            eps = 1e-6
-            x = max(abs(p.position[0] - self.target_position[0]) for p in players.values()) + eps
-            y = max(abs(p.position[1] - self.target_position[1]) for p in players.values()) + eps
-            self.target_zoom = min(0.4 * self.resolution[0] / x, 0.4 * self.resolution[1] / y)
+        if alive > 1:
+            x = max(abs(x_max - self.target_position[0]), abs(x_min - self.target_position[0]))
+            y = max(abs(y_max - self.target_position[1]), abs(y_min - self.target_position[1]))
+            self.target_zoom = min(0.47 * self.resolution[0] / x, 0.47 * self.resolution[1] / y)
             self.target_zoom = min(self.target_zoom, self.max_zoom)
         else:
             self.target_zoom = self.max_zoom
-
-        for p in players.values():
-            if p.camera_shake is not None:
-                self.shake += p.camera_shake
-                p.camera_shake = None
 
         for o in level.objects.values():
             if o.camera_shake is not None:
@@ -127,33 +141,25 @@ class Camera:
         self.half_height = 0.5 * self.resolution[1] / self.zoom * basis(1)
 
     def world_to_screen(self, position):
-        pos = (position - self.position) * self.zoom + 0.5 * self.resolution + self.shake
-
-        return [int(pos[0]), int(pos[1])]
+        return np.array((position - self.position) * self.zoom + 0.5 * self.resolution + self.shake, dtype=int)
 
     def screen_to_world(self, position):
-        pos = np.array([position[0], position[1]], dtype=float)
-        pos = (pos - 0.5 * self.resolution - self.shake) / self.zoom + self.position
-
-        return pos
+        return (np.array(position, dtype=float) - 0.5 * self.resolution - self.shake) / self.zoom + self.position
 
     def draw_sprite(self, image_handler, image_path, position, scale=1, direction=1, angle=0.0, scale_x=None,
                     scale_y=None, batch=None, layer=1, sprite=None):
         if sprite is None:
             sprite = pyglet.sprite.Sprite(img=image_handler.images[image_path], batch=batch, group=self.layers[layer])
 
-        if direction == -1:
-            sprite.image = image_handler.images[f'{image_path}_flipped']
-        else:
-            sprite.image = image_handler.images[image_path]
+        sprite.image = image_handler.images[image_path]
 
         if scale_x:
-            scale = None
-            scale_x = 1.05 * self.zoom * scale_x / 100
-            scale_y = 1.05 * self.zoom * scale_y / 100
+            scale_x = direction * self.zoom * scale_x / 100
+            scale_y = self.zoom * scale_y / 100
         else:
-            scale = 1.05 * self.zoom * scale / 100 if scale else None
-        sprite.update(*self.world_to_screen(position), -np.rad2deg(angle), scale, scale_x, scale_y)
+            scale_x = direction * self.zoom * scale / 100
+            scale_y = self.zoom * scale / 100
+        sprite.update(*self.world_to_screen(position), -np.rad2deg(angle), scale_x=scale_x, scale_y=scale_y)
         sprite.group = self.layers[layer]
 
         return sprite

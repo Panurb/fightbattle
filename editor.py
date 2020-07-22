@@ -1,4 +1,5 @@
 import math
+import os
 import pickle
 
 import numpy as np
@@ -10,11 +11,12 @@ from pyglet.window import mouse
 from imagehandler import ImageHandler
 from optionhandler import OptionHandler
 from camera import Camera
+from goal import Exit, Basket, Goal
 from level import Level, PlayerSpawn
-from prop import Crate, Ball
+from prop import Crate, Ball, Box
 from text import Text
-from wall import Basket, Scoreboard, Wall, Platform
-from weapon import Weapon, Revolver, Shotgun, Bow, Grenade, Axe, Shield
+from wall import Scoreboard, Wall, Platform
+from weapon import Revolver, Shotgun, Bow, Grenade, Axe, Shield, Sniper, SawedOff, MachineGun
 
 
 class Editor(pyglet.window.Window):
@@ -42,8 +44,8 @@ class Editor(pyglet.window.Window):
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
         self.grab_start = np.zeros(2)
-        self.object_types = [Wall, Platform, Scoreboard, PlayerSpawn, Basket, Crate, Ball,
-                             Revolver, Shotgun, Bow, Grenade, Axe, Shield]
+        self.object_types = [Wall, Platform, Scoreboard, PlayerSpawn, Exit, Basket, Crate, Box, Ball,
+                             Revolver, Shotgun, Bow, Grenade, Axe, Shield, SawedOff, Sniper, MachineGun]
         self.type_index = 0
         self.type_text = Text('', np.zeros(2), 0.5)
 
@@ -51,15 +53,17 @@ class Editor(pyglet.window.Window):
 
         self.type_select = False
 
+        self.path = os.path.join('data', 'levels', 'singleplayer', 'aaa')
+
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
             for i, o in enumerate(self.level.objects.values()):
                 o.id = i
-            with open('data/levels/aaa.pickle', 'wb') as f:
+            with open(self.path + '.pickle', 'wb') as f:
                 pickle.dump(self.level.get_data(), f)
 
         if symbol == key.L:
-            with open('data/levels/aaa.pickle', 'rb') as f:
+            with open(self.path + '.pickle', 'rb') as f:
                 data = pickle.load(f)
                 self.level.clear()
                 self.level.apply_data(data)
@@ -99,10 +103,12 @@ class Editor(pyglet.window.Window):
                     obj = self.object_types[self.type_index](pos)
                     self.grabbed_object = obj
 
-                    if self.type_index == 2:
+                    if type(obj) is Scoreboard:
                         self.level.scoreboard = obj
-                    elif self.type_index == 3:
+                    elif type(obj) is PlayerSpawn:
                         self.level.player_spawns.append(obj)
+                    elif isinstance(obj, Goal):
+                        self.level.goals.append(obj)
                     else:
                         self.level.add_object(obj)
 
@@ -145,8 +151,7 @@ class Editor(pyglet.window.Window):
 
             for g in self.level.goals:
                 if g.collider.point_inside(mouse_pos):
-                    g.sprite.delete()
-                    g.front.sprite.delete()
+                    g.delete()
                     self.level.goals.remove(g)
 
             if self.level.scoreboard and self.level.scoreboard.collider.point_inside(mouse_pos):
@@ -176,13 +181,14 @@ class Editor(pyglet.window.Window):
         self.clear()
         self.draw_grid(1.0)
         self.level.draw(self.batch, self.camera, self.image_handler)
+
         for g in self.level.goals:
+            g.draw(self.batch, self.camera, self.image_handler)
             g.sprite.color = (0, 0, 255) if g.team == 'blue' else (255, 0, 0)
-        if self.option_handler.debug_draw:
-            self.level.debug_draw(self.batch, self.camera, self.image_handler)
 
         for p in self.level.player_spawns:
             p.draw(self.batch, self.camera, self.image_handler)
+            p.sprite.color = (0, 0, 255) if p.team == 'blue' else (255, 0, 0)
 
         self.draw_selection()
 
@@ -191,6 +197,9 @@ class Editor(pyglet.window.Window):
         pos = self.camera.position + 3 * self.type_text.size - self.camera.half_width - self.camera.half_height
         self.type_text.set_position(pos)
         self.type_text.draw(self.batch, self.camera, self.image_handler)
+
+        if self.option_handler.debug_draw:
+            self.level.debug_draw(self.batch, self.camera, self.image_handler)
 
         self.batch.draw()
 

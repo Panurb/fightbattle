@@ -1,9 +1,11 @@
+import os
 from _thread import *
 
 import numpy as np
 from pyglet.window import key
 
 from camera import Camera
+from collider import Group
 from enemy import Enemy
 from gameobject import Destroyable
 from helpers import basis
@@ -92,6 +94,22 @@ class GameLoop:
         zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
         self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
 
+    def delete_game(self):
+        if self.state is State.CAMPAIGN:
+            for k, p in self.players.items():
+                if type(p) is Enemy:
+                    p.delete()
+                    del self.players[k]
+                else:
+                    p.reset(self.colliders)
+
+        self.level.delete()
+        self.level = None
+
+        self.timer = 0
+        self.text.string = ''
+        self.camera.set_position_zoom(self.level_menu.position, self.camera.max_zoom)
+
     def add_player(self, controller_id, network_id=-1):
         if network_id == -1:
             network_id = controller_id
@@ -101,7 +119,8 @@ class GameLoop:
     def update(self, time_step):
         if self.state is State.SINGLEPLAYER:
             if not self.level:
-                self.load_level(self.level_menu.level_slider.get_value())
+                path = os.path.join('singleplayer', self.campaign_menu.level_slider.get_value())
+                self.load_level(path)
                 self.timer = 0
                 self.campaign_menu.set_visible(False)
                 self.score_limit = int(self.level_menu.score_slider.get_value())
@@ -117,7 +136,11 @@ class GameLoop:
             for player in self.players.values():
                 player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
                 if player.controller_id == -1:
-                    player.update_ai(self.level.objects, list(self.players.values())[0])
+                    player.update_ai(self.level.objects, list(self.players.values())[0], self.colliders)
+                else:
+                    player.collider.update_collisions(self.colliders, {Group.GOALS})
+                    if player.collider.collisions:
+                        self.state = State.CAMPAIGN
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
@@ -125,7 +148,8 @@ class GameLoop:
             self.text.position[:] = self.camera.position
         if self.state is State.MULTIPLAYER:
             if not self.level:
-                self.load_level(self.level_menu.level_slider.get_value())
+                path = os.path.join('multiplayer', self.level_menu.level_slider.get_value())
+                self.load_level(path)
                 self.level_menu.set_visible(False)
                 self.score_limit = int(self.level_menu.score_slider.get_value())
                 zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
@@ -196,6 +220,10 @@ class GameLoop:
                 self.camera.set_target(self.players, self.level)
                 self.text.position[:] = self.camera.position
         elif self.state is State.MENU:
+            for p in self.players.values():
+                p.delete()
+            self.players.clear()
+
             self.camera.target_position[:] = self.menu.position
             self.menu.update(time_step)
             self.state = self.menu.target_state
@@ -204,6 +232,24 @@ class GameLoop:
             if self.state is State.OPTIONS:
                 self.option_handler.load()
                 self.options_menu.set_values(self.option_handler)
+        elif self.state is State.CAMPAIGN:
+            if self.level:
+                self.delete_game()
+
+            if not self.players:
+                self.add_player(0)
+
+            self.players[0].body_type = self.campaign_menu.body_slider.get_value()
+            self.players[0].head_type = self.campaign_menu.head_slider.get_value()
+
+            self.players[0].set_position(self.campaign_menu.position + 3 * basis(1))
+            self.players[0].on_ground = True
+            self.players[0].animate(0.0)
+
+            self.camera.target_position[:] = self.campaign_menu.position
+            self.state = self.campaign_menu.target_state
+            self.campaign_menu.set_visible(self.state is State.SINGLEPLAYER)
+            self.campaign_menu.target_state = State.CAMPAIGN
         elif self.state is State.PLAYER_SELECT:
             self.camera.target_position[:] = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
 
@@ -212,6 +258,10 @@ class GameLoop:
                     self.players[pm.controller_id].body_type = pm.body_slider.get_value()
                     self.players[pm.controller_id].head_type = pm.head_slider.get_value()
                     self.players[pm.controller_id].team = pm.team_slider.get_value()
+
+                    self.players[pm.controller_id].set_position(pm.position + 3 * basis(1))
+                    self.players[pm.controller_id].on_ground = True
+                    self.players[pm.controller_id].animate(0.0)
                 else:
                     if pm.controller_id is not None:
                         self.players[pm.controller_id].delete()
@@ -224,6 +274,8 @@ class GameLoop:
                 for pm in self.player_menus:
                     pm.ready = False
         elif self.state is State.LEVEL_SELECT:
+            if self.level:
+                self.delete_game()
             self.camera.target_position[:] = self.level_menu.position
             self.state = self.level_menu.target_state
             self.level_menu.target_state = State.LEVEL_SELECT
@@ -305,34 +357,11 @@ class GameLoop:
             self.pause_menu.set_visible(self.state is State.PAUSED)
             self.text.set_visible(self.state is not State.PAUSED)
 
-            if self.state in {State.CAMPAIGN, State.LEVEL_SELECT}:
-                if self.state is State.CAMPAIGN:
-                    for p in self.players.values():
-                        p.delete()
-                    self.players.clear()
-                else:
-                    for p in self.players.values():
-                        p.reset(self.colliders)
-
-                self.level.delete()
-                self.level = None
-
-                self.timer = 0
-                self.text.string = ''
-                self.camera.set_position_zoom(self.level_menu.position, self.camera.max_zoom)
-
             self.pause_menu.target_state = State.PAUSED
         elif self.state is State.CONTROLS:
             self.camera.target_position[:] = self.controls_menu.position
             self.state = self.controls_menu.target_state
             self.controls_menu.target_state = State.CONTROLS
-        elif self.state is State.CAMPAIGN:
-            if not self.players:
-                self.add_player(0)
-            self.camera.target_position[:] = self.campaign_menu.position
-            self.state = self.campaign_menu.target_state
-            self.campaign_menu.set_visible(self.state is State.SINGLEPLAYER)
-            self.campaign_menu.target_state = State.CAMPAIGN
 
         self.camera.update(time_step)
 
@@ -425,7 +454,7 @@ class GameLoop:
 
     def draw(self, batch, image_handler):
         self.text.draw(batch, self.camera, image_handler)
-        if self.state is State.SINGLEPLAYER:
+        if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER, State.LAN}:
             image_handler.set_clear_color((113, 118, 131))
 
             if self.level:
@@ -440,21 +469,6 @@ class GameLoop:
 
             if self.option_handler.debug_draw:
                 self.debug_draw(batch, image_handler)
-        elif self.state in {State.MULTIPLAYER, State.LAN}:
-            image_handler.set_clear_color((113, 118, 131))
-
-            if self.level:
-                self.level.draw(batch, self.camera, image_handler)
-                if self.option_handler.shadows:
-                    self.level.draw_shadow(batch, self.camera, image_handler)
-
-            for player in self.players.values():
-                player.draw(batch, self.camera, image_handler)
-                if self.option_handler.shadows:
-                    player.draw_shadow(batch, self.camera, image_handler, self.level.light)
-
-            if self.option_handler.debug_draw:
-                self.debug_draw(batch, image_handler)
         elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT, State.CONTROLS,
                             State.CAMPAIGN}:
             image_handler.set_clear_color((50, 50, 50))
@@ -463,14 +477,12 @@ class GameLoop:
             self.options_menu.draw(batch, self.camera, image_handler)
             for pm in self.player_menus:
                 pm.draw(batch, self.camera, image_handler)
-                if pm.controller_id in self.players:
-                    self.players[pm.controller_id].set_position(pm.position + 3 * basis(1))
-                    self.players[pm.controller_id].on_ground = True
-                    self.players[pm.controller_id].animate(0.0)
-                    self.players[pm.controller_id].draw(batch, self.camera, image_handler)
             self.level_menu.draw(batch, self.camera, image_handler)
             self.controls_menu.draw(batch, self.camera, image_handler)
             self.campaign_menu.draw(batch, self.camera, image_handler)
+
+            for p in self.players.values():
+                p.draw(batch, self.camera, image_handler)
         elif self.state is State.PAUSED:
             self.pause_menu.draw(batch, self.camera, image_handler)
 
@@ -483,11 +495,11 @@ class GameLoop:
         else:
             self.camera.sprite.opacity = 0
 
-    def debug_draw(self, screen, image_handler):
+    def debug_draw(self, batch, image_handler):
         for player in self.players.values():
-            player.debug_draw(screen, self.camera, image_handler)
+            player.debug_draw(batch, self.camera, image_handler)
 
-        #self.level.debug_draw(screen, self.camera, image_handler)
+        self.level.debug_draw(batch, self.camera, image_handler)
 
     def play_sounds(self, sound_handler):
         if self.state is State.PAUSED:
@@ -515,17 +527,16 @@ class GameLoop:
             self.option_handler.sfx_volume = self.options_menu.buttons[2].get_value()
             self.option_handler.music_volume = self.options_menu.buttons[3].get_value()
             self.option_handler.save()
-
-            self.menu.play_sounds(sound_handler)
-            self.options_menu.play_sounds(sound_handler)
         else:
-            self.menu.play_sounds(sound_handler)
-            self.options_menu.play_sounds(sound_handler)
             for pm in self.player_menus:
                 pm.play_sounds(sound_handler)
             self.controls_menu.play_sounds(sound_handler)
+
+        self.menu.play_sounds(sound_handler)
+        self.options_menu.play_sounds(sound_handler)
         self.level_menu.play_sounds(sound_handler)
         self.pause_menu.play_sounds(sound_handler)
+        self.campaign_menu.play_sounds(sound_handler)
 
     def network_thread(self):
         while True:

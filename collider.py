@@ -4,7 +4,7 @@ import enum
 import scipy
 from numba import njit, prange
 
-from helpers import norm2, basis
+from helpers import norm2, basis, perp, polar_to_cartesian
 
 GRID_SIZE = 1
 
@@ -61,18 +61,16 @@ def axis_overlap(r1, p1, r2, p2, u):
 
 
 @njit(cache=True)
-def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
-    overlaps = np.zeros(4)
+def overlap_rectangle_rectangle_aligned(hw1, w1, hh1, h1, p1, hw2, hh2, p2):
+    overlaps = np.zeros(2)
 
-    axes = np.zeros((4, 2))
-    axes[0, :] = w1 / norm(w1)
-    axes[1, :] = h1 / norm(h1)
-    axes[2, :] = w2 / norm(w2)
-    axes[3, :] = h2 / norm(h2)
+    axes = np.zeros((2, 2))
+    axes[0, :] = 2 * hw1 / w1
+    axes[1, :] = 2 * hh1 / h1
 
-    for i in prange(4):
+    for i in prange(2):
         u = axes[i, :]
-        overlaps[i] = axis_overlap(axis_half_width(w1, h1, u), p1, axis_half_width(w2, h2, u), p2, u)
+        overlaps[i] = axis_overlap(axis_half_width(hw1, hh1, u), p1, axis_half_width(hw2, hh2, u), p2, u)
         if overlaps[i] == 0.0:
             return np.zeros(2)
 
@@ -82,17 +80,38 @@ def overlap_rectangle_rectangle(w1, h1, p1, w2, h2, p2):
 
 
 @njit(cache=True)
-def overlap_rectangle_circle(w1, h1, p1, r2, p2):
+def overlap_rectangle_rectangle(hw1, w1, hh1, h1, p1, hw2, w2, hh2, h2, p2):
+    overlaps = np.zeros(4)
+
+    axes = np.zeros((4, 2))
+    axes[0, :] = 2 * hw1 / w1
+    axes[1, :] = 2 * hh1 / h1
+    axes[2, :] = 2 * hw2 / w2
+    axes[3, :] = 2 * hh2 / h2
+
+    for i in prange(4):
+        u = axes[i, :]
+        overlaps[i] = axis_overlap(axis_half_width(hw1, hh1, u), p1, axis_half_width(hw2, hh2, u), p2, u)
+        if overlaps[i] == 0.0:
+            return np.zeros(2)
+
+    i = np.argmin(np.abs(overlaps))
+
+    return overlaps[i] * axes[i, :]
+
+
+@njit(cache=True)
+def overlap_rectangle_circle(hw1, w1, hh1, h1, p1, r2, p2):
     overlaps = np.zeros(2)
     near_corner = True
 
     axes = np.zeros((2, 2))
-    axes[0, :] = w1 / norm(w1)
-    axes[1, :] = h1 / norm(h1)
+    axes[0, :] = 2 * hw1 / w1
+    axes[1, :] = 2 * hh1 / h1
 
     for i in prange(2):
         u = axes[i, :]
-        overlaps[i] = axis_overlap(axis_half_width(w1, h1, u), p1, r2, p2, u)
+        overlaps[i] = axis_overlap(axis_half_width(hw1, hh1, u), p1, r2, p2, u)
 
         if overlaps[i] == 0.0:
             return np.zeros(2)
@@ -104,12 +123,12 @@ def overlap_rectangle_circle(w1, h1, p1, r2, p2):
     if not near_corner:
         return overlaps[i] * axes[i, :]
 
-    corner = p1 - np.sign(overlaps[0]) * w1 - np.sign(overlaps[1]) * h1
+    corner = p1 - np.sign(overlaps[0]) * hw1 - np.sign(overlaps[1]) * hh1
 
     axis = corner - p2
     u = axis / norm(axis)
 
-    overlap = axis_overlap(axis_half_width(w1, h1, u), p1, r2, p2, u)
+    overlap = axis_overlap(axis_half_width(hw1, hh1, u), p1, r2, p2, u)
 
     if 0 < abs(overlap) < abs(overlaps[i]):
         return overlap * u
@@ -129,7 +148,10 @@ class Collider:
         self.position = np.array(position, dtype=float)
         self.collisions = []
         self.group = group
-        self.occupied_squares = []
+        self.left = None
+        self.right = None
+        self.top = None
+        self.bottom = None
         self.half_width = np.zeros(2)
         self.half_height = np.zeros(2)
         self.vertex_list = None
@@ -144,24 +166,25 @@ class Collider:
         self.collisions.clear()
 
         cs = set()
-        for i, j in self.occupied_squares:
-            for c in colliders[i][j]:
-                if not c.parent:
-                    continue
-
-                if c.parent is self.parent:
-                    continue
-
-                if not c.parent.collision_enabled:
-                    continue
-
-                if groups:
-                    if c.group not in groups:
+        for i in range(self.left - 1, min(self.right + 1, len(colliders))):
+            for j in range(self.bottom - 1, min(self.top + 1, len(colliders[0]))):
+                for c in colliders[i][j]:
+                    if not c.parent:
                         continue
-                elif c.group not in COLLIDES_WITH[self.group]:
-                    continue
 
-                cs.add(c)
+                    if c.parent is self.parent:
+                        continue
+
+                    if not c.parent.collision_enabled:
+                        continue
+
+                    if groups:
+                        if c.group not in groups:
+                            continue
+                    elif c.group not in COLLIDES_WITH[self.group]:
+                        continue
+
+                    cs.add(c)
 
         for c in cs:
             overlap = self.overlap(c)
@@ -183,21 +206,28 @@ class Collider:
     def update_occupied_squares(self, colliders):
         self.clear_occupied_squares(colliders)
 
-        x, y = self.position
         w = axis_half_width(self.half_width, self.half_height, basis(0))
         h = axis_half_width(self.half_width, self.half_height, basis(1))
 
-        for i in range(max(int((x - w) / GRID_SIZE) - 1, 0), min(int((x + w) / GRID_SIZE) + 1, len(colliders))):
-            for j in range(max(int((y - h) / GRID_SIZE) - 1, 0), min(int((y + h) / GRID_SIZE) + 1, len(colliders[i]))):
-                self.occupied_squares.append((i, j))
+        self.left = max(int((self.position[0] - w) / GRID_SIZE), 0)
+        self.right = min(int((self.position[0] + w) / GRID_SIZE), len(colliders))
+        self.bottom = max(int((self.position[1] - h) / GRID_SIZE), 0)
+        self.top = min(int((self.position[1] + h) / GRID_SIZE), len(colliders[0]))
 
-        for i, j in self.occupied_squares:
-            colliders[i][j].append(self)
+        for i in range(self.left, self.right):
+            for j in range(self.bottom, self.top):
+                colliders[i][j].append(self)
 
     def clear_occupied_squares(self, colliders):
-        for i, j in self.occupied_squares:
-            colliders[i][j].remove(self)
-        self.occupied_squares.clear()
+        if self.left is None:
+            return
+
+        for i in range(self.left, self.right):
+            for j in range(self.bottom, self.top):
+                try:
+                    colliders[i][j].remove(self)
+                except ValueError:
+                    pass
 
 
 class ColliderGroup:
@@ -278,10 +308,16 @@ class Rectangle(Collider):
 
     def overlap(self, other):
         if type(other) is Rectangle:
-            return overlap_rectangle_rectangle(self.half_width, self.half_height, self.position,
-                                               other.half_width, other.half_height, other.position)
+            if abs(self.angle - other.angle) % (np.pi / 2) < 1e-3:
+                return overlap_rectangle_rectangle_aligned(self.half_width, self.width, self.half_height, self.height,
+                                                           self.position, other.half_width, other.half_height,
+                                                           other.position)
+            else:
+                return overlap_rectangle_rectangle(self.half_width, self.width, self.half_height, self.height,
+                                                   self.position, other.half_width, other.width, other.half_height,
+                                                   other.height, other.position)
         elif type(other) is Circle:
-            return overlap_rectangle_circle(self.half_width, self.half_height, self.position,
+            return overlap_rectangle_circle(self.half_width, self.width, self.half_height, self.height, self.position,
                                             other.radius, other.position)
 
         return np.zeros(2)
@@ -298,14 +334,17 @@ class Rectangle(Collider):
         return False
 
     def rotate(self, angle):
-        r = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-        self.half_width = np.matmul(r, self.half_width)
-        self.half_height = np.matmul(r, self.half_height)
-        self.angle += angle
+        if angle:
+            self.angle += angle
+            self.half_width[0] = 0.5 * self.width * np.cos(self.angle)
+            self.half_width[1] = 0.5 * self.width * np.sin(self.angle)
+            self.half_height[0] = -self.half_width[1] / self.ratio
+            self.half_height[1] = self.half_width[0] / self.ratio
 
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
-        self.vertex_list = camera.draw_line(self.corners() + [self.corners()[0]], 1 / camera.zoom, image_handler.debug_color,
+        self.vertex_list = camera.draw_line(self.corners() + [self.corners()[0]], 1 / camera.zoom,
+                                            image_handler.debug_color,
                                             batch=batch, layer=8, vertex_list=self.vertex_list)
 
     def rest_angle(self):

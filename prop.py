@@ -10,6 +10,7 @@ class Crate(Destroyable):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=100)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
         self.loot_list = [Revolver, Shotgun, Shield, Axe, Grenade, Bow]
+        self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
     def apply_data(self, data):
         super().apply_data(data)
@@ -21,6 +22,19 @@ class Crate(Destroyable):
             self.gravity_scale = 0.0
 
         super().destroy(colliders)
+
+
+class Box(PhysicsObject):
+    def __init__(self, position):
+        super().__init__(position, image_path='box')
+        self.add_collider(Rectangle([0, 0], 1, 1, Group.PROPS))
+        self.rotate(0.5 * np.pi * np.random.randint(0, 4))
+        self.mass = 2.0
+        self.bump_sound = 'gun'
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
 
 class Ball(PhysicsObject):

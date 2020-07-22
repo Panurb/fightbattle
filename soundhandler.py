@@ -37,7 +37,6 @@ class SoundHandler:
         self.music_player.volume = self.music_volume
 
     def set_music(self, index):
-        return
         if index == self.index:
             return
 

@@ -63,6 +63,7 @@ class Player(Destroyable):
         self.network_id = network_id
         self.timer = 0.0
 
+        self.grabbing = False
         self.grab_delay = 0.5
         self.grab_timer = 0.0
 
@@ -330,7 +331,9 @@ class Player(Destroyable):
 
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_occupied_squares(colliders)
-            self.hand.collider.update_collisions(colliders, {Group.PROPS, Group.WEAPONS, Group.SHIELDS})
+            if self.grabbing:
+                self.hand.collider.update_collisions(colliders, {Group.PROPS, Group.WEAPONS, Group.SHIELDS})
+                self.grab_object()
 
     def update_joints(self):
         w = normalized(self.body.collider.half_width) * self.direction
@@ -457,7 +460,7 @@ class Player(Destroyable):
             if type(self.object) is Shotgun:
                 self.back_hand.image_path = 'hand_grip'
         else:
-            self.hand.image_path = 'hand' if self.rt_pressed else 'fist'
+            self.hand.image_path = 'hand' if self.grabbing else 'fist'
             self.back_hand.image_path = ''
             self.back_hand.set_visibility(False)
 
@@ -551,11 +554,12 @@ class Player(Destroyable):
                                 self.charging_attack = True
                         else:
                             self.attack()
-                            self.rt_pressed = True
+                            if not self.object.automatic:
+                                self.rt_pressed = True
                 else:
                     self.charging_attack = False
                     self.attack_charge = 0.0
-                    self.grab_object()
+                    self.grabbing = True
                     self.rt_pressed = True
             else:
                 self.rt_pressed = False
@@ -563,6 +567,7 @@ class Player(Destroyable):
                 if self.attack_charge:
                     self.attack()
                     self.attack_charge = 0.0
+                self.grabbing = False
 
         if self.object:
             if controller.left_trigger > 0.5:
@@ -782,9 +787,8 @@ class Limb(PhysicsObject, AnimatedObject):
         self.start = np.zeros(2)
         self.end = None
 
-        self.joint = Drawable(self.position, '', layer=self.shaft_layer)
-        self.upper = Drawable(self.position, '', size=0.8, layer=self.shaft_layer)
-        self.lower = Drawable(self.position, '', size=0.8, layer=self.shaft_layer)
+        self.upper = Drawable(self.position, '', size=0.85, layer=self.shaft_layer)
+        self.lower = Drawable(self.position, '', size=0.85, layer=self.shaft_layer)
 
     def reset(self, colliders):
         self.collider.clear_occupied_squares(colliders)
@@ -794,7 +798,7 @@ class Limb(PhysicsObject, AnimatedObject):
         if self.shadow_sprite:
             self.shadow_sprite.delete()
             self.shadow_sprite = None
-        for part in [self.joint, self.upper, self.lower]:
+        for part in [self.upper, self.lower]:
             if part.shadow_sprite:
                 part.shadow_sprite.delete()
                 part.shadow_sprite = None
@@ -803,14 +807,12 @@ class Limb(PhysicsObject, AnimatedObject):
 
     def delete(self):
         super().delete()
-        self.joint.delete()
         self.upper.delete()
         self.lower.delete()
 
     def set_visibility(self, visible):
         if self.sprite:
             self.sprite.visible = visible
-            self.joint.sprite.visible = visible
             self.upper.sprite.visible = visible
             self.lower.sprite.visible = visible
 
@@ -826,10 +828,7 @@ class Limb(PhysicsObject, AnimatedObject):
         if r_norm != 0:
             joint -= self.joint_direction * 0.5 * self.parent.direction * length * perp(r) / r_norm
 
-        self.joint.position[:] = joint
-        self.joint.draw(batch, camera, image_handler)
-
-        pos = 0.5 * (start + joint)
+        pos = start + 0.7 * (joint - start)
         angle = polar_angle(joint - start)
 
         self.upper.position[:] = pos
@@ -877,9 +876,8 @@ class Hand(Limb):
                 if self.parent.back_hand.image_path:
                     self.end = self.parent.object.get_hand_position()
 
-        self.joint.image_path = f'elbow_{self.parent.body_type}'
-        self.upper.image_path = f'arm_{self.parent.body_type}'
-        self.lower.image_path = f'arm_{self.parent.body_type}'
+        self.upper.image_path = f'upper_arm_{self.parent.body_type}'
+        self.lower.image_path = f'lower_arm_{self.parent.body_type}'
 
         if self.front and not not self.band and self.parent.team:
             self.band = Drawable(self.position, '', layer=self.shaft_layer+1)
@@ -923,25 +921,15 @@ class Foot(Limb):
     def draw(self, batch, camera, image_handler):
         self.start = self.parent.front_hip if self.front else self.parent.back_hip
         self.image_path = f'foot_{self.parent.body_type}'
-        self.joint.image_path = f'knee_{self.parent.body_type}'
-        self.upper.image_path = f'leg_{self.parent.body_type}'
-
-        if f'lower_leg_{self.parent.body_type}' in image_handler.images:
-            self.lower.image_path = f'lower_leg_{self.parent.body_type}'
-        else:
-            self.lower.image_path = f'leg_{self.parent.body_type}'
+        self.upper.image_path = f'upper_leg_{self.parent.body_type}'
+        self.lower.image_path = f'lower_leg_{self.parent.body_type}'
 
         super().draw(batch, camera, image_handler)
 
     def draw_shadow(self, batch, camera, image_handler, light):
         self.start = self.parent.front_hip if self.front else self.parent.back_hip
         self.image_path = f'foot_{self.parent.body_type}'
-        self.joint.image_path = f'knee_{self.parent.body_type}'
-        self.upper.image_path = f'leg_{self.parent.body_type}'
-
-        if f'lower_leg_{self.parent.body_type}' in image_handler.images:
-            self.lower.image_path = f'lower_leg_{self.parent.body_type}'
-        else:
-            self.lower.image_path = f'leg_{self.parent.body_type}'
+        self.upper.image_path = f'upper_leg_{self.parent.body_type}'
+        self.lower.image_path = f'lower_leg_{self.parent.body_type}'
 
         super().draw_shadow(batch, camera, image_handler, light)
