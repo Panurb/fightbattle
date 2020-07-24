@@ -47,7 +47,8 @@ class Level:
 
     def reset(self):
         for g in self.goals:
-            g.reset()
+            if type(g) is Basket:
+                g.reset()
                 
         for o in self.objects.values():
             o.delete()

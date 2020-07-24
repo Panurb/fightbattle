@@ -20,10 +20,9 @@ class Group(enum.IntEnum):
     SHIELDS = 7
     DEBRIS = 8
     SWORDS = 9
-    HITBOXES = 10
-    PLATFORMS = 11
-    GOALS = 12
-    THROWN = 13
+    PLATFORMS = 10
+    GOALS = 11
+    THROWN = 12
 
 
 COLLIDES_WITH = {Group.NONE: set(),
@@ -35,7 +34,6 @@ COLLIDES_WITH = {Group.NONE: set(),
                  Group.BULLETS: {Group.SHIELDS},
                  Group.SHIELDS: {Group.WALLS, Group.PLATFORMS},
                  Group.DEBRIS: {Group.WALLS, Group.PLATFORMS},
-                 Group.HITBOXES: set(),
                  Group.PLATFORMS: set(),
                  Group.GOALS: set(),
                  Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.WEAPONS}}
@@ -165,6 +163,9 @@ class Collider:
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
 
+        if not self.left:
+            return
+
         cs = set()
         for i in range(self.left - 1, min(self.right + 1, len(colliders))):
             for j in range(self.bottom - 1, min(self.top + 1, len(colliders[0]))):
@@ -210,9 +211,9 @@ class Collider:
         h = axis_half_width(self.half_width, self.half_height, basis(1))
 
         self.left = max(int((self.position[0] - w) / GRID_SIZE), 0)
-        self.right = min(int((self.position[0] + w) / GRID_SIZE), len(colliders))
+        self.right = min(int((self.position[0] + w + 1) / GRID_SIZE), len(colliders))
         self.bottom = max(int((self.position[1] - h) / GRID_SIZE), 0)
-        self.top = min(int((self.position[1] + h) / GRID_SIZE), len(colliders[0]))
+        self.top = min(int((self.position[1] + h + 1) / GRID_SIZE), len(colliders[0]))
 
         for i in range(self.left, self.right):
             for j in range(self.bottom, self.top):

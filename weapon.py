@@ -210,7 +210,7 @@ class Axe(Weapon):
             return
 
         if self.grabbed and self.timer > 0:
-            self.collider.update_collisions(colliders, [Group.HITBOXES, Group.PROPS, Group.SHIELDS])
+            self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS, Group.SHIELDS})
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
@@ -260,6 +260,7 @@ class Grenade(Destroyable):
         self.delay = 3.0
         self.mass = 0.5
         self.decal = ''
+        self.automatic = False
 
     def delete(self):
         super().delete()

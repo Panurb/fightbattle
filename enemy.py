@@ -135,7 +135,7 @@ class Enemy(Player):
                 self.goal_velocity[0] = np.sign(r[0]) * self.run_speed
             else:
                 self.goal_velocity[0] = 0.0
-                if abs(self.hand.angle - np.arctan(r[1] / (r[0] + 1e-3))) < 0.1:
+                if abs(self.hand.angle - np.arctan(r[1] / (r[0] + 1e-3))) < 0.15:
                     self.attack()
 
             if not self.vision_collider.collisions:
@@ -185,13 +185,12 @@ class Enemy(Player):
 
     def raycast(self, origin, velocity, colliders):
         position = np.floor(origin / GRID_SIZE)
-        step = np.sign(velocity + 1e-3)
+        step = np.sign(velocity)
 
-        t_max = (GRID_SIZE - (origin * step) % GRID_SIZE) / np.abs(velocity + 1e-3)
-        t_delta = GRID_SIZE / np.abs(velocity + 1e-3)
+        t_max = (GRID_SIZE - (origin * step) % GRID_SIZE) / np.abs(velocity + 1e-6)
+        t_delta = GRID_SIZE / np.abs(velocity + 1e-6)
 
         while True:
-
             if t_max[0] < t_max[1]:
                 t_max[0] += t_delta[0]
                 position[0] += step[0]
@@ -199,7 +198,7 @@ class Enemy(Player):
                 t_max[1] += t_delta[1]
                 position[1] += step[1]
 
-            for c in colliders[int(position[0])][int(position[1])]:
+            for c in reversed(colliders[int(position[0])][int(position[1])]):
                 if c.parent is self:
                     continue
                 if c.group is Group.WALLS:
@@ -207,10 +206,10 @@ class Enemy(Player):
                 if c.group is Group.PLAYERS:
                     return True
 
-            if not 0 <= position[0] <= len(colliders[0]) - 1:
+            if not 0 <= position[0] <= len(colliders) - 1:
                 break
 
-            if not 0 <= position[1] <= len(colliders) - 1:
+            if not 0 <= position[1] <= len(colliders[0]) - 1:
                 break
 
         return False

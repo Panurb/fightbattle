@@ -4,7 +4,7 @@ from numpy.linalg import norm
 from drawable import Drawable
 from gameobject import PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
-from helpers import norm2, basis, perp, normalized, polar_angle, random_unit
+from helpers import norm2, basis, perp, normalized, polar_angle, random_unit, polar_to_cartesian
 from particle import BloodSplatter, Dust
 from weapon import Shotgun, Bow, Axe, Weapon, Grenade
 
@@ -261,9 +261,6 @@ class Player(Destroyable):
 
         self.update_joints()
 
-        self.head.collider.update_occupied_squares(colliders)
-        self.body.collider.update_occupied_squares(colliders)
-
         self.collider.position[1] = self.position[1] - 0.5 * self.crouched
         self.collider.half_height[1] = 1.5 - 0.5 * self.crouched
 
@@ -336,8 +333,9 @@ class Player(Destroyable):
                 self.grab_object()
 
     def update_joints(self):
-        w = normalized(self.body.collider.half_width) * self.direction
-        h = normalized(self.body.collider.half_height)
+        w = polar_to_cartesian(1, self.body.angle)
+        h = perp(w)
+        w *= self.direction
 
         if self.on_ground:
             foot_offset = 0.5**self.running * 0.3 * (self.front_foot.relative_position[1]
@@ -599,9 +597,6 @@ class Player(Destroyable):
         if self.destroyed:
             return
 
-        self.body.collider.clear_occupied_squares(colliders)
-        self.head.collider.clear_occupied_squares(colliders)
-
         self.hand.gravity_scale = 1.0
         self.back_foot.gravity_scale = 1.0
         self.front_foot.gravity_scale = 1.0
@@ -695,22 +690,17 @@ class Player(Destroyable):
 
 class Head(Destroyable):
     def __init__(self, position, parent):
-        super().__init__(position, image_path='bald', debris_path='gib', size=0.85, debris_size=0.5, health=20,
+        super().__init__(position, image_path='bald', debris_path='gib', size=0.9, debris_size=0.5, health=20,
                          parent=parent)
         self.layer = 5
-        self.add_collider(Circle([0, 0], 0.5, Group.HITBOXES))
 
     def reset(self, colliders):
-        if self.collider:
-            self.collider.clear_occupied_squares(colliders)
         for d in self.debris:
             d.delete()
         self.debris.clear()
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
-        if not self.collider:
-            self.add_collider(Circle([0, 0], 0.5, Group.HITBOXES))
         self.destroyed = False
         self.health = 20
         self.active = True
@@ -740,15 +730,11 @@ class Body(Destroyable):
     def __init__(self, position, parent):
         super().__init__(position, debris_path='gib', size=0.75, debris_size=0.5, parent=parent)
         self.layer = 5
-        self.add_collider(Rectangle([0, -0.5], 0.8, 2, Group.HITBOXES))
 
     def reset(self, colliders):
-        self.collider.clear_occupied_squares(colliders)
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
-        if not self.collider:
-            self.add_collider(Rectangle([0, -0.5], 0.8, 2, Group.HITBOXES))
         self.destroyed = False
         self.rotate(-self.angle)
         if self.shadow_sprite:

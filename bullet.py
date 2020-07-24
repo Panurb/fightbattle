@@ -47,18 +47,17 @@ class Bullet(PhysicsObject):
             self.destroy()
 
         if not self.destroyed:
-            self.collider.update_collisions(colliders, {Group.HITBOXES, Group.PROPS})
+            self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS})
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
 
                 # Can't hit self with own bullets
-                if obj.parent is self.parent:
+                if obj is self.parent:
                     continue
 
                 if isinstance(obj, Destroyable):
-                    if obj.parent:
-                        obj.parent.velocity += 0.1 * self.velocity
+                    obj.velocity += 0.1 * self.velocity
                     particle_type = obj.damage(self.dmg, colliders)
                     self.destroy(particle_type)
                 else:
@@ -133,7 +132,7 @@ class Arrow(Bullet):
         if np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
-        self.collider.update_collisions(colliders, {Group.HITBOXES, Group.PROPS})
+        self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS})
 
         for c in self.collider.collisions:
             obj = c.collider.parent
@@ -143,8 +142,7 @@ class Arrow(Bullet):
                 continue
 
             if isinstance(obj, Destroyable):
-                if obj.parent:
-                    obj.parent.velocity += 0.1 * self.velocity
+                obj.velocity += 0.1 * self.velocity
                 particle_type = obj.damage(min(self.speed * self.dmg, 60), colliders)
                 self.destroy(particle_type)
                 if particle_type is BloodSplatter:

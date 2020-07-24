@@ -317,7 +317,7 @@ class Destroyable(PhysicsObject):
         super().update(gravity, time_step, colliders)
 
         if not self.destroyed:
-            if self.collider.collisions:
+            if self.collider and self.collider.collisions:
                 if self.speed > self.fall_damage_speed:
                     self.damage(self.speed * self.fall_damage, colliders)
 

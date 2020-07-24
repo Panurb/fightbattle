@@ -97,12 +97,15 @@ class GameLoop:
 
     def delete_game(self):
         if self.state is State.CAMPAIGN:
-            for k, p in self.players.items():
+            for k, p in list(self.players.items()):
                 if type(p) is Enemy:
                     p.delete()
                     del self.players[k]
                 else:
                     p.reset(self.colliders)
+        else:
+            for p in self.players.values():
+                p.reset(self.colliders)
 
         self.level.delete()
         self.level = None
@@ -249,16 +252,17 @@ class GameLoop:
             self.players[0].on_ground = True
             self.players[0].animate(0.0)
 
-            if self.previous_state is State.PAUSED:
-                self.camera.set_position_zoom(self.campaign_menu.position, self.camera.max_zoom)
-            else:
-                self.camera.target_position[:] = self.campaign_menu.position
             self.state = self.campaign_menu.target_state
             self.campaign_menu.set_visible(self.state is State.SINGLEPLAYER)
             self.campaign_menu.target_state = State.CAMPAIGN
+
+            if self.previous_state in {State.PAUSED, State.SINGLEPLAYER}:
+                self.camera.set_position_zoom(self.campaign_menu.position, self.camera.max_zoom)
+            else:
+                self.camera.target_position[:] = self.campaign_menu.position
         elif self.state is State.PLAYER_SELECT:
             camera_pos = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
-            if self.previous_state is State.PAUSED:
+            if self.previous_state in {State.PAUSED, State.MULTIPLAYER}:
                 self.camera.set_position_zoom(camera_pos, self.camera.max_zoom)
             else:
                 self.camera.target_position[:] = camera_pos
