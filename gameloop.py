@@ -22,6 +22,7 @@ class GameLoop:
     def __init__(self, option_handler):
         self.option_handler = option_handler
         self.state = State.MENU
+        self.previous_state = State.MENU
 
         self.level = None
         self.players = {}
@@ -117,6 +118,8 @@ class GameLoop:
         self.players[network_id] = player
 
     def update(self, time_step):
+        old_state = self.state
+
         if self.state is State.SINGLEPLAYER:
             if not self.level:
                 path = os.path.join('singleplayer', self.campaign_menu.level_slider.get_value())
@@ -246,12 +249,19 @@ class GameLoop:
             self.players[0].on_ground = True
             self.players[0].animate(0.0)
 
-            self.camera.target_position[:] = self.campaign_menu.position
+            if self.previous_state is State.PAUSED:
+                self.camera.set_position_zoom(self.campaign_menu.position, self.camera.max_zoom)
+            else:
+                self.camera.target_position[:] = self.campaign_menu.position
             self.state = self.campaign_menu.target_state
             self.campaign_menu.set_visible(self.state is State.SINGLEPLAYER)
             self.campaign_menu.target_state = State.CAMPAIGN
         elif self.state is State.PLAYER_SELECT:
-            self.camera.target_position[:] = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
+            camera_pos = 0.5 * (self.player_menus[0].position + self.player_menus[-1].position)
+            if self.previous_state is State.PAUSED:
+                self.camera.set_position_zoom(camera_pos, self.camera.max_zoom)
+            else:
+                self.camera.target_position[:] = camera_pos
 
             for pm in self.player_menus:
                 if pm.joined:
@@ -365,6 +375,9 @@ class GameLoop:
 
         self.camera.update(time_step)
 
+        if self.state is not old_state:
+            self.previous_state = old_state
+
     def input(self, input_handler):
         input_handler.update(self.camera)
 
@@ -469,22 +482,28 @@ class GameLoop:
 
             if self.option_handler.debug_draw:
                 self.debug_draw(batch, image_handler)
-        elif self.state in {State.MENU, State.OPTIONS, State.PLAYER_SELECT, State.LEVEL_SELECT, State.CONTROLS,
-                            State.CAMPAIGN}:
-            image_handler.set_clear_color((50, 50, 50))
-
-            self.menu.draw(batch, self.camera, image_handler)
-            self.options_menu.draw(batch, self.camera, image_handler)
-            for pm in self.player_menus:
-                pm.draw(batch, self.camera, image_handler)
-            self.level_menu.draw(batch, self.camera, image_handler)
-            self.controls_menu.draw(batch, self.camera, image_handler)
-            self.campaign_menu.draw(batch, self.camera, image_handler)
-
-            for p in self.players.values():
-                p.draw(batch, self.camera, image_handler)
         elif self.state is State.PAUSED:
             self.pause_menu.draw(batch, self.camera, image_handler)
+        else:
+            image_handler.set_clear_color((50, 50, 50))
+
+        if State.MENU in {self.state, self.previous_state}:
+            self.menu.draw(batch, self.camera, image_handler)
+        if State.OPTIONS in {self.state, self.previous_state}:
+            self.options_menu.draw(batch, self.camera, image_handler)
+        if State.PLAYER_SELECT in {self.state, self.previous_state}:
+            for pm in self.player_menus:
+                pm.draw(batch, self.camera, image_handler)
+            for p in self.players.values():
+                p.draw(batch, self.camera, image_handler)
+        if State.LEVEL_SELECT in {self.state, self.previous_state}:
+            self.level_menu.draw(batch, self.camera, image_handler)
+        if State.CONTROLS in {self.state, self.previous_state}:
+            self.controls_menu.draw(batch, self.camera, image_handler)
+        if State.CAMPAIGN in {self.state, self.previous_state}:
+            self.campaign_menu.draw(batch, self.camera, image_handler)
+            for p in self.players.values():
+                p.draw(batch, self.camera, image_handler)
 
         self.camera.draw(batch)
 

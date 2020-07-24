@@ -834,12 +834,14 @@ class Limb(PhysicsObject, AnimatedObject):
         self.upper.position[:] = pos
         self.upper.angle = angle
         self.upper.draw(batch, camera, image_handler)
+        self.upper.sprite.scale_x = norm(joint - start) / self.length
 
         pos = 0.5 * (joint + end)
         angle = polar_angle(end - joint)
         self.lower.position[:] = pos
         self.lower.angle = angle
         self.lower.draw(batch, camera, image_handler)
+        self.lower.sprite.scale_x = norm(joint - end) / self.length
 
         super().draw(batch, camera, image_handler)
 

@@ -126,6 +126,8 @@ class Level:
         for w in self.walls:
             w.set_position(w.position + offset)
 
+        self.walls.sort(key=lambda x: x.position[1])
+
         for o in self.objects.values():
             o.set_position(o.position + offset)
 
