@@ -25,8 +25,8 @@ class Player(Destroyable):
         self.head_type = 'bald'
         self.team = ''
 
-        self.body = Body(self.position, self)
-        self.head = Head(self.position + basis(1), self)
+        self.body = Drawable(self.position, self.body_type, 0.75, layer=5)
+        self.head = Drawable(self.position + basis(1), self.head_type, 0.9, layer=5)
 
         self.back_hip = self.position + np.array([0.1, -0.5])
         self.front_hip = self.position + np.array([-0.1, -0.5])
@@ -110,8 +110,6 @@ class Player(Destroyable):
         self.collider.clear_occupied_squares(colliders)
 
         self.collider.group = Group.PLAYERS
-        self.head.reset(colliders)
-        self.body.reset(colliders)
         self.hand.reset(colliders)
         self.front_foot.reset(colliders)
         self.back_foot.reset(colliders)
@@ -126,9 +124,13 @@ class Player(Destroyable):
         self.active = True
         self.drop_object()
 
+        if self.direction == -1:
+            self.flip_horizontally()
+
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
+        self.animate(0.0)
 
     def set_spawn(self, level, players):
         i = 0
@@ -214,10 +216,7 @@ class Player(Destroyable):
         for collision in self.collider.collisions:
             collider = collision.collider
 
-            if collider.group in {Group.PLATFORMS, Group.PROPS}:
-                if type(collider) is Circle:
-                    continue
-
+            if collider.group in {Group.PLATFORMS, Group.BOXES}:
                 bottom = self.collider.position[1] - delta_pos[1] - self.collider.half_height[1]
                 platform_top = collider.position[1] + collider.axis_half_width(basis(1))
                 if bottom < platform_top - 0.05:
@@ -329,8 +328,7 @@ class Player(Destroyable):
             self.hand.update(gravity, time_step, colliders)
             self.hand.collider.update_occupied_squares(colliders)
             if self.grabbing:
-                self.hand.collider.update_collisions(colliders, {Group.PROPS, Group.WEAPONS, Group.SHIELDS})
-                self.grab_object()
+                self.grab_object(colliders)
 
     def update_joints(self):
         w = polar_to_cartesian(1, self.body.angle)
@@ -343,7 +341,7 @@ class Player(Destroyable):
         else:
             foot_offset = 0.0
 
-        self.body.set_position(self.position - 0.5 * self.crouched * basis(1) + foot_offset)
+        self.body.position = self.position - 0.5 * self.crouched * basis(1) + foot_offset
 
         self.shoulder = self.body.position + 0.15 * (1 - self.crouched) * h - 0.2 * w
 
@@ -357,7 +355,7 @@ class Player(Destroyable):
 
         angle_goal = max(self.body.angle - 0.25, min(self.body.angle + 0.25, angle_goal))
         self.head.angle += 0.1 * (angle_goal - self.head.angle)
-        self.head.set_position(self.body.position
+        self.head.position = (self.body.position
                                - (1 - self.crouched) * 0.35 * (self.head.angle - self.body.angle) * w * self.direction
                                + 0.2 * self.crouched * w + (1 - 0.5 * self.crouched) * h)
 
@@ -366,13 +364,10 @@ class Player(Destroyable):
 
         PhysicsObject.update(self, gravity, time_step, colliders)
 
-        self.head.update_active()
-        if not self.head.active or not self.head.destroyed:
-            if self.on_ground and self.speed < 0.1:
-                self.active = False
+        if self.on_ground and self.speed < 0.1:
+            self.active = False
 
         self.body.rotate(self.angle - self.body.angle)
-        self.head.update(gravity, time_step, colliders)
 
         self.update_limb(gravity, time_step, colliders, self.hand, self.shoulder, self.hand.length)
         self.update_limb(gravity, time_step, colliders, self.back_foot, self.back_hip, self.back_foot.length)
@@ -399,8 +394,9 @@ class Player(Destroyable):
         self.back_foot.animate(time_step)
         self.front_foot.animate(time_step)
 
-        self.back_foot.animation_direction = 0.5**self.running * 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
-        self.front_foot.animation_direction = 0.5**self.running * 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
+        direction = 0.5 ** self.running * 0.25 * self.direction * self.velocity[0] if self.on_ground else 1
+        self.back_foot.animation_direction = direction
+        self.front_foot.animation_direction = direction
 
         self.hand.image_position = np.zeros(2)
         if isinstance(self.object, Weapon):
@@ -464,8 +460,10 @@ class Player(Destroyable):
 
     def draw(self, batch, camera, image_handler):
         self.back_foot.draw(batch, camera, image_handler)
+        self.body.image_path = f'body_{self.body_type}'
         self.body.draw(batch, camera, image_handler)
         self.front_foot.draw(batch, camera, image_handler)
+        self.head.image_path = f'{self.head_type}'
         self.head.draw(batch, camera, image_handler)
         self.hand.draw(batch, camera, image_handler)
 
@@ -498,9 +496,6 @@ class Player(Destroyable):
 
         self.back_foot.debug_draw(batch, camera, image_handler)
         self.front_foot.debug_draw(batch, camera, image_handler)
-
-        self.head.debug_draw(batch, camera, image_handler)
-        self.body.debug_draw(batch, camera, image_handler)
 
     def input(self, input_handler):
         if self.destroyed:
@@ -552,7 +547,7 @@ class Player(Destroyable):
                                 self.charging_attack = True
                         else:
                             self.attack()
-                            if not self.object.automatic:
+                            if isinstance(self.object, Weapon) and not self.object.automatic:
                                 self.rt_pressed = True
                 else:
                     self.charging_attack = False
@@ -615,10 +610,6 @@ class Player(Destroyable):
 
         self.collider.group = Group.DEBRIS
 
-        if not self.head.destroyed:
-            self.head.collision_enabled = False
-
-        self.body.collision_enabled = False
         self.collider.half_height[1] = 0.75
         self.goal_velocity[0] = 0.0
 
@@ -652,31 +643,33 @@ class Player(Destroyable):
 
         self.grab_timer = self.grab_delay
 
-    def grab_object(self):
+    def grab_object(self, colliders):
         if self.grab_timer > 0:
             return
 
         if self.object:
             return
 
-        for c in self.hand.collider.collisions:
-            if c.collider.group in {Group.THROWN, Group.PROPS, Group.WEAPONS, Group.SHIELDS}:
-                if norm2(self.shoulder - c.collider.position) > 1.5**2:
-                    continue
+        self.hand.collider.update_collisions(colliders, {Group.THROWN, Group.PROPS, Group.BOXES, Group.WEAPONS,
+                                                         Group.SHIELDS})
 
-                self.object = c.collider.parent
-                self.object.on_ground = False
-                self.object.gravity_scale = 0.0
-                if self.object.parent:
-                    self.object.parent.drop_object()
-                self.object.parent = self
-                self.object.set_position(self.hand.position)
-                self.object.rotate(polar_angle(self.hand_goal) - self.object.angle)
-                self.object.angular_velocity = 0.0
-                self.object.layer = 6 if self.object.group is Group.SHIELDS else 5
-                self.object.grabbed = True
-                self.sounds.add('wear')
-                break
+        for c in self.hand.collider.collisions:
+            if norm2(self.shoulder - c.collider.position) > 1.5**2:
+                continue
+
+            self.object = c.collider.parent
+            self.object.on_ground = False
+            self.object.gravity_scale = 0.0
+            if self.object.parent:
+                self.object.parent.drop_object()
+            self.object.parent = self
+            self.object.set_position(self.hand.position)
+            self.object.rotate(polar_angle(self.hand_goal) - self.object.angle)
+            self.object.angular_velocity = 0.0
+            self.object.layer = 6 if self.object.group is Group.SHIELDS else 5
+            self.object.grabbed = True
+            self.sounds.add('wear')
+            break
 
     def attack(self):
         if not isinstance(self.object, Weapon) and type(self.object) is not Grenade:
@@ -686,73 +679,6 @@ class Player(Destroyable):
             self.object.attacked = True
             if type(self.object) not in {Axe, Bow, Grenade}:
                 self.camera_shake = 20 * random_unit()
-
-
-class Head(Destroyable):
-    def __init__(self, position, parent):
-        super().__init__(position, image_path='bald', debris_path='gib', size=0.9, debris_size=0.5, health=20,
-                         parent=parent)
-        self.layer = 5
-
-    def reset(self, colliders):
-        for d in self.debris:
-            d.delete()
-        self.debris.clear()
-        for p in self.particle_clouds:
-            p.delete()
-        self.particle_clouds.clear()
-        self.destroyed = False
-        self.health = 20
-        self.active = True
-        self.rotate(-self.angle)
-        if self.shadow_sprite:
-            self.shadow_sprite.delete()
-            self.shadow_sprite = None
-        self.collision_enabled = True
-
-    def damage(self, amount, colliders):
-        super().damage(amount, colliders)
-        self.parent.damage(5 * amount, colliders)
-
-        return BloodSplatter
-
-    def destroy(self, colliders):
-        self.parent.destroy(colliders)
-        super().destroy(colliders)
-        self.particle_clouds.append(BloodSplatter(self.position, [0, 0.4], 5))
-
-    def draw(self, batch, camera, image_handler):
-        self.image_path = f'{self.parent.head_type}'
-        super().draw(batch, camera, image_handler)
-
-
-class Body(Destroyable):
-    def __init__(self, position, parent):
-        super().__init__(position, debris_path='gib', size=0.75, debris_size=0.5, parent=parent)
-        self.layer = 5
-
-    def reset(self, colliders):
-        for p in self.particle_clouds:
-            p.delete()
-        self.particle_clouds.clear()
-        self.destroyed = False
-        self.rotate(-self.angle)
-        if self.shadow_sprite:
-            self.shadow_sprite.delete()
-            self.shadow_sprite = None
-        self.collision_enabled = True
-
-    def damage(self, amount, colliders):
-        self.parent.damage(amount, colliders)
-
-        return BloodSplatter
-
-    def destroy(self, colliders):
-        self.parent.destroy(colliders)
-
-    def draw(self, batch, camera, image_handler):
-        self.image_path = f'body_{self.parent.body_type}'
-        super().draw(batch, camera, image_handler)
 
 
 class Limb(PhysicsObject, AnimatedObject):
@@ -820,14 +746,14 @@ class Limb(PhysicsObject, AnimatedObject):
         self.upper.position[:] = pos
         self.upper.angle = angle
         self.upper.draw(batch, camera, image_handler)
-        self.upper.sprite.scale_x = norm(joint - start) / self.length
+        self.upper.sprite.scale_x *= 2 * norm(joint - start) / self.length
 
         pos = 0.5 * (joint + end)
         angle = polar_angle(end - joint)
         self.lower.position[:] = pos
         self.lower.angle = angle
         self.lower.draw(batch, camera, image_handler)
-        self.lower.sprite.scale_x = norm(joint - end) / self.length
+        self.lower.sprite.scale_x *= 2 * norm(joint - end) / self.length
 
         super().draw(batch, camera, image_handler)
 

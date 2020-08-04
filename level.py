@@ -16,8 +16,9 @@ from weapon import Gun, Bullet, Grenade
 
 
 class Level:
-    def __init__(self, name='', server=False, editor=False):
-        self.name = name
+    def __init__(self, path='', server=False, editor=False):
+        self.name = path.split(os.sep)[1] if path else ''
+        self.path = path
         self.player_spawns = []
 
         self.walls = []
@@ -41,8 +42,8 @@ class Level:
         self.light = None
         self.dust = True
 
-        if self.name:
-            with open(os.path.join('data', 'levels', self.name) + '.pickle', 'rb') as f:
+        if self.path:
+            with open(os.path.join('data', 'levels', self.path) + '.pickle', 'rb') as f:
                 self.apply_data(pickle.load(f))
 
     def reset(self):
@@ -54,12 +55,12 @@ class Level:
             o.delete()
         self.objects.clear()
 
-        if self.name:
-            with open(os.path.join('data', 'levels', self.name) + '.pickle', 'rb') as f:
+        if self.path:
+            with open(os.path.join('data', 'levels', self.path) + '.pickle', 'rb') as f:
                 data = pickle.load(f)
                 for o in data[2]:
                     self.id_count += 1
-                    self.objects[o[0]] = o[1]([o[2], o[3]])
+                    self.objects[o[0]] = o[1](o[2:4])
                     self.objects[o[0]].apply_data(o)
 
                 offset = 0.5 * np.array([self.width, self.height]) - self.position
@@ -195,6 +196,7 @@ class Level:
 
             if isinstance(obj, Destroyable):
                 if obj.destroyed and (self.server or (not obj.active)):
+                    obj.delete()
                     del self.objects[k]
                     continue
             elif isinstance(obj, Gun):

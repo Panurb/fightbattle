@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+import pickle
 
 import numpy as np
 
@@ -363,16 +364,48 @@ class CampaignMenu(Menu):
         levels = [x.split('.')[0] for x in os.listdir(path)]
         self.level_slider = Slider('Level', levels, cyclic=False)
         self.buttons.append(self.level_slider)
+        self.times = {l: np.inf for l in levels}
 
         self.buttons.append(Button('Start', State.SINGLEPLAYER))
 
         self.update_buttons()
 
+        self.time_text = Text('-', self.level_slider.position - 0.65 * basis(1), 0.45, color=(150, 150, 150))
+
+        self.load()
+
+    def load(self):
+        try:
+            with open('save.pickle', 'rb') as f:
+                data = pickle.load(f)
+                for l, t in data[0].items():
+                    self.times[l] = t
+                self.body_slider.selection = data[1]
+                self.head_slider.selection = data[2]
+        except FileNotFoundError:
+            pass
+
+    def save(self):
+        with open('save.pickle', 'wb') as f:
+            data = [self.times, self.body_slider.selection, self.head_slider.selection]
+            pickle.dump(data, f)
+
+    def set_visible(self, visible):
+        super().set_visible(visible)
+        self.time_text.set_visible(visible)
+
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
             super().input(input_handler, i)
 
-            
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        val = self.times[self.level_slider.get_value()]
+        self.time_text.string = '-' if np.isinf(val) else f'{val:.2f}'
+        self.time_text.visible = True
+        self.time_text.draw(batch, camera, image_handler)
+
+
 class ControlsMenu(Menu):
     def __init__(self):
         super().__init__([50, 0])

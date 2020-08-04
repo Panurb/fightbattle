@@ -47,7 +47,7 @@ class Bullet(PhysicsObject):
             self.destroy()
 
         if not self.destroyed:
-            self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS})
+            self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS, Group.BARRIERS})
 
             for c in self.collider.collisions:
                 obj = c.collider.parent

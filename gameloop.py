@@ -51,8 +51,10 @@ class GameLoop:
 
         self.score_limit = 0
         self.text = Text('', np.zeros(2), 2.0)
-        self.timer = 0.0
+        self.delay_timer = 0.0
         self.delay = 3.0
+
+        self.timer = 0.0
 
     def load_level(self, name):
         self.level = Level(name)
@@ -72,11 +74,10 @@ class GameLoop:
             obj.collider.update_occupied_squares(self.colliders)
 
         for p in self.players.values():
-            p.reset(self.colliders)
             p.set_spawn(self.level, self.players)
             p.collider.update_occupied_squares(self.colliders)
 
-        self.timer = self.delay
+        self.delay_timer = self.delay
 
     def reset_game(self):
         for o in self.level.objects.values():
@@ -85,15 +86,20 @@ class GameLoop:
 
         self.level.reset()
 
+        for obj in self.level.objects.values():
+            obj.collider.update_occupied_squares(self.colliders)
+
         for p in self.players.values():
             p.reset(self.colliders)
             p.set_spawn(self.level, self.players)
 
-        self.timer = self.delay
+        self.delay_timer = self.delay
         self.time_scale = 1.0
 
         zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
         self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
+
+        self.timer = 0.0
 
     def delete_game(self):
         if self.state is State.CAMPAIGN:
@@ -110,7 +116,7 @@ class GameLoop:
         self.level.delete()
         self.level = None
 
-        self.timer = 0
+        self.delay_timer = 0
         self.text.string = ''
         self.camera.set_position_zoom(self.level_menu.position, self.camera.max_zoom)
 
@@ -127,7 +133,7 @@ class GameLoop:
             if not self.level:
                 path = os.path.join('singleplayer', self.campaign_menu.level_slider.get_value())
                 self.load_level(path)
-                self.timer = 0
+                self.delay_timer = 0
                 self.campaign_menu.set_visible(False)
                 self.score_limit = int(self.level_menu.score_slider.get_value())
                 zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
@@ -136,6 +142,8 @@ class GameLoop:
                     if p.team == 'red':
                         player = Enemy(p.position)
                         self.players[len(self.players)] = player
+
+            self.timer += time_step
 
             self.text.position[:] = self.camera.position
 
@@ -147,6 +155,9 @@ class GameLoop:
                     player.collider.update_collisions(self.colliders, {Group.GOALS})
                     if player.collider.collisions:
                         self.state = State.CAMPAIGN
+                        self.campaign_menu.times[self.level.name] = min(self.timer,
+                                                                        self.campaign_menu.times[self.level.name])
+                        self.campaign_menu.save()
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
@@ -161,14 +172,14 @@ class GameLoop:
                 zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
                 self.camera.set_position_zoom(0.5 * np.array([self.level.width, self.level.height]), zoom)
 
-            if self.timer > 0:
+            if self.delay_timer > 0:
                 if self.level.background:
-                    self.timer -= time_step
+                    self.delay_timer -= time_step
                     if not self.text.string:
                         self.text.string = 'GET READY'
                         self.time_scale = 0.0
             else:
-                self.timer = 0.0
+                self.delay_timer = 0.0
                 if 'SCORES' in self.text.string:
                     self.reset_game()
                 elif 'WINS' in self.text.string:
@@ -178,7 +189,7 @@ class GameLoop:
                     self.level.delete()
                     self.level = None
 
-                    self.timer = 0
+                    self.delay_timer = 0
                     self.text.string = ''
                     self.camera.position[:] = self.level_menu.position
                     self.camera.zoom = self.camera.max_zoom
@@ -195,7 +206,7 @@ class GameLoop:
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
-            if self.timer == 0:
+            if self.delay_timer == 0:
                 if len(self.players) > 1:
                     if not any(alive.values()):
                         self.reset_game()
@@ -203,25 +214,25 @@ class GameLoop:
                         self.level.scoreboard.scores['red'] += 1
                         self.text.string = 'RED SCORES'
                         self.time_scale = 0.5
-                        self.timer = self.delay
+                        self.delay_timer = self.delay
                     elif alive['blue'] and not alive['red']:
                         self.level.scoreboard.scores['blue'] += 1
                         self.text.string = 'BLUE SCORES'
                         self.time_scale = 0.5
-                        self.timer = self.delay
+                        self.delay_timer = self.delay
 
                 for team, score in self.level.scoreboard.scores.items():
                     if score == self.score_limit:
                         self.text.string = f'{team} wins'.upper()
                         self.time_scale = 0.5
-                        self.timer = 2 * self.delay
+                        self.delay_timer = 2 * self.delay
                         break
                 else:
                     for o in self.level.objects.values():
                         if type(o) is Ball and o.scored:
                             self.text.string = f'{o.scored} scores'.upper()
                             self.time_scale = 0.5
-                            self.timer = self.delay
+                            self.delay_timer = self.delay
 
                 self.camera.set_target(self.players, self.level)
                 self.text.position[:] = self.camera.position
@@ -255,6 +266,9 @@ class GameLoop:
             self.state = self.campaign_menu.target_state
             self.campaign_menu.set_visible(self.state is State.SINGLEPLAYER)
             self.campaign_menu.target_state = State.CAMPAIGN
+
+            if self.state is not State.CAMPAIGN:
+                self.campaign_menu.save()
 
             if self.previous_state in {State.PAUSED, State.SINGLEPLAYER}:
                 self.camera.set_position_zoom(self.campaign_menu.position, self.camera.max_zoom)
@@ -396,7 +410,7 @@ class GameLoop:
                         continue
                         
                     player.set_position(self.level.player_spawns[k].position)
-                self.timer = 0.0
+                self.delay_timer = 0.0
 
             for i, c in enumerate(input_handler.controllers):
                 self.players[0].controller_id = self.controller_id
@@ -513,7 +527,7 @@ class GameLoop:
 
         if self.state is State.PAUSED:
             self.camera.sprite.opacity = 192
-        elif self.timer > 0:
+        elif self.delay_timer > 0:
             self.camera.sprite.opacity = 128
         else:
             self.camera.sprite.opacity = 0
@@ -522,7 +536,8 @@ class GameLoop:
         for player in self.players.values():
             player.debug_draw(batch, self.camera, image_handler)
 
-        self.level.debug_draw(batch, self.camera, image_handler)
+        if self.level:
+            self.level.debug_draw(batch, self.camera, image_handler)
 
     def play_sounds(self, sound_handler):
         if self.state is State.PAUSED:

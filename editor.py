@@ -13,9 +13,9 @@ from optionhandler import OptionHandler
 from camera import Camera
 from goal import Exit, Basket, Goal
 from level import Level, PlayerSpawn
-from prop import Crate, Ball, Box
+from prop import Crate, Ball, Box, Television
 from text import Text
-from wall import Scoreboard, Wall, Platform
+from wall import Scoreboard, Wall, Platform, Barrier
 from weapon import Revolver, Shotgun, Bow, Grenade, Axe, Shield, Sniper, SawedOff, MachineGun
 
 
@@ -44,7 +44,7 @@ class Editor(pyglet.window.Window):
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
         self.grab_start = np.zeros(2)
-        self.object_types = [Wall, Platform, Scoreboard, PlayerSpawn, Exit, Basket, Crate, Box, Ball,
+        self.object_types = [Wall, Platform, Barrier, Scoreboard, PlayerSpawn, Exit, Television, Basket, Crate, Box, Ball,
                              Revolver, Shotgun, Bow, Grenade, Axe, Shield, SawedOff, Sniper, MachineGun]
         self.type_index = 0
         self.type_text = Text('', np.zeros(2), 0.5)
@@ -53,7 +53,7 @@ class Editor(pyglet.window.Window):
 
         self.type_select = False
 
-        self.path = os.path.join('data', 'levels', 'singleplayer', 'bbb')
+        self.path = os.path.join('data', 'levels', 'singleplayer', 'level2')
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
@@ -96,7 +96,7 @@ class Editor(pyglet.window.Window):
                     self.grab_start = np.round(self.mouse_position)
                     break
             else:
-                if self.type_index < 2:
+                if self.type_index < 3:
                     self.wall_start = np.round(self.mouse_position)
                 else:
                     pos = np.floor(self.mouse_position) + np.array([0.5, 0.501])
@@ -132,6 +132,8 @@ class Editor(pyglet.window.Window):
                         self.level.add_wall(pos, size[0], size[1])
                     elif self.type_index == 1:
                         self.level.add_platform(pos, size[0])
+                    elif self.type_index == 2:
+                        self.level.add_object(Barrier(pos, size[0], size[1]))
                 self.wall_start = None
         elif button == mouse.RIGHT:
             for w in self.level.walls:

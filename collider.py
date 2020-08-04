@@ -23,20 +23,25 @@ class Group(enum.IntEnum):
     PLATFORMS = 10
     GOALS = 11
     THROWN = 12
+    BARRIERS = 13
+    BOXES = 14
 
 
 COLLIDES_WITH = {Group.NONE: set(),
-                 Group.PLAYERS: {Group.WALLS, Group.PLATFORMS, Group.PROPS},
+                 Group.PLAYERS: {Group.WALLS, Group.PLATFORMS, Group.BARRIERS, Group.BOXES},
                  Group.WALLS: set(),
-                 Group.WEAPONS: {Group.WALLS, Group.PLATFORMS},
-                 Group.HANDS: {Group.WALLS},
-                 Group.PROPS: {Group.WALLS, Group.PROPS, Group.PLATFORMS},
+                 Group.WEAPONS: {Group.WALLS, Group.PLATFORMS, Group.BARRIERS},
+                 Group.HANDS: {Group.WALLS, Group.BARRIERS},
+                 Group.PROPS: {Group.WALLS, Group.PROPS, Group.PLATFORMS, Group.BARRIERS, Group.BOXES},
                  Group.BULLETS: {Group.SHIELDS},
-                 Group.SHIELDS: {Group.WALLS, Group.PLATFORMS},
-                 Group.DEBRIS: {Group.WALLS, Group.PLATFORMS},
+                 Group.SHIELDS: {Group.WALLS, Group.PLATFORMS, Group.BARRIERS},
+                 Group.DEBRIS: {Group.WALLS, Group.PLATFORMS, Group.BARRIERS},
                  Group.PLATFORMS: set(),
                  Group.GOALS: set(),
-                 Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.WEAPONS}}
+                 Group.THROWN: {Group.WALLS, Group.PLATFORMS, Group.PLAYERS, Group.PROPS, Group.WEAPONS, Group.BARRIERS,
+                                Group.BOXES},
+                 Group.BARRIERS: set(),
+                 Group.BOXES: {Group.WALLS, Group.PROPS, Group.PLATFORMS, Group.BARRIERS, Group.BOXES}}
 
 
 @njit(cache=True)
@@ -163,12 +168,12 @@ class Collider:
     def update_collisions(self, colliders, groups=None):
         self.collisions.clear()
 
-        if not self.left:
+        if self.left is None:
             return
 
         cs = set()
-        for i in range(self.left - 1, min(self.right + 1, len(colliders))):
-            for j in range(self.bottom - 1, min(self.top + 1, len(colliders[0]))):
+        for i in range(max(self.left - 1, 0), min(self.right + 1, len(colliders))):
+            for j in range(max(self.bottom - 1, 0), min(self.top + 1, len(colliders[0]))):
                 for c in colliders[i][j]:
                     if not c.parent:
                         continue
@@ -229,6 +234,8 @@ class Collider:
                     colliders[i][j].remove(self)
                 except ValueError:
                     pass
+
+        self.left = None
 
 
 class ColliderGroup:

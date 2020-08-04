@@ -20,6 +20,11 @@ class GameObject(Drawable):
         self.sounds = set()
         self.id = None
 
+    def delete(self):
+        super().delete()
+        if self.collider and self.collider.vertex_list:
+            self.collider.vertex_list.delete()
+
     def get_data(self):
         data = (self.id, type(self), self.position[0], self.position[1], self.direction, self.angle)
 
@@ -299,6 +304,8 @@ class Destroyable(PhysicsObject):
         self.destroyed = True
 
         self.collider.clear_occupied_squares(colliders)
+        if self.collider.vertex_list:
+            self.collider.vertex_list.delete()
         self.collider = None
 
         self.camera_shake = self.speed * random_unit()
@@ -321,12 +328,11 @@ class Destroyable(PhysicsObject):
                 if self.speed > self.fall_damage_speed:
                     self.damage(self.speed * self.fall_damage, colliders)
 
-        if self.destroyed:
-            for d in self.debris:
-                d.update(gravity, time_step, colliders)
-                if d.on_ground and d.speed < norm(gravity) * time_step:
-                    d.sprite.delete()
-                    self.debris.remove(d)
+        for d in self.debris:
+            d.update(gravity, time_step, colliders)
+            if d.on_ground and d.speed < norm(gravity) * time_step:
+                d.delete()
+                self.debris.remove(d)
 
         self.update_active()
 
@@ -342,12 +348,12 @@ class Destroyable(PhysicsObject):
                 self.active = True
 
     def draw(self, batch, camera, image_handler):
-        if self.destroyed:
-            for d in self.debris:
-                d.draw(batch, camera, image_handler)
-            for p in self.particle_clouds:
-                p.draw(batch, camera, image_handler)
-        else:
+        for d in self.debris:
+            d.draw(batch, camera, image_handler)
+        for p in self.particle_clouds:
+            p.draw(batch, camera, image_handler)
+
+        if not self.destroyed:
             super().draw(batch, camera, image_handler)
 
     def draw_shadow(self, screen, camera, image_handler, light):

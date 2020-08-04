@@ -1,4 +1,4 @@
-from configparser import ConfigParser
+from configparser import ConfigParser, NoSectionError
 
 
 class OptionHandler:
@@ -18,7 +18,7 @@ class OptionHandler:
 
         try:
             self.load()
-        except:
+        except NoSectionError:
             self.save()
 
     def save(self):

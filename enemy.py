@@ -168,7 +168,6 @@ class Enemy(Player):
                     self.state = EnemyState.SEEK_PLAYER
 
             if player.object and isinstance(player.object, Weapon) and player.object.attacked:
-                self.direction = np.sign(r[0])
                 self.state = EnemyState.SEEK_PLAYER
         elif self.state is EnemyState.RUN_AWAY:
             r = player.position - self.position
