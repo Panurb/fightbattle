@@ -4,6 +4,7 @@ import pyglet
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
 from helpers import random_unit
+from particle import Sparks
 from weapon import Revolver, Shotgun, Shield, Axe, Grenade, Bow
 
 
@@ -113,11 +114,12 @@ class Television(Destroyable):
         self.camera_shake = self.speed * random_unit()
         self.sounds.add('glass')
 
-        if self.debris_path:
-            for _ in range(4):
-                r = np.abs(np.random.normal(15, 1.0))
-                v = r * random_unit()
-                d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size, dust=False)
-                d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
-                d.angular_velocity = 10 * np.sign(d.velocity[0])
-                self.debris.append(d)
+        for _ in range(4):
+            r = np.abs(np.random.normal(15, 1.0))
+            v = r * random_unit()
+            d = PhysicsObject(self.position, v, image_path=self.debris_path, size=self.debris_size, dust=False)
+            d.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))
+            d.angular_velocity = 10 * np.sign(d.velocity[0])
+            self.debris.append(d)
+
+        self.particle_clouds.append(Sparks(self.position, np.zeros(2)))

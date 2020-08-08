@@ -5,6 +5,7 @@ from PIL import Image
 from gameobject import GameObject, Destroyable
 from collider import Rectangle, Group
 from helpers import basis, normalized
+from particle import Dust
 from text import Text
 
 
@@ -134,7 +135,7 @@ class Scoreboard(GameObject):
 
 class Barrier(Wall, Destroyable):
     def __init__(self, position, width=1, height=1):
-        Destroyable.__init__(self, position, health=10, image_path='wall', debris_path='crate_debris')
+        Destroyable.__init__(self, position, health=40, image_path='wall', debris_path='crate_debris')
         self.add_collider(Rectangle([0, 0], width, height, Group.BARRIERS))
         self.image_position[:] = [0.0, -0.5]
 
@@ -178,3 +179,7 @@ class Barrier(Wall, Destroyable):
             Destroyable.draw(self, batch, camera, image_handler)
         else:
             Wall.draw(self, batch, camera, image_handler)
+
+    def damage(self, amount, colliders):
+        super().damage(amount, colliders)
+        return Dust
