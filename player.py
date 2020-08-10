@@ -61,7 +61,6 @@ class Player(Destroyable):
 
         self.controller_id = controller_id
         self.network_id = network_id
-        self.timer = 0.0
 
         self.grabbing = False
         self.grab_delay = 0.5
@@ -312,7 +311,8 @@ class Player(Destroyable):
 
             self.object.update(gravity, time_step, colliders)
 
-            self.hand.set_position(self.object.position)
+            if self.object:
+                self.hand.set_position(self.object.position)
         else:
             self.hand.set_position(self.hand.position + delta_pos)
             self.hand.velocity = 10 * (self.shoulder + self.hand_goal - self.hand.position)
@@ -360,8 +360,6 @@ class Player(Destroyable):
                                + 0.2 * self.crouched * w + (1 - 0.5 * self.crouched) * h)
 
     def update_ragdoll(self, gravity, time_step, colliders):
-        self.timer += time_step
-
         PhysicsObject.update(self, gravity, time_step, colliders)
 
         if self.on_ground and self.speed < 0.1:
@@ -497,11 +495,9 @@ class Player(Destroyable):
         self.back_foot.debug_draw(batch, camera, image_handler)
         self.front_foot.debug_draw(batch, camera, image_handler)
 
-    def input(self, input_handler):
+    def input(self, controller):
         if self.destroyed:
             return
-
-        controller = input_handler.controllers[self.controller_id]
 
         if controller.button_pressed['A']:
             if self.on_ground:
@@ -606,7 +602,6 @@ class Player(Destroyable):
         self.hand.image_position[:] = np.zeros(2)
         self.back_hand.image_path = ''
         self.back_hand.set_visibility(False)
-        self.timer = 0.0
 
         self.collider.group = Group.DEBRIS
 

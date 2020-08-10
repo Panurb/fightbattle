@@ -47,7 +47,7 @@ class Bullet(PhysicsObject):
             self.destroy()
 
         if not self.destroyed:
-            self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS, Group.BARRIERS})
+            self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS, Group.BARRIERS, Group.BOXES})
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
@@ -68,8 +68,8 @@ class Bullet(PhysicsObject):
 
     def destroy(self, particle_type=None):
         if not self.destroyed:
-            self.sprite.delete()
-            self.sprite = None
+            self.delete()
+
             self.destroyed = True
             if particle_type is not None:
                 self.particle_clouds.append(particle_type(self.position, -0.1 * self.velocity,
@@ -132,7 +132,7 @@ class Arrow(Bullet):
         if np.any(self.velocity):
             self.angle = polar_angle(self.velocity)
 
-        self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS})
+        self.collider.update_collisions(colliders, {Group.PLAYERS, Group.PROPS, Group.BARRIERS, Group.BOXES})
 
         for c in self.collider.collisions:
             obj = c.collider.parent

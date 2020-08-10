@@ -298,15 +298,10 @@ class Destroyable(PhysicsObject):
         if self.destroyed:
             return
 
-        self.sprite.delete()
-        self.sprite = None
+        self.collider.clear_occupied_squares(colliders)
+        self.delete()
 
         self.destroyed = True
-
-        self.collider.clear_occupied_squares(colliders)
-        if self.collider.vertex_list:
-            self.collider.vertex_list.delete()
-        self.collider = None
 
         self.camera_shake = self.speed * random_unit()
 

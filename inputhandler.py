@@ -36,6 +36,18 @@ class Controller:
         self.stick_deadzone = 0.3
         self.trigger_deadzone = 0.01
 
+    def get_data(self):
+        return self.left_stick[0], self.left_stick[1], self.right_stick[0], self.right_stick[1], \
+               self.left_trigger, self.right_trigger, self.button_down, self.button_pressed
+
+    def apply_data(self, data):
+        self.left_stick[:] = data[0:2]
+        self.right_stick[:] = data[2:4]
+        self.left_trigger = data[4]
+        self.right_trigger = data[5]
+        self.button_down = data[6].copy()
+        self.button_pressed = data[7].copy()
+
     def update(self):
         self.left_stick[0] = self.joystick.get_axis(self.sticks[0])
         self.left_stick[1] = -self.joystick.get_axis(self.sticks[1])

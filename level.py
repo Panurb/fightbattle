@@ -263,7 +263,7 @@ class Level:
         if self.scoreboard:
             self.scoreboard.draw(batch, camera, image_handler)
 
-        for obj in self.objects.values():
+        for obj in list(self.objects.values()):
             if (isinstance(obj, Bullet) or type(obj) is Grenade) and obj.decal:
                 self.decals.append(Decal(obj.position, obj.decal, size=np.random.random() + 1,
                                          angle=2*np.pi*np.random.random()))

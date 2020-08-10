@@ -17,7 +17,7 @@ class Crate(Destroyable):
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.rotate(0.5 * np.pi * np.random.randint(0, 4))
+        #self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
     def destroy(self, colliders):
         if not self.destroyed:
@@ -37,7 +37,7 @@ class Box(PhysicsObject):
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.rotate(0.5 * np.pi * np.random.randint(0, 4))
+        #self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
 
 class Ball(PhysicsObject):

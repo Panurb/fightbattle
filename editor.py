@@ -53,7 +53,7 @@ class Editor(pyglet.window.Window):
 
         self.type_select = False
 
-        self.path = os.path.join('data', 'levels', 'singleplayer', 'level2')
+        self.path = os.path.join('data', 'levels', 'multiplayer', 'test')
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:

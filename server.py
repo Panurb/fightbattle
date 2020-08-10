@@ -1,10 +1,13 @@
+import os
 import socket
 from _thread import *
 import pickle
 
 import pygame
 
+from inputhandler import Controller
 from level import Level
+from network import PACKET_SIZE
 from player import Player
 from weapon import Gun
 
@@ -12,7 +15,6 @@ from weapon import Gun
 class Server:
     def __init__(self):
         server = socket.gethostbyname(socket.gethostname())
-        server = '192.168.1.100'
         port = 5555
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -25,10 +27,11 @@ class Server:
         print(f'Server started, ip={server}, waiting for a connection')
 
         self.players = dict()
+        self.controllers = dict()
         self.level = None
         self.colliders = []
 
-        self.load_level('bball')
+        self.load_level(os.path.join('multiplayer', 'circle'))
 
     def load_level(self, name):
         self.level = Level(name, server=True)
@@ -51,6 +54,7 @@ class Server:
         player = Player([0, 0], -1, network_id)
         player.set_spawn(self.level, self.players)
         self.players[network_id] = player
+        self.controllers[network_id] = Controller(-1)
 
     def start(self):
         start_new_thread(self.physics_thread, ())
@@ -65,39 +69,26 @@ class Server:
     def threaded_client(self, conn, p):
         self.add_player(p)
         data = [self.players[p].get_data(), self.level.get_data()]
-        print(len(pickle.dumps(data)))
+        #print(len(pickle.dumps(data)))
         conn.send(pickle.dumps(data))
 
         while True:
             try:
-                data = pickle.loads(conn.recv(1500))
+                data = pickle.loads(conn.recv(PACKET_SIZE))
 
                 if not data:
-                    print('Disconnected')
                     break
 
                 player = self.players[p]
-                old_health = player.health
-                player.apply_data(data[0])
-                player.health = old_health
-
-                if len(data) == 2:
-                    obj = self.level.objects[data[1][0]]
-                    obj.apply_data(data[1])
-                    obj.parent = player
-
-                    if isinstance(obj, Gun) and obj.attacked:
-                        bs = obj.attack()
-                        for b in bs:
-                            self.level.add_object(b)
-                            b.collider.update_occupied_squares(self.colliders)
+                self.controllers[p].apply_data(data)
+                #player.input(self.controllers[p])
 
                 reply = [[v.get_data() for v in self.players.values()],
                          [o.get_data() for o in self.level.objects.values()]]
 
                 reply = pickle.dumps(reply)
 
-                if len(reply) > 1500:
+                if len(reply) > PACKET_SIZE:
                     print('Packet too large:', len(reply))
 
                 conn.sendall(reply)
@@ -113,12 +104,12 @@ class Server:
         time_step = 1.0 / 60
 
         while True:
+            for p in self.players.values():
+                p.input(self.controllers[p.network_id])
+                p.update(self.level.gravity, time_step, self.colliders)
+
             self.level.update(time_step, self.colliders)
             self.level.clear_sounds()
-
-            for p in self.players.values():
-                if p.health <= 0:
-                    p.timer += time_step
 
             clock.tick(60)
 

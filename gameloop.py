@@ -1,4 +1,5 @@
 import os
+import pickle
 from _thread import *
 
 import numpy as np
@@ -9,6 +10,7 @@ from collider import Group
 from enemy import Enemy
 from gameobject import Destroyable
 from helpers import basis
+from inputhandler import Controller
 from level import Level
 from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu, CampaignMenu
 from player import Player
@@ -47,6 +49,7 @@ class GameLoop:
         self.network_id = -1
         self.obj_id = -1
 
+        self.controller = None
         self.controller_id = 1
 
         self.score_limit = 0
@@ -341,13 +344,8 @@ class GameLoop:
 
                 start_new_thread(self.network_thread, ())
 
-            player = self.players[self.network_id]
-            player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-
-            if player.object:
-                player.object.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-
-            for i, obj in self.level.objects.items():
+            for i in list(self.level.objects.keys()):
+                obj = self.level.objects[i]
                 if isinstance(obj, Destroyable):
                     if obj.destroyed:
                         obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
@@ -359,7 +357,7 @@ class GameLoop:
                         if obj.destroyed and not obj.particle_clouds:
                             del self.level.objects[i]
 
-            self.camera.target_position[:] = player.position
+            self.camera.target_position[:] = self.players[self.network_id].position
         elif self.state is State.OPTIONS:
             self.camera.target_position[:] = self.options_menu.position
             self.state = self.options_menu.target_state
@@ -439,6 +437,7 @@ class GameLoop:
             for i in range(len(input_handler.controllers)):
                 if self.menu.selection_moved[i]:
                     self.controller_id = i
+                    self.controller = input_handler.controllers[self.controller_id]
                     break
         elif self.state is State.PLAYER_SELECT:
             for i, controller in enumerate(input_handler.controllers):
@@ -472,8 +471,6 @@ class GameLoop:
                 input_handler.relative_mouse[:] = input_handler.mouse_position - player.shoulder
 
                 self.obj_id = player.object.id if player.object is not None else -1
-
-                player.input(input_handler)
         elif self.state is State.OPTIONS:
             self.options_menu.input(input_handler)
         elif self.state is State.PAUSED:
@@ -548,7 +545,7 @@ class GameLoop:
         if self.state in {State.MENU, State.PLAYER_SELECT, State.LEVEL_SELECT}:
             sound_handler.set_music(0)
 
-        if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER, State.LAN}:
+        if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER}:
             for p in self.players.values():
                 p.play_sounds(sound_handler)
 
@@ -578,26 +575,15 @@ class GameLoop:
 
     def network_thread(self):
         while True:
-            data = [self.players[self.network_id].get_data()]
-
-            if self.obj_id != -1:
-                data.append(self.level.objects[self.obj_id].get_data())
-                self.level.objects[self.obj_id].attacked = False
+            data = self.controller.get_data()
 
             data = self.network.send(data)
 
             for p in data[0]:
-                if p[0] == self.network_id:
-                    player = self.players[self.network_id]
-                    if player.health <= 0 < p[9]:
-                        player.set_spawn(self.level, self.players)
-                        player.reset(self.colliders)
-                    player.health = p[9]
-                else:
-                    if p[0] not in self.players:
-                        self.add_player(-1, p[0])
+                if p[0] not in self.players:
+                    self.add_player(-1, p[0])
 
-                    self.players[p[0]].apply_data(p)
+                self.players[p[0]].apply_data(p)
 
             # kinda purkka
             ids = [p[0] for p in data[0]]
@@ -606,9 +592,6 @@ class GameLoop:
                     del self.players[k]
 
             for d in data[1]:
-                if d[0] == self.obj_id:
-                    continue
-
                 if d[0] in self.level.objects:
                     self.level.objects[d[0]].apply_data(d)
                 else:
@@ -620,7 +603,6 @@ class GameLoop:
             ids = [o[0] for o in data[1]]
             for i in list(self.level.objects):
                 obj = self.level.objects[i]
-                obj.collider.update_occupied_squares(self.colliders)
                 if i not in ids:
                     if isinstance(obj, Destroyable):
                         obj.destroy(self.colliders)

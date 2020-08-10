@@ -109,7 +109,8 @@ class MuzzleFlash:
         self.active = True
 
     def delete(self):
-        self.sprite.delete()
+        if self.sprite:
+            self.sprite.delete()
 
     def update(self, gravity, time_step):
         self.time += time_step
