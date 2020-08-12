@@ -185,13 +185,13 @@ class PhysicsObject(GameObject):
 
             if collider.group is Group.PLATFORMS:
                 if self.grabbed:
-                    self.collider.collisions.remove(collision)
+                    #self.collider.collisions.remove(collision)
                     continue
 
                 bottom = self.collider.position[1] - delta_pos[1] - height
                 platform_top = collider.position[1] + collider.half_height[1]
                 if bottom < platform_top - 0.05:
-                    self.collider.collisions.remove(collision)
+                    #self.collider.collisions.remove(collision)
                     continue
 
             if self.collider.group is Group.THROWN:
@@ -299,6 +299,7 @@ class Destroyable(PhysicsObject):
             return
 
         self.collider.clear_occupied_squares(colliders)
+        self.collider = None
         self.delete()
 
         self.destroyed = True

@@ -46,8 +46,10 @@ class Drawable(Decal):
     def delete(self):
         if self.sprite:
             self.sprite.delete()
+            self.sprite = None
         if self.shadow_sprite:
             self.shadow_sprite.delete()
+            self.shadow_sprite = None
 
     def rotate(self, delta_angle):
         self.angle += delta_angle

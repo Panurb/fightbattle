@@ -55,7 +55,7 @@ class Player(Destroyable):
 
         self.attack_charge = 0.0
 
-        self.throw_speed = 15.0
+        self.throw_speed = 20.0
         self.throw_charge = 0.0
         self.charge_speed = 3.0
 
@@ -501,7 +501,10 @@ class Player(Destroyable):
 
         if controller.button_pressed['A']:
             if self.on_ground:
-                self.velocity[1] = self.jump_speed
+                if self.object and self.object.mass >= 2:
+                    self.velocity[1] = 0.25 * self.jump_speed
+                else:
+                    self.velocity[1] = self.jump_speed
                 self.sounds.add('jump')
         if controller.button_pressed['B']:
             self.charging_throw = False
@@ -518,7 +521,7 @@ class Player(Destroyable):
         if stick_norm != 0:
             self.hand_goal = self.hand.length * controller.right_stick / stick_norm
 
-        if controller.button_down['X'] and not self.attack_charge and controller.left_stick[0]:
+        if controller.button_down['X'] and not self.attack_charge and controller.left_stick[0] and not (self.object and self.object.mass >= 2):
             self.goal_velocity[0] = self.run_speed * np.sign(controller.left_stick[0])
             self.goal_crouched = 0.0
             self.running = True
@@ -655,7 +658,7 @@ class Player(Destroyable):
             self.object = c.collider.parent
             self.object.on_ground = False
             self.object.gravity_scale = 0.0
-            if self.object.parent:
+            if self.object.parent and c.collider.group is not Group.THROWN:
                 self.object.parent.drop_object()
             self.object.parent = self
             self.object.set_position(self.hand.position)

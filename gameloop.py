@@ -164,7 +164,9 @@ class GameLoop:
 
             self.level.update(self.time_scale * time_step, self.colliders)
 
-            self.camera.set_target(self.players, self.level)
+            p = self.players[0]
+            self.camera.target_position[:] = p.position + (0.5 * p.velocity[0] + p.direction) * basis(0)
+            self.camera.target_zoom = self.camera.max_zoom
             self.text.position[:] = self.camera.position
         if self.state is State.MULTIPLAYER:
             if not self.level:
@@ -412,7 +414,7 @@ class GameLoop:
 
             for i, c in enumerate(input_handler.controllers):
                 self.players[0].controller_id = self.controller_id
-                self.players[0].input(input_handler)
+                self.players[0].input(input_handler.controllers[self.controller_id])
                 if c.button_pressed['START']:
                     self.state = State.PAUSED
                     self.pause_menu.previous_state = State.SINGLEPLAYER

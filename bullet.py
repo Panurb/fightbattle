@@ -15,6 +15,7 @@ class Bullet(PhysicsObject):
         self.image_path = 'bullet'
         self.size = size
         self.bounce = 1.0
+        self.mass = 0.1
 
         self.lifetime = lifetime
         self.time = 0
@@ -61,7 +62,7 @@ class Bullet(PhysicsObject):
                     particle_type = obj.damage(self.dmg, colliders)
                     self.destroy(particle_type)
                 else:
-                    obj.velocity += self.velocity
+                    obj.velocity += 0.5 * self.velocity
                     self.destroy(Dust)
 
                 return

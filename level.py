@@ -208,8 +208,7 @@ class Level:
             elif isinstance(obj, Bullet):
                 if obj.destroyed and (self.server or not obj.particle_clouds):
                     obj.collider.clear_occupied_squares(colliders)
-                    if obj.sprite:
-                        obj.sprite.delete()
+                    obj.delete()
                     del self.objects[k]
                     continue
 

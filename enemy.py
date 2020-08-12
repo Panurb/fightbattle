@@ -35,6 +35,7 @@ class Enemy(Player):
         self.head_type = np.random.choice(HEADS)
         self.state = EnemyState.IDLE
         self.vision_collider = Circle(self.position, 1)
+        self.ai_timer = 0
 
     def reset(self, colliders):
         super().reset(colliders)
@@ -42,6 +43,12 @@ class Enemy(Player):
         self.state = EnemyState.IDLE
 
     def update_ai(self, objects, player, colliders):
+        if self.ai_timer == 0:
+            self.ai_timer = 10
+        else:
+            self.ai_timer -= 1
+            return
+
         self.grabbing = False
         self.goal_crouched = 0.0
 
@@ -91,7 +98,7 @@ class Enemy(Player):
                         self.goal = objects[obj.id]
                         break
                 else:
-                    self.state = EnemyState.RUN_AWAY
+                    self.state = EnemyState.PATROL
                     return
 
             r = self.goal.position - self.position
@@ -101,7 +108,7 @@ class Enemy(Player):
                 self.goal_velocity[0] = 0.0
                 if abs(r[1]) > 0.5:
                     self.goal_crouched = 1.0
-                self.grab_object()
+                self.grab_object(colliders)
             else:
                 self.goal_velocity[0] = np.sign(r[0]) * self.walk_speed
 
@@ -163,9 +170,12 @@ class Enemy(Player):
                 self.state = EnemyState.SEEK_WEAPON
 
             r = player.position - self.position
-            if r[0] * self.direction > 0:
+            if r[0] * self.direction > 0 and norm2(r) < 400:
                 if self.raycast(self.position, r, colliders):
-                    self.state = EnemyState.SEEK_PLAYER
+                    if self.object:
+                        self.state = EnemyState.SEEK_PLAYER
+                    else:
+                        self.state = EnemyState.RUN_AWAY
 
             if player.object and isinstance(player.object, Weapon) and player.object.attacked:
                 self.state = EnemyState.SEEK_PLAYER

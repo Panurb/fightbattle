@@ -180,6 +180,10 @@ class Barrier(Wall, Destroyable):
         else:
             Wall.draw(self, batch, camera, image_handler)
 
+    def draw_shadow(self, batch, camera, image_handler, light):
+        return
+
     def damage(self, amount, colliders):
-        super().damage(amount, colliders)
-        return Dust
+        if amount >= self.health / 2:
+            super().damage(amount, colliders)
+            return Dust
