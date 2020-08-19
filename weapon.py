@@ -180,7 +180,7 @@ class Axe(Weapon):
     def __init__(self, position):
         super().__init__(position, image_path='axe')
         self.bump_sound = 'sword'
-        self.add_collider(Rectangle([0.25, 0.2], 0.6, 1.5, Group.SHIELDS))
+        self.add_collider(Rectangle([0.25, 0.2], 0.6, 1.5, Group.WEAPONS))
         self.image_position = np.array([0.25, 0.2])
         self.rotate(np.pi / 2)
         self.hit = False
@@ -214,7 +214,8 @@ class Axe(Weapon):
 
             for c in self.collider.collisions:
                 obj = c.collider.parent
-                if obj not in {self.parent.body, self.parent.head}:
+                if obj is not self.parent:
+                    self.parent.camera_shake = 10 * random_unit()
                     if isinstance(obj, PhysicsObject):
                         r = normalized(self.collider.position - obj.collider.position)
                         obj.velocity -= r
@@ -223,7 +224,6 @@ class Axe(Weapon):
                             if particle_type:
                                 self.particle_clouds.append(particle_type(self.position, 5.0 * r))
                     self.hit = True
-                    self.parent.camera_shake = 10 * random_unit()
                     break
 
     def attack(self):

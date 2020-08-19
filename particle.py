@@ -50,6 +50,7 @@ class Cloud:
     def delete(self):
         for p in self.particles:
             p.delete()
+        self.particles.clear()
 
 
 class Particle:

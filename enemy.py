@@ -34,7 +34,7 @@ class Enemy(Player):
         self.body_type = np.random.choice(BODIES)
         self.head_type = np.random.choice(HEADS)
         self.state = EnemyState.IDLE
-        self.vision_collider = Circle(self.position, 1)
+        self.vision_collider = Circle(self.position, 0.25)
         self.ai_timer = 0
 
     def reset(self, colliders):
@@ -52,7 +52,7 @@ class Enemy(Player):
         self.grabbing = False
         self.goal_crouched = 0.0
 
-        self.vision_collider.set_position(self.position + np.array([2 * self.direction, -1]))
+        self.vision_collider.set_position(self.position + np.array([2 * self.direction, -2]))
         self.vision_collider.update_occupied_squares(colliders)
         self.vision_collider.update_collisions(colliders, {Group.WALLS, Group.PLATFORMS})
 
@@ -157,7 +157,7 @@ class Enemy(Player):
                 self.goal_velocity[0] = 0.5 * self.walk_speed
 
             for c in self.collider.collisions:
-                if c.overlap[0]:
+                if c.overlap[0] and c.collider.group is Group.WALLS:
                     self.goal_velocity[0] = np.sign(c.overlap[0]) * 0.5 * self.walk_speed
                     break
 
@@ -222,3 +222,7 @@ class Enemy(Player):
                 break
 
         return False
+
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        #self.vision_collider.draw(batch, camera, image_handler)
