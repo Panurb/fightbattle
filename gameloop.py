@@ -136,7 +136,7 @@ class GameLoop:
             if not self.level:
                 path = os.path.join('singleplayer', self.campaign_menu.level_slider.get_value())
                 self.load_level(path)
-                self.delay_timer = 0
+                self.delay_timer = 0.0
                 self.campaign_menu.set_visible(False)
                 self.score_limit = int(self.level_menu.score_slider.get_value())
                 zoom = min(self.camera.resolution[0] / self.level.width, self.camera.resolution[1] / self.level.height)
@@ -145,6 +145,20 @@ class GameLoop:
                     if p.team == 'red':
                         player = Enemy(p.position)
                         self.players[len(self.players)] = player
+
+            if self.delay_timer > 0:
+                if self.level.background:
+                    self.delay_timer -= time_step
+                    if not self.text.string:
+                        self.text.string = 'DECEASED'
+                        self.time_scale = 0.5
+            else:
+                self.delay_timer = 0.0
+                if self.text.string == 'DECEASED':
+                    self.reset_game()
+                    self.delay_timer = 0.0
+                self.text.string = ''
+                self.time_scale = 1.0
 
             self.timer += time_step
 
@@ -161,6 +175,8 @@ class GameLoop:
                         self.campaign_menu.times[self.level.name] = min(self.timer,
                                                                         self.campaign_menu.times[self.level.name])
                         self.campaign_menu.save()
+                    if player.destroyed and self.delay_timer == 0:
+                        self.delay_timer = self.delay
 
             self.level.update(self.time_scale * time_step, self.colliders)
 

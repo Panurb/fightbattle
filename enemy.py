@@ -36,6 +36,7 @@ class Enemy(Player):
         self.state = EnemyState.IDLE
         self.vision_collider = Circle(self.position, 0.25)
         self.ai_timer = 0
+        self.team = 'red'
 
     def reset(self, colliders):
         super().reset(colliders)
@@ -133,7 +134,7 @@ class Enemy(Player):
             self.hand_goal = normalized(r)
 
             if type(self.object) is Axe:
-                if abs(r[0]) > 1.0:
+                if abs(r[0]) > 2.0:
                     self.goal_velocity[0] = np.sign(r[0]) * self.run_speed
                 else:
                     self.goal_velocity[0] = 0.0
@@ -152,6 +153,10 @@ class Enemy(Player):
                 self.state = EnemyState.IDLE
             elif not self.object:
                 self.state = EnemyState.SEEK_WEAPON
+
+            if not self.raycast(self.position, r, colliders):
+                self.state = EnemyState.PATROL
+                self.goal_velocity[0] = 0.0
         elif self.state is EnemyState.PATROL:
             if not self.goal_velocity[0]:
                 self.goal_velocity[0] = 0.5 * self.walk_speed
@@ -177,7 +182,7 @@ class Enemy(Player):
                     else:
                         self.state = EnemyState.RUN_AWAY
 
-            if player.object and isinstance(player.object, Weapon) and player.object.attacked:
+            if player.object and isinstance(player.object, Weapon) and player.object.timer > 0:
                 self.state = EnemyState.SEEK_PLAYER
         elif self.state is EnemyState.RUN_AWAY:
             r = player.position - self.position
