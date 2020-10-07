@@ -116,6 +116,10 @@ class GameLoop:
             for p in self.players.values():
                 p.reset(self.colliders)
 
+        for pm in self.player_menus:
+            if pm.joined:
+                self.players[pm.controller_id].set_position(pm.position + 3 * basis(1))
+
         self.level.delete()
         self.level = None
 
@@ -256,7 +260,7 @@ class GameLoop:
                             self.delay_timer = self.delay
 
                 self.camera.set_target(self.players, self.level)
-                self.text.position[:] = self.camera.position
+            self.text.position[:] = self.camera.position
         elif self.state is State.MENU:
             for p in self.players.values():
                 p.delete()
@@ -304,19 +308,19 @@ class GameLoop:
 
             for pm in self.player_menus:
                 if pm.joined:
-                    self.players[pm.controller_id].body_type = pm.body_slider.get_value()
-                    self.players[pm.controller_id].head_type = pm.head_slider.get_value()
-                    self.players[pm.controller_id].team = pm.team_slider.get_value()
+                    player = self.players[pm.controller_id]
+                    player.body_type = pm.body_slider.get_value()
+                    player.head_type = pm.head_slider.get_value()
+                    player.team = pm.team_slider.get_value()
 
-                    self.players[pm.controller_id].set_position(pm.position + 3 * basis(1))
-                    self.players[pm.controller_id].on_ground = True
-                    self.players[pm.controller_id].animate(0.0)
-                else:
-                    if pm.controller_id is not None:
-                        self.players[pm.controller_id].delete()
-                        del self.players[pm.controller_id]
-                        pm.controller_id = None
-                        return
+                    player.set_position(pm.position + 3 * basis(1))
+                    player.on_ground = True
+                    player.animate(0.0)
+                elif pm.controller_id is not None:
+                    self.players[pm.controller_id].delete()
+                    del self.players[pm.controller_id]
+                    pm.controller_id = None
+                    return
 
             if self.players and all(not pm.joined or pm.ready for pm in self.player_menus):
                 self.state = State.LEVEL_SELECT
@@ -440,7 +444,7 @@ class GameLoop:
                 input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
 
             for player in self.players.values():
-                player.input(input_handler)
+                player.input(input_handler.controllers[player.controller_id])
 
             if input_handler.keys_pressed.get(key.R):
                 self.reset_game()
@@ -520,20 +524,26 @@ class GameLoop:
         else:
             image_handler.set_clear_color((50, 50, 50))
 
-        if State.MENU in {self.state, self.previous_state}:
+        state_queue = {self.state, self.previous_state}
+
+        if State.MENU in state_queue:
+            for pm in self.player_menus:
+                pm.draw(batch, self.camera, image_handler)
             self.menu.draw(batch, self.camera, image_handler)
-        if State.OPTIONS in {self.state, self.previous_state}:
+        if State.OPTIONS in state_queue:
             self.options_menu.draw(batch, self.camera, image_handler)
-        if State.PLAYER_SELECT in {self.state, self.previous_state}:
+        if State.PLAYER_SELECT in state_queue:
             for pm in self.player_menus:
                 pm.draw(batch, self.camera, image_handler)
             for p in self.players.values():
                 p.draw(batch, self.camera, image_handler)
-        if State.LEVEL_SELECT in {self.state, self.previous_state}:
+        if State.LEVEL_SELECT in state_queue:
             self.level_menu.draw(batch, self.camera, image_handler)
-        if State.CONTROLS in {self.state, self.previous_state}:
+            for p in self.players.values():
+                p.draw(batch, self.camera, image_handler)
+        if State.CONTROLS in state_queue:
             self.controls_menu.draw(batch, self.camera, image_handler)
-        if State.CAMPAIGN in {self.state, self.previous_state}:
+        if State.CAMPAIGN in state_queue:
             self.campaign_menu.draw(batch, self.camera, image_handler)
             for p in self.players.values():
                 p.draw(batch, self.camera, image_handler)

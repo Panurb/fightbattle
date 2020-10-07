@@ -54,21 +54,38 @@ class ImageHandler:
                             self.tiles[name] = self.image_to_tiles(img, 3, 1)
                         else:
                             self.tiles[name] = self.image_to_tiles(img, 3, 3)
+                continue
+            elif r.endswith('bodies'):
+                for file in f:
+                    if not file.endswith('png'):
+                        continue
+
+                    name = file.replace('.png', '')
+                    image = pyglet.resource.image(file)
+
+                    w = image.width // 2
+                    h = image.height // 5
+
+                    body = image.get_region(0, 0, w, image.height)
+                    foot = image.get_region(w, 0, w, h)
+                    lower_leg = image.get_region(w, h, w, h)
+                    upper_leg = image.get_region(w, 2 * h, w, h)
+                    lower_arm = image.get_region(w, 3 * h, w, h)
+                    upper_arm = image.get_region(w, 4 * h, w, h)
+
+                    names = ['body', 'foot', 'lower_leg', 'upper_leg', 'lower_arm', 'upper_arm']
+                    for i, img in enumerate([body, foot, lower_leg, upper_leg, lower_arm, upper_arm]):
+                        img.anchor_x = img.width // 2
+                        img.anchor_y = img.height // 2
+                        self.images[f'{names[i]}_{name}'] = img
 
                 continue
 
-            if 'bodies' in r:
-                prefix = f'{r.split(os.sep)[-1]}/'
-                suffix = f'_{r.split(os.sep)[-1]}'
-            else:
-                prefix = ''
-                suffix = ''
-
             for file in f:
                 if file.endswith('png'):
-                    name = file.replace('.png', '') + suffix
+                    name = file.replace('.png', '')
 
-                    image = pyglet.resource.image(prefix + file)
+                    image = pyglet.resource.image(file)
                     image.anchor_x = image.width // 2
                     image.anchor_y = image.height // 2
                     self.images[name] = image

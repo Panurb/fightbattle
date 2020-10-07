@@ -5,14 +5,14 @@ from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
 from helpers import random_unit
 from particle import Sparks
-from weapon import Revolver, Shotgun, Shield, Axe, Grenade, Bow
+from weapon import Revolver, Shotgun, Shield, Axe, Grenade, Bow, Sniper, SawedOff
 
 
 class Crate(Destroyable):
     def __init__(self, position):
         super().__init__(position, image_path='crate', debris_path='crate_debris', health=100)
         self.add_collider(Rectangle([0, 0], 1, 1, Group.BOXES))
-        self.loot_list = [Revolver, Shotgun, Shield, Axe, Grenade, Bow]
+        self.loot_list = [Revolver, Shotgun, Shield, Axe, Grenade, Bow, Sniper, SawedOff]
         self.rotate(0.5 * np.pi * np.random.randint(0, 4))
 
     def apply_data(self, data):

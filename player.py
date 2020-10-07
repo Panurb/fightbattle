@@ -6,7 +6,7 @@ from gameobject import PhysicsObject, Destroyable, MAX_SPEED, AnimatedObject
 from collider import Rectangle, Circle, Group
 from helpers import norm2, basis, perp, normalized, polar_angle, random_unit, polar_to_cartesian
 from particle import BloodSplatter, Dust
-from weapon import Shotgun, Bow, Axe, Weapon, Grenade
+from weapon import Shotgun, Bow, Axe, Weapon, Grenade, Gun
 
 
 class Player(Destroyable):
@@ -21,12 +21,14 @@ class Player(Destroyable):
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
-        self.body_type = 'speedo'
+        self.body_type = 'template'
         self.head_type = 'bald'
         self.team = ''
 
-        self.body = Drawable(self.position, self.body_type, 0.75, layer=5)
-        self.head = Drawable(self.position + basis(1), self.head_type, 0.9, layer=5)
+        self.body = Drawable(self.position, self.body_type, 1.0, layer=5)
+        self.wounds = Drawable(self.position, '', layer=5)
+
+        self.head = Drawable(self.position + basis(1), self.head_type, 1.0, layer=5)
 
         self.back_hip = self.position + np.array([0.1, -0.5])
         self.front_hip = self.position + np.array([-0.1, -0.5])
@@ -67,8 +69,8 @@ class Player(Destroyable):
         self.grab_timer = 0.0
 
         self.jump_speed = 16.0
-        self.fall_damage = 10
-        self.fall_damage_speed = 20.0
+        self.fall_damage = 1
+        self.fall_damage_speed = 30.0
 
         self.charging_attack = False
         self.charging_throw = False
@@ -80,6 +82,7 @@ class Player(Destroyable):
         self.hand.delete()
         self.front_foot.delete()
         self.back_foot.delete()
+        self.wounds.delete()
 
     def get_data(self):
         return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1],
@@ -129,6 +132,7 @@ class Player(Destroyable):
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
+        self.on_ground = True
         self.animate(0.0)
 
     def set_spawn(self, level, players):
@@ -231,8 +235,7 @@ class Player(Destroyable):
                                                          -0.2 * self.velocity, 5))
 
                     if self.velocity[1] < -self.fall_damage_speed:
-                        self.sounds.add('hit')
-                        self.damage(self.fall_damage * self.velocity[1], colliders)
+                        self.damage(self.fall_damage * abs(self.velocity[1]), colliders)
 
                 self.on_ground = True
                 if type(collision.collider) is not Circle:
@@ -440,17 +443,20 @@ class Player(Destroyable):
                 else:
                     self.hand.image_path = 'hand'
                 self.back_hand.image_path = 'fist_front'
-            elif type(self.object) is Grenade:
+            elif type(self.object) in {Grenade, Axe}:
                 self.hand.image_path = 'fist'
             elif self.object.collider.group is Group.WEAPONS:
                 self.hand.image_path = 'hand_trigger'
-            elif self.object.collider.group in {Group.SHIELDS}:
+            elif self.object.collider.group is Group.SHIELDS:
                 self.hand.image_path = 'fist'
             else:
                 self.hand.image_path = 'hand'
 
-            if type(self.object) is Shotgun:
-                self.back_hand.image_path = 'hand_grip'
+            if isinstance(self.object, Gun) and self.object.grip_position is not None:
+                if type(self.object) is Bow:
+                    self.back_hand.image_path = 'fist_front'
+                else:
+                    self.back_hand.image_path = 'hand_grip'
         else:
             self.hand.image_path = 'hand' if self.grabbing else 'fist'
             self.back_hand.image_path = ''
@@ -479,6 +485,11 @@ class Player(Destroyable):
 
         for b in self.particle_clouds:
             b.draw(batch, camera, image_handler)
+
+        self.wounds.position[:] = self.body.position
+        self.wounds.angle = self.body.angle
+        self.wounds.image_path = 'wounds' if self.health < 50 else ''
+        self.wounds.draw(batch, camera, image_handler)
 
     def draw_shadow(self, batch, camera, image_handler, light):
         self.head.draw_shadow(batch, camera, image_handler, light)
@@ -582,6 +593,8 @@ class Player(Destroyable):
 
         self.health -= amount
 
+        print(self.health)
+
         if self.health <= 0:
             self.destroy(colliders)
 
@@ -595,9 +608,9 @@ class Player(Destroyable):
         self.back_foot.gravity_scale = 1.0
         self.front_foot.gravity_scale = 1.0
 
-        self.velocity += 0.5 * basis(1)
+        self.velocity[1] = 10.0
         self.bounce = 0.5
-        self.angular_velocity = -0.125 * np.sign(self.velocity[0])
+        self.angular_velocity = -5 * np.sign(self.velocity[0])
         self.destroyed = True
         if self.object:
             self.drop_object()
@@ -697,8 +710,8 @@ class Limb(PhysicsObject, AnimatedObject):
         self.start = np.zeros(2)
         self.end = None
 
-        self.upper = Drawable(self.position, '', size=0.85, layer=self.shaft_layer)
-        self.lower = Drawable(self.position, '', size=0.85, layer=self.shaft_layer)
+        self.upper = Drawable(self.position, '', size=1.0, layer=self.shaft_layer)
+        self.lower = Drawable(self.position, '', size=1.0, layer=self.shaft_layer)
 
     def reset(self, colliders):
         self.collider.clear_occupied_squares(colliders)
@@ -791,21 +804,20 @@ class Hand(Limb):
         self.upper.image_path = f'upper_arm_{self.parent.body_type}'
         self.lower.image_path = f'lower_arm_{self.parent.body_type}'
 
-        if self.front and not not self.band and self.parent.team:
+        if self.front and not self.band and self.parent.team:
             self.band = Drawable(self.position, '', layer=self.shaft_layer+1)
 
         if self.band:
             self.band.image_path = f'{self.parent.team}_band'
-            self.band.position = self.upper.position
+            self.band.position = self.parent.shoulder
             self.band.angle = self.upper.angle
             self.band.draw(batch, camera, image_handler)
-
         super().draw(batch, camera, image_handler)
 
 
 class Foot(Limb):
     def __init__(self, position, parent, front=False):
-        super().__init__(position, image_path='', size=0.8, parent=parent, front=front, layer=5, length=0.95,
+        super().__init__(position, image_path='', size=1.0, parent=parent, front=front, layer=5, length=0.95,
                          joint_direction=-1)
         self.image_position = 0.15 * basis(0)
 
