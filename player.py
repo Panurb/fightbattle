@@ -248,7 +248,7 @@ class Player(Destroyable):
             self.position += collision.overlap
             self.collider.position += collision.overlap
 
-            if not collision.overlap[1]:
+            if abs(collision.overlap[0]) > 0:
                 self.velocity[0] = 0.0
 
         acc_old = self.acceleration.copy()
@@ -466,6 +466,12 @@ class Player(Destroyable):
         self.back_foot.draw(batch, camera, image_handler)
         self.body.image_path = f'body_{self.body_type}'
         self.body.draw(batch, camera, image_handler)
+
+        self.wounds.position[:] = self.body.position
+        self.wounds.angle = self.body.angle
+        self.wounds.image_path = 'wounds' if self.health < 50 else ''
+        self.wounds.draw(batch, camera, image_handler)
+
         self.front_foot.draw(batch, camera, image_handler)
         self.head.image_path = f'{self.head_type}'
         self.head.draw(batch, camera, image_handler)
@@ -486,10 +492,9 @@ class Player(Destroyable):
         for b in self.particle_clouds:
             b.draw(batch, camera, image_handler)
 
-        self.wounds.position[:] = self.body.position
-        self.wounds.angle = self.body.angle
-        self.wounds.image_path = 'wounds' if self.health < 50 else ''
-        self.wounds.draw(batch, camera, image_handler)
+        if self.camera_shake is not None:
+            camera.shake += self.camera_shake
+            self.camera_shake = None
 
     def draw_shadow(self, batch, camera, image_handler, light):
         self.head.draw_shadow(batch, camera, image_handler, light)

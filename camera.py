@@ -102,7 +102,7 @@ class Camera:
         if alive > 1:
             x = max(abs(x_max - self.target_position[0]), abs(x_min - self.target_position[0]))
             y = max(abs(y_max - self.target_position[1]), abs(y_min - self.target_position[1]))
-            self.target_zoom = min(0.47 * self.resolution[0] / x, 0.47 * self.resolution[1] / y)
+            self.target_zoom = min(0.47 * self.resolution[0] / (x + 1e-6), 0.47 * self.resolution[1] / (y + 1e-6))
             self.target_zoom = min(self.target_zoom, self.max_zoom)
         else:
             self.target_zoom = self.max_zoom

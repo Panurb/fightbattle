@@ -259,6 +259,10 @@ class PhysicsObject(GameObject):
         for p in self.particle_clouds:
             p.draw(batch, camera, image_handler)
 
+        if self.camera_shake is not None:
+            camera.shake += self.camera_shake
+            self.camera_shake = None
+
 
 class Destroyable(PhysicsObject):
     def __init__(self, position, velocity=(0, 0), image_path='', debris_path='', size=1.0, debris_size=1.0,

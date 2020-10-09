@@ -259,7 +259,7 @@ class GameLoop:
                             self.time_scale = 0.5
                             self.delay_timer = self.delay
 
-                self.camera.set_target(self.players, self.level)
+                #self.camera.set_target(self.players, self.level)
             self.text.position[:] = self.camera.position
         elif self.state is State.MENU:
             for p in self.players.values():
