@@ -117,6 +117,14 @@ class Player(Destroyable):
         self.back_foot.reset(colliders)
         self.hand.set_position(self.position)
 
+        if self.body.shadow_sprite:
+            self.body.shadow_sprite.delete()
+            self.body.shadow_sprite = None
+
+        if self.head.shadow_sprite:
+            self.head.shadow_sprite.delete()
+            self.head.shadow_sprite = None
+
         self.destroyed = False
         self.health = 100
         self.rotate(-self.angle)
@@ -129,28 +137,35 @@ class Player(Destroyable):
         if self.direction == -1:
             self.flip_horizontally()
 
+        self.velocity[:] = 0.0
+        self.on_ground = True
+        self.goal_velocity[:] = 0.0
+        self.update_joints()
+        self.hand_goal = basis(0)
+        self.elbow = np.zeros(2)
+
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
-        self.on_ground = True
-        self.animate(0.0)
+
+        if self.wounds:
+            self.wounds.delete()
+            self.wounds = None
 
     def set_spawn(self, level, players):
         i = 0
-        max_dist = 0.0
-        for j, s in enumerate([s for s in level.player_spawns]):
-            if len(players) == 1:
-                break
+        if len(players) > 1:
+            max_dist = 0.0
+            for j, s in enumerate([s for s in level.player_spawns]):
+                if s.team != self.team:
+                    continue
 
-            if s.team != self.team:
-                continue
-
-            min_dist = np.inf
-            for p in players.values():
-                min_dist = min(min_dist, norm2(s.position - p.position))
-            if min_dist > max_dist:
-                max_dist = min_dist
-                i = j
+                min_dist = np.inf
+                for p in players.values():
+                    min_dist = min(min_dist, norm2(s.position - p.position))
+                if min_dist > max_dist:
+                    max_dist = min_dist
+                    i = j
 
         self.set_position(level.player_spawns[i].position)
 

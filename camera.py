@@ -72,10 +72,6 @@ class Camera:
         y_min = np.inf
         y_max = -np.inf
         for p in players.values():
-            if p.camera_shake is not None:
-                self.shake += p.camera_shake
-                p.camera_shake = None
-
             if p.destroyed:
                 continue
 
@@ -106,11 +102,6 @@ class Camera:
             self.target_zoom = min(self.target_zoom, self.max_zoom)
         else:
             self.target_zoom = self.max_zoom
-
-        for o in level.objects.values():
-            if o.camera_shake is not None:
-                self.shake += o.camera_shake
-                o.camera_shake = None
 
     def update(self, time_step):
         delta_pos = self.target_position - self.position

@@ -44,8 +44,8 @@ class Editor(pyglet.window.Window):
         self.grabbed_object = None
         self.grab_offset = np.zeros(2)
         self.grab_start = np.zeros(2)
-        self.object_types = [Wall, Platform, Barrier, Scoreboard, PlayerSpawn, Exit, Television, Basket, Crate, Box, Ball,
-                             Revolver, Shotgun, Bow, Grenade, Axe, Shield, SawedOff, Sniper, MachineGun]
+        self.object_types = [Wall, Platform, Barrier, Scoreboard, PlayerSpawn, Exit, Television, Basket, Crate, Box,
+                             Ball, Revolver, Shotgun, Bow, Grenade, Axe, Shield, SawedOff, Sniper, MachineGun]
         self.type_index = 0
         self.type_text = Text('', np.zeros(2), 0.5)
 
@@ -53,7 +53,7 @@ class Editor(pyglet.window.Window):
 
         self.type_select = False
 
-        self.path = os.path.join('data', 'levels', 'multiplayer', 'lanes')
+        self.path = os.path.join('data', 'levels', 'multiplayer', 'circle')
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
@@ -61,17 +61,14 @@ class Editor(pyglet.window.Window):
                 o.id = i
             with open(self.path + '.pickle', 'wb') as f:
                 pickle.dump(self.level.get_data(), f)
-
-        if symbol == key.L:
+        elif symbol == key.L:
             with open(self.path + '.pickle', 'rb') as f:
                 data = pickle.load(f)
                 self.level.clear()
                 self.level.apply_data(data)
-
-        if symbol == key.DELETE:
+        elif symbol == key.DELETE:
             self.level.clear()
-
-        if symbol == key.SPACE:
+        elif symbol == key.SPACE:
             self.type_select = True
 
     def on_key_release(self, symbol, modifiers):

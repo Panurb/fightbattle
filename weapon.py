@@ -105,8 +105,8 @@ class Shotgun(Gun):
             theta += 0.1
             v = self.direction * np.random.normal(self.bullet_speed, 0.05) * polar_to_cartesian(1, theta)
             bs.append(Pellet(self.get_barrel_position(), v, self.parent))
-        self.angular_velocity += self.direction * 15
-        self.velocity -= 2 * self.collider.half_width / self.collider.width * self.direction * 10
+        self.angular_velocity += self.direction * 10
+        self.velocity -= 4 * self.collider.half_width / self.collider.width * self.direction * 10
         self.velocity += 2 * self.collider.half_height / self.collider.height * 10
 
         return bs
