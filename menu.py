@@ -321,6 +321,8 @@ class PauseMenu(Menu):
     def draw(self, screen, camera, image_handler):
         self.position[:] = camera.position
         self.update_buttons()
+        for b in self.buttons:
+            b.text.size = 0.45 * camera.max_zoom / camera.zoom
         super().draw(screen, camera, image_handler)
 
 

@@ -57,3 +57,6 @@ class Exit(Goal):
         self.add_collider(Rectangle([0, 0], 1, 3, group=Group.GOALS))
         self.image_position[1] = 0.45
         self.size = 1.0
+
+    def draw_shadow(self, batch, camera, image_handler, light):
+        pass

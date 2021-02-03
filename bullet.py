@@ -7,7 +7,7 @@ from particle import BloodSplatter, Dust, Sparks
 
 
 class Bullet(PhysicsObject):
-    def __init__(self, position, velocity=(0, 0), parent=None, lifetime=0.5, size=1.0, dmg=20):
+    def __init__(self, position, velocity=(0, 0), parent=None, lifetime=1.0, size=1.0, dmg=20):
         super().__init__(position, velocity)
         self.parent = parent
         self.add_collider(Circle(np.zeros(2), 0.2, Group.BULLETS))
@@ -93,7 +93,7 @@ class Bullet(PhysicsObject):
 
 class Pellet(Bullet):
     def __init__(self, position, velocity=(0, 0), parent=None):
-        super().__init__(position, velocity, parent, 0.5, 0.5, 15)
+        super().__init__(position, velocity, parent, 1.0, 0.5, 15)
 
 
 class Arrow(Bullet):

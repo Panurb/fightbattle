@@ -259,7 +259,6 @@ class GameLoop:
                             self.time_scale = 0.5
                             self.delay_timer = self.delay
 
-                #self.camera.set_target(self.players, self.level)
             self.text.position[:] = self.camera.position
         elif self.state is State.MENU:
             for p in self.players.values():
@@ -524,29 +523,29 @@ class GameLoop:
         else:
             image_handler.set_clear_color((50, 50, 50))
 
-        state_queue = {self.state, self.previous_state}
+            state_queue = {self.state, self.previous_state}
 
-        if State.MENU in state_queue:
-            for pm in self.player_menus:
-                pm.draw(batch, self.camera, image_handler)
-            self.menu.draw(batch, self.camera, image_handler)
-        if State.OPTIONS in state_queue:
-            self.options_menu.draw(batch, self.camera, image_handler)
-        if State.PLAYER_SELECT in state_queue:
-            for pm in self.player_menus:
-                pm.draw(batch, self.camera, image_handler)
-            for p in self.players.values():
-                p.draw(batch, self.camera, image_handler)
-        if State.LEVEL_SELECT in state_queue:
-            self.level_menu.draw(batch, self.camera, image_handler)
-            for p in self.players.values():
-                p.draw(batch, self.camera, image_handler)
-        if State.CONTROLS in state_queue:
-            self.controls_menu.draw(batch, self.camera, image_handler)
-        if State.CAMPAIGN in state_queue:
-            self.campaign_menu.draw(batch, self.camera, image_handler)
-            for p in self.players.values():
-                p.draw(batch, self.camera, image_handler)
+            if State.MENU in state_queue:
+                for pm in self.player_menus:
+                    pm.draw(batch, self.camera, image_handler)
+                self.menu.draw(batch, self.camera, image_handler)
+            if State.OPTIONS in state_queue:
+                self.options_menu.draw(batch, self.camera, image_handler)
+            if State.PLAYER_SELECT in state_queue:
+                for pm in self.player_menus:
+                    pm.draw(batch, self.camera, image_handler)
+                for p in self.players.values():
+                    p.draw(batch, self.camera, image_handler)
+            if State.LEVEL_SELECT in state_queue:
+                self.level_menu.draw(batch, self.camera, image_handler)
+                for p in self.players.values():
+                    p.draw(batch, self.camera, image_handler)
+            if State.CONTROLS in state_queue:
+                self.controls_menu.draw(batch, self.camera, image_handler)
+            if State.CAMPAIGN in state_queue:
+                self.campaign_menu.draw(batch, self.camera, image_handler)
+                for p in self.players.values():
+                    p.draw(batch, self.camera, image_handler)
 
         self.camera.draw(batch)
 
@@ -566,22 +565,20 @@ class GameLoop:
 
     def play_sounds(self, sound_handler):
         if self.state is State.PAUSED:
-            sound_handler.pause()
-        else:
-            sound_handler.play()
+            sound_handler.music_player.pause()
 
         if self.state in {State.MENU, State.PLAYER_SELECT, State.LEVEL_SELECT}:
-            sound_handler.set_music(0)
+            sound_handler.menu_player.play()
+            sound_handler.music_player.pause()
 
         if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER}:
             for p in self.players.values():
                 p.play_sounds(sound_handler)
 
             if self.level:
+                sound_handler.menu_player.pause()
                 if self.level.background:
-                    sound_handler.set_music(1)
-                else:
-                    sound_handler.pause()
+                    sound_handler.music_player.play()
                 self.level.play_sounds(sound_handler)
         elif self.state is State.OPTIONS:
             sound_handler.set_volume(self.options_menu.buttons[2].get_value())

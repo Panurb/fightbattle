@@ -80,6 +80,7 @@ class Player(Destroyable):
         self.head.delete()
         self.body.delete()
         self.hand.delete()
+        self.back_hand.delete()
         self.front_foot.delete()
         self.back_foot.delete()
         self.wounds.delete()
@@ -147,10 +148,8 @@ class Player(Destroyable):
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()
-
-        if self.wounds:
-            self.wounds.delete()
-            self.wounds = None
+        self.wounds.delete()
+        self.wounds.image_path = ''
 
     def set_spawn(self, level, players):
         i = 0
@@ -484,7 +483,14 @@ class Player(Destroyable):
 
         self.wounds.position[:] = self.body.position
         self.wounds.angle = self.body.angle
-        self.wounds.image_path = 'wounds' if self.health < 50 else ''
+        if self.health > 75:
+            self.wounds.image_path = ''
+        elif self.health > 50:
+            self.wounds.image_path = 'wounds1'
+        elif self.health > 25:
+            self.wounds.image_path = 'wounds2'
+        else:
+            self.wounds.image_path = 'wounds3'
         self.wounds.draw(batch, camera, image_handler)
 
         self.front_foot.draw(batch, camera, image_handler)

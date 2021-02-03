@@ -4,6 +4,7 @@ from PIL import Image, ImageOps
 
 import numpy as np
 import pyglet
+from pyglet.gl import *
 
 
 class ImageHandler:
@@ -20,6 +21,8 @@ class ImageHandler:
         pyglet.resource.reindex()
 
         self.load_images()
+        # glEnable(GL_TEXTURE_2D)
+        # glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         self.load_fonts()
 
         self.set_clear_color((50, 50, 50))
