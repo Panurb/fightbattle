@@ -6,8 +6,7 @@ import numpy as np
 from collider import Circle, Group, GRID_SIZE
 from helpers import normalized, norm2, basis
 from player import Player
-from prop import Crate
-from weapon import Shield, Weapon, Axe
+from weapon import Weapon, Axe
 
 path = os.path.join('data', 'images', 'heads')
 HEADS = [x.split('.')[0] for x in os.listdir(path)]
@@ -19,8 +18,6 @@ BODIES = [x.split('.')[0] for x in os.listdir(path)]
 class EnemyState(Enum):
     IDLE = 1
     SEEK_WEAPON = 2
-    SEEK_CRATE = 3
-    HOLDING_CRATE = 4
     SEEK_PLAYER = 5
     PATROL = 6
     RUN_AWAY = 7
@@ -70,9 +67,6 @@ class Enemy(Player):
                     if isinstance(obj, Weapon):
                         self.goal = objects[obj.id]
                         break
-                else:
-                    self.state = EnemyState.SEEK_CRATE
-                    return
 
             r = self.goal.position - self.position
             self.hand_goal = normalized(r)
@@ -89,46 +83,6 @@ class Enemy(Player):
                 self.goal_velocity[0] = 0.0
                 self.state = EnemyState.PATROL
                 self.goal = None
-        elif self.state is EnemyState.SEEK_CRATE:
-            if self.goal is None:
-                for obj in sorted(objects.values(), key=lambda x: norm2(self.position - x.position)):
-                    if obj.parent:
-                        continue
-
-                    if type(obj) is Crate:
-                        self.goal = objects[obj.id]
-                        break
-                else:
-                    self.state = EnemyState.PATROL
-                    return
-
-            r = self.goal.position - self.position
-            self.hand_goal = normalized(r)
-
-            if abs(r[0]) < 0.25:
-                self.goal_velocity[0] = 0.0
-                if abs(r[1]) > 0.5:
-                    self.goal_crouched = 1.0
-                self.grab_object(colliders)
-            else:
-                self.goal_velocity[0] = np.sign(r[0]) * self.walk_speed
-
-            if self.object:
-                self.state = EnemyState.HOLDING_CRATE
-                self.goal_crouched = 0.0
-        elif self.state is EnemyState.HOLDING_CRATE:
-            self.hand_goal = -basis(1)
-            self.goal_velocity[0] = 0.0
-            if self.throw_charge == 1:
-                self.throw_object()
-                self.charging_throw = False
-                self.throw_charge = 0.0
-            else:
-                self.charging_throw = True
-
-            if self.goal.destroyed:
-                self.goal = None
-                self.state = EnemyState.SEEK_WEAPON
         elif self.state is EnemyState.SEEK_PLAYER:
             r = player.position - self.position
             self.hand_goal = normalized(r)
@@ -175,7 +129,7 @@ class Enemy(Player):
                 self.state = EnemyState.SEEK_WEAPON
 
             r = player.position - self.position
-            if r[0] * self.direction > 0 and norm2(r) < 400:
+            if r[0] * self.direction > 0 and abs(r[0]) < 20 and abs(r[1]) < 5:
                 if self.raycast(self.position, r, colliders):
                     if self.object:
                         self.state = EnemyState.SEEK_PLAYER

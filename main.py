@@ -40,7 +40,8 @@ class GameWindow(pyglet.window.Window):
         self.clear()
         self.loop.draw(self.batch, self.image_handler)
         self.batch.draw()
-        self.fps_display.draw()
+        if self.option_handler.show_fps:
+            self.fps_display.draw()
 
     def update(self, dt):
         self.set_exclusive_mouse(self.loop.state in {State.SINGLEPLAYER, State.MULTIPLAYER, State.LAN})

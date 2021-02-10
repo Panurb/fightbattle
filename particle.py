@@ -68,7 +68,7 @@ class Particle:
         self.end_size = end_size
         self.stretch = stretch
         self.time = 0.0
-        self.layer = 7
+        self.layer = 13
         self.image_path = image_path
         self.sprite = None
 
@@ -105,7 +105,7 @@ class MuzzleFlash:
         self.lifetime = 0.25
         self.size = self.start_size
         self.image_path = 'muzzleflash'
-        self.layer = 7
+        self.layer = 13
         self.sprite = None
         self.active = True
 

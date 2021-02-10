@@ -14,7 +14,7 @@ from camera import Camera
 from goal import Exit, Basket, Goal
 from level import Level, PlayerSpawn
 from prop import Crate, Ball, Box, Television
-from text import Text
+from text import Text, Tutorial
 from wall import Scoreboard, Wall, Platform, Barrier
 from weapon import Revolver, Shotgun, Bow, Grenade, Axe, Shield, Sniper, SawedOff, MachineGun
 
@@ -45,7 +45,7 @@ class Editor(pyglet.window.Window):
         self.grab_offset = np.zeros(2)
         self.grab_start = np.zeros(2)
         self.object_types = [Wall, Platform, Barrier, Scoreboard, PlayerSpawn, Exit, Television, Basket, Crate, Box,
-                             Ball, Revolver, Shotgun, Bow, Grenade, Axe, Shield, SawedOff, Sniper, MachineGun]
+                             Ball, Revolver, Shotgun, Bow, Grenade, Axe, Shield, SawedOff, Sniper, Tutorial]
         self.type_index = 0
         self.type_text = Text('', np.zeros(2), 0.5)
 
@@ -53,7 +53,7 @@ class Editor(pyglet.window.Window):
 
         self.type_select = False
 
-        self.path = os.path.join('data', 'levels', 'multiplayer', 'circle')
+        self.path = os.path.join('data', 'levels', 'singleplayer', 'level1')
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
@@ -118,6 +118,10 @@ class Editor(pyglet.window.Window):
                     if norm(np.round(self.mouse_position) - self.grab_start) < 1.0:
                         self.grabbed_object.change_team()
                         return
+                elif type(self.grabbed_object) is Tutorial:
+                    self.grabbed_object.index = (self.grabbed_object.index + 1) % 3
+                    string = self.grabbed_object.strings[self.grabbed_object.index]
+                    self.grabbed_object.text.set_string(string)
 
                 self.grabbed_object = None
             else:

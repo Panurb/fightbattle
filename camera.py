@@ -14,12 +14,17 @@ from helpers import basis, rotate, norm2
 # 2: shadows
 # 3: walls
 # 4: items
-# 5: players
-# 6: player items
-# 7: player hands
-# 8: particles
-# 9: camera filter
-# 10: text, icons
+# 5: player back feet, arms
+# 6: player back legs
+# 7: player bodies, front feet
+# 8: player heads, wounds, front feet
+# 9: player front legs
+# 10: player objects
+# 11: player arms
+# 12: player hands
+# 13: particles
+# 14: camera filter
+# 15: text, icons
 
 
 UNIT_CIRCLE = [np.zeros(2)] + [np.array([np.cos(theta), np.sin(theta)]) for theta in np.linspace(0, 2 * np.pi, 20)]
@@ -36,7 +41,7 @@ class Camera:
         self.shake = np.zeros(2)
         self.shake_velocity = np.zeros(2)
         self.velocity = np.zeros(2)
-        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(10)]
+        self.layers = [pyglet.graphics.OrderedGroup(i) for i in range(16)]
 
         self.sprite = None
         self.target_position = self.position.copy()
@@ -47,7 +52,7 @@ class Camera:
         if not self.sprite:
             image = Image.new('RGBA', [1, 1], (0, 0, 0))
             image = pyglet.image.ImageData(1, 1, 'RGBA', image.tobytes())
-            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=self.layers[8])
+            self.sprite = pyglet.sprite.Sprite(img=image, x=0, y=0, batch=batch, group=self.layers[14])
         self.sprite.update(scale_x=self.resolution[0], scale_y=self.resolution[1])
 
     def set_resolution(self, resolution):

@@ -1,5 +1,4 @@
 import numpy as np
-import pyglet
 
 from gameobject import PhysicsObject, Destroyable
 from collider import Rectangle, Circle, Group
@@ -50,6 +49,7 @@ class Ball(PhysicsObject):
         self.scored = ''
         self.roll = True
         self.blunt_damage = 0
+        self.mass = 1.2
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -74,6 +74,14 @@ class Television(Destroyable):
         self.trigger = Circle(self.position, 3.0)
         self.triggered = False
         self.player = None
+        self.audio = 'prologue'
+
+    def get_data(self):
+        return super().get_data() + (self.audio,)
+
+    def apply_data(self, data):
+        super().apply_data(data)
+        self.audio = data[-1]
 
     def update(self, gravity, time_step, colliders):
         super().update(gravity, time_step, colliders)
@@ -96,7 +104,7 @@ class Television(Destroyable):
     def play_sounds(self, sound_handler):
         super().play_sounds(sound_handler)
         if self.triggered and self.player is None:
-            self.player = sound_handler.sounds['level1'].play()
+            self.player = sound_handler.sounds[self.audio].play()
             self.player.volume = sound_handler.volume
             self.player.on_eos = self.reset_path
 

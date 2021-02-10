@@ -9,6 +9,7 @@ class OptionHandler:
         self.resolution = (1280, 720)
         self.vsync = False
         self.fullscreen = False
+        self.show_fps = False
         self.sfx_volume = 100
         self.music_volume = 0
         self.shadows = True
@@ -31,6 +32,7 @@ class OptionHandler:
         self.config.set('video', 'horizontal resolution', str(self.resolution[0]))
         self.config.set('video', 'vertical resolution', str(self.resolution[1]))
         self.config.set('video', 'fullscreen', str(self.fullscreen))
+        self.config.set('video', 'show fps', str(self.show_fps))
 
         if not self.config.has_section('audio'):
             self.config.add_section('audio')
@@ -54,6 +56,7 @@ class OptionHandler:
         self.resolution = tuple([self.config.getint('video', 'horizontal resolution'),
                                  self.config.getint('video', 'vertical resolution')])
         self.fullscreen = self.config.getboolean('video', 'fullscreen')
+        self.show_fps = self.config.getboolean('video', 'show fps')
 
         self.sfx_volume = self.config.getint('audio', 'sfx volume')
         self.music_volume = self.config.getint('audio', 'music volume')

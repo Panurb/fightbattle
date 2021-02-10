@@ -28,8 +28,8 @@ class Basket(Goal):
         self.collider.add_collider(Circle([1.3, 0.0], 0.1, Group.WALLS))
         self.collider.add_collider(Circle([0.5, -0.5], 0.2, Group.GOALS))
         self.collider.add_collider(Rectangle([0.5, -0.9], 1.4, -0.5, Group.WALLS))
-        self.front = GameObject(self.position, 'basket_front', layer=4)
-        self.front.image_position[:] = [0.4, -0.72]
+        self.front = GameObject(self.position, 'basket_front', layer=5)
+        self.front.image_position[:] = [0.46, -0.65]
 
     def reset(self):
         self.collider.colliders[-1].group = Group.WALLS
@@ -43,7 +43,7 @@ class Basket(Goal):
         self.front.set_position(position)
 
     def draw(self, batch, camera, image_handler):
-        super().draw(batch, camera, image_handler)
+        #super().draw(batch, camera, image_handler)
         self.front.draw(batch, camera, image_handler)
 
     def draw_shadow(self, batch, camera, image_handler, light):

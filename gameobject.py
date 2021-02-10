@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.linalg import norm
 
-from collider import Circle, Group, Rectangle
+from collider import Circle, Group, Rectangle, ColliderGroup
 from drawable import Drawable
 from helpers import norm2, rotate, normalized, basis, random_unit
 from particle import Dust
@@ -22,7 +22,7 @@ class GameObject(Drawable):
 
     def delete(self):
         super().delete()
-        if self.collider and self.collider.vertex_list:
+        if self.collider and type(self.collider) is not ColliderGroup and self.collider.vertex_list:
             self.collider.vertex_list.delete()
 
     def get_data(self):
@@ -185,13 +185,11 @@ class PhysicsObject(GameObject):
 
             if collider.group is Group.PLATFORMS:
                 if self.grabbed:
-                    #self.collider.collisions.remove(collision)
                     continue
 
                 bottom = self.collider.position[1] - delta_pos[1] - height
                 platform_top = collider.position[1] + collider.half_height[1]
                 if bottom < platform_top - 0.05:
-                    #self.collider.collisions.remove(collision)
                     continue
 
             if self.collider.group is Group.THROWN:

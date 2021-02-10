@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.linalg import norm
 import enum
-import scipy
+#import scipy
 from numba import njit, prange
 
 from helpers import norm2, basis, perp, polar_to_cartesian

@@ -21,6 +21,7 @@ class State(Enum):
     CONTROLS = 9
     SINGLEPLAYER = 10
     CAMPAIGN = 11
+    CREDITS = 12
 
 
 class Menu:
@@ -140,7 +141,7 @@ class MainMenu(Menu):
         self.buttons.append(Button('MULTIPLAYER', State.PLAYER_SELECT))
         self.buttons.append(Button('LAN', State.LAN))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
-        self.buttons.append(Button('CREDITS', State.MENU))
+        self.buttons.append(Button('CREDITS', State.CREDITS))
         self.buttons.append(Button('QUIT', State.QUIT))
         self.update_buttons()
         self.timer = 40.0
@@ -191,7 +192,8 @@ class PlayerMenu(Menu):
         self.buttons.append(Button('Ready up', State.MULTIPLAYER))
 
         self.update_buttons()
-        self.text = Text('Press START to join', self.buttons[0].position, 0.45)
+        self.start_text = Text('Press (START) to join', self.buttons[0].position, 0.45)
+        self.ready_text = Text('READY', self.buttons[0].position, 0.45)
 
         self.joined = False
         self.ready = False
@@ -235,19 +237,21 @@ class PlayerMenu(Menu):
 
     def draw(self, batch, camera, image_handler):
         if not self.joined:
-            self.text.string = 'Press START to join'
-            self.text.visible = True
+            self.start_text.visible = True
+            self.ready_text.visible = False
             self.visible = False
         elif self.ready:
-            self.text.string = 'READY'
-            self.text.visible = True
+            self.start_text.visible = False
+            self.ready_text.visible = True
             self.visible = False
         else:
-            self.text.visible = False
+            self.start_text.visible = False
+            self.ready_text.visible = False
             self.visible = True
 
         super().draw(batch, camera, image_handler)
-        self.text.draw(batch, camera, image_handler)
+        self.start_text.draw(batch, camera, image_handler)
+        self.ready_text.draw(batch, camera, image_handler)
 
 
 class OptionsMenu(Menu):
@@ -362,8 +366,7 @@ class CampaignMenu(Menu):
         self.body_slider = Slider('Body', bodies)
         self.buttons.append(self.body_slider)
 
-        path = os.path.join('data', 'levels', 'singleplayer')
-        levels = [x.split('.')[0] for x in os.listdir(path)]
+        levels = ['prologue', 'level1', 'level2', 'level3', 'level4', 'level5', 'level6', 'level7']
         self.level_slider = Slider('Level', levels, cyclic=False)
         self.buttons.append(self.level_slider)
         self.times = {l: np.inf for l in levels}
@@ -404,7 +407,7 @@ class CampaignMenu(Menu):
         super().draw(batch, camera, image_handler)
         val = self.times[self.level_slider.get_value()]
         self.time_text.string = '-' if np.isinf(val) else f'{val:.2f}'
-        self.time_text.visible = True
+        self.time_text.visible = self.level_slider.get_value() not in ['prologue']
         self.time_text.draw(batch, camera, image_handler)
 
 
@@ -414,19 +417,53 @@ class ControlsMenu(Menu):
         self.target_state = State.CONTROLS
         self.previous_state = State.OPTIONS
         self.button_gap = 1.0
-        
-        for button in ['A', 'B', 'X', 'Y', 'LB', 'RB', 'SELECT', 'START']:
-            self.buttons.append(RebindButton(button))
 
-        self.button_back = Button('(B) back', self.target_state)
-        self.button_back.set_position(self.position + np.array([-10, -6]))
+        self.text = []
+        self.text.append(Text('(L)     move ', self.position + np.array([0, 5]), 0.45))
+        self.text.append(Text('(R)     aim  ', self.position + np.array([0, 4]), 0.45))
+        self.text.append(Text('(A)     jump ', self.position + np.array([0, 3]), 0.45))
+        self.text.append(Text('(X)     run  ', self.position + np.array([0, 2]), 0.45))
+        self.text.append(Text('(B)    cancel', self.position + np.array([0, 1]), 0.45))
+        self.text.append(Text('(RT)    attack', self.position + np.array([0, 0]), 0.45))
+        self.text.append(Text('(LT)    throw ', self.position + np.array([0, -1]), 0.45))
+        self.text.append(Text('(START)   pause ', self.position + np.array([0, -2]), 0.45))
 
-        self.update_buttons()
+        self.buttons.append(Button('(B) back', self.target_state))
+        self.buttons[0].set_position(self.position + np.array([-10, -6]))
 
     def input(self, input_handler, controller_id=0):
         for i in range(len(input_handler.controllers)):
             super().input(input_handler, i)
 
-    def draw(self, screen, camera, image_handler):
-        super().draw(screen, camera, image_handler)
-        self.button_back.draw(screen, camera, image_handler)
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        for text in self.text:
+            text.draw(batch, camera, image_handler)
+
+
+class CreditsMenu(Menu):
+    def __init__(self):
+        super().__init__([0, 10])
+        self.target_state = State.CREDITS
+        self.text = []
+        self.text.append(Text('Programming, art, music', self.position + np.array([0, 6]), 0.5, None))
+        self.text.append(Text('Panu Keskinen', self.position + np.array([0, 5]), 0.4, None))
+
+        self.text.append(Text('Made with', self.position + np.array([0, 3]), 0.5, None))
+        self.text.append(Text('Python', self.position + np.array([0, 2]), 0.4, None))
+        self.text.append(Text('Inkscape', self.position + np.array([0, 1]), 0.4, None))
+        self.text.append(Text('Ableton Live Lite', self.position + np.array([0, 0]), 0.4, None))
+        self.text.append(Text('Audacity', self.position + np.array([0, -1]), 0.4, None))
+
+        self.buttons.append(Button('(B) back', self.target_state))
+
+        self.buttons[0].set_position(self.position + np.array([-10, 6]))
+
+    def input(self, input_handler, controller_id=0):
+        for i in range(len(input_handler.controllers)):
+            super().input(input_handler, i)
+
+    def draw(self, batch, camera, image_handler):
+        super().draw(batch, camera, image_handler)
+        for text in self.text:
+            text.draw(batch, camera, image_handler)

@@ -39,7 +39,7 @@ class Button(GameObject):
         
 class RebindButton(Button):
     def __init__(self, string):
-        super().__init__(f'{string}: Button 0', None)
+        super().__init__(string, None)
         self.add_collider(Rectangle([0, 0], 3, 1))
 
     def set_visible(self, visible):

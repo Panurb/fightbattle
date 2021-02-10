@@ -64,7 +64,8 @@ class ImageHandler:
                         continue
 
                     name = file.replace('.png', '')
-                    image = pyglet.resource.image(file)
+                    #image = pyglet.resource.image(file)
+                    image = pyglet.image.load(os.path.join(r, file))
 
                     w = image.width // 2
                     h = image.height // 5
@@ -88,7 +89,8 @@ class ImageHandler:
                 if file.endswith('png'):
                     name = file.replace('.png', '')
 
-                    image = pyglet.resource.image(file)
+                    #image = pyglet.resource.image(file)
+                    image = pyglet.image.load(os.path.join(r, file))
                     image.anchor_x = image.width // 2
                     image.anchor_y = image.height // 2
                     self.images[name] = image

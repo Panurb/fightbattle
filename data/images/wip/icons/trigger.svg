@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1024"
+   height="1024"
+   viewBox="0 0 135.46667 135.46667"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
+   sodipodi:docname="trigger.svg"
+   inkscape:export-filename="C:\Users\panu-\PycharmProjects\nextgame\data\images\icons\rt.png"
+   inkscape:export-xdpi="10.923292"
+   inkscape:export-ydpi="10.923292">
+  <defs
+     id="defs2">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="-71.838595 : 81.722957 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="121.09896 : 130.87568 : 1"
+       inkscape:persp3d-origin="55.634203 : 78.42817 : 1"
+       id="perspective924" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.49481546"
+     inkscape:cx="693.22534"
+     inkscape:cy="473.37566"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer7"
+     showgrid="false"
+     units="px"
+     width="1024px"
+     inkscape:window-width="2560"
+     inkscape:window-height="1361"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:snap-global="false" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:groupmode="layer"
+     id="layer5"
+     inkscape:label="bg"
+     style="display:inline"
+     sodipodi:insensitive="true">
+    <rect
+       style="fill:#4d4d4d;fill-opacity:1;stroke:none;stroke-width:0.12154348;stroke-opacity:1"
+       id="rect9260"
+       width="8.5671501"
+       height="0.3239651"
+       x="28.999289"
+       y="58.813843"
+       ry="0.16198255"
+       transform="matrix(0.9630893,-0.2691821,0.36868808,0.92955317,0,0)" />
+    <rect
+       style="display:inline;fill:#666666;fill-opacity:1;stroke:none;stroke-width:0.07541931;stroke-opacity:1"
+       id="rect9256-0"
+       width="34.610703"
+       height="83.527252"
+       x="59.761234"
+       y="74.881851"
+       ry="7.9419365"
+       transform="matrix(0.82143765,-0.57029833,0.27615464,0.96111322,0,0)" />
+    <rect
+       style="display:inline;fill:#4d4d4d;fill-opacity:1;stroke:none;stroke-width:0.12120798;stroke-opacity:1"
+       id="rect9256"
+       width="77.131943"
+       height="96.805855"
+       x="24.196337"
+       y="19.502981"
+       ry="9.2044916"
+       transform="matrix(0.99999927,0.00121031,-0.00171752,0.99999853,0,0)" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer1"
+     inkscape:label="text"
+     style="display:inline"
+     sodipodi:insensitive="true">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:11.67953587px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#99ff55;fill-opacity:1;stroke:none;stroke-width:0.2919884"
+       x="27.4126"
+       y="88.302757"
+       id="text914"><tspan
+         sodipodi:role="line"
+         id="tspan912"
+         x="27.4126"
+         y="88.302757"
+         style="font-weight:bold;font-size:48.66474152px;fill:#b3b3b3;stroke-width:0.2919884">RT</tspan></text>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer7"
+     inkscape:label="lt"
+     style="display:none">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:11.67953587px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#99ff55;fill-opacity:1;stroke:none;stroke-width:0.2919884"
+       x="29.929543"
+       y="88.921341"
+       id="text914-4"><tspan
+         sodipodi:role="line"
+         id="tspan912-9"
+         x="29.929543"
+         y="88.921341"
+         style="font-weight:bold;font-size:48.66474152px;fill:#b3b3b3;stroke-width:0.2919884">LT</tspan></text>
+  </g>
+</svg>

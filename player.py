@@ -25,10 +25,10 @@ class Player(Destroyable):
         self.head_type = 'bald'
         self.team = ''
 
-        self.body = Drawable(self.position, self.body_type, 1.0, layer=5)
-        self.wounds = Drawable(self.position, '', layer=5)
+        self.body = Drawable(self.position, self.body_type, 1.0, layer=7)
+        self.wounds = Drawable(self.position, '', layer=8)
 
-        self.head = Drawable(self.position + basis(1), self.head_type, 1.0, layer=5)
+        self.head = Drawable(self.position + basis(1), self.head_type, 1.0, layer=8)
 
         self.back_hip = self.position + np.array([0.1, -0.5])
         self.front_hip = self.position + np.array([-0.1, -0.5])
@@ -117,6 +117,7 @@ class Player(Destroyable):
         self.front_foot.reset(colliders)
         self.back_foot.reset(colliders)
         self.hand.set_position(self.position)
+        self.body.angle = 0.0
 
         if self.body.shadow_sprite:
             self.body.shadow_sprite.delete()
@@ -619,8 +620,6 @@ class Player(Destroyable):
 
         self.health -= amount
 
-        print(self.health)
-
         if self.health <= 0:
             self.destroy(colliders)
 
@@ -703,7 +702,7 @@ class Player(Destroyable):
             self.object.set_position(self.hand.position)
             self.object.rotate(polar_angle(self.hand_goal) - self.object.angle)
             self.object.angular_velocity = 0.0
-            self.object.layer = 6 if self.object.group is Group.SHIELDS else 5
+            self.object.layer = 10
             self.object.grabbed = True
             self.sounds.add('wear')
             break
@@ -736,7 +735,7 @@ class Limb(PhysicsObject, AnimatedObject):
         self.start = np.zeros(2)
         self.end = None
 
-        self.upper = Drawable(self.position, '', size=1.0, layer=self.shaft_layer)
+        self.upper = Drawable(self.position, '', size=1.0, layer=self.shaft_layer-1)
         self.lower = Drawable(self.position, '', size=1.0, layer=self.shaft_layer)
 
     def reset(self, colliders):
@@ -802,8 +801,8 @@ class Limb(PhysicsObject, AnimatedObject):
 
 class Hand(Limb):
     def __init__(self, position, parent, front):
-        shaft_layer = 6 if front else 3
-        super().__init__(position, image_path='', size=1.2, parent=parent, front=front, layer=7,
+        shaft_layer = 12 if front else 6
+        super().__init__(position, image_path='', size=1.2, parent=parent, front=front, layer=11,
                          shaft_layer=shaft_layer)
 
         if self.front:
@@ -843,8 +842,9 @@ class Hand(Limb):
 
 class Foot(Limb):
     def __init__(self, position, parent, front=False):
-        super().__init__(position, image_path='', size=1.0, parent=parent, front=front, layer=5, length=0.95,
-                         joint_direction=-1)
+        layer = 8 if front else 5
+        super().__init__(position, image_path='', size=1.0, parent=parent, front=front, layer=layer, length=0.95,
+                         joint_direction=-1, shaft_layer=layer+1)
         self.image_position = 0.15 * basis(0)
 
         self.add_collider(Circle([0, 0], 0.1, Group.DEBRIS))

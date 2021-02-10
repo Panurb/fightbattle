@@ -1,5 +1,4 @@
 import os
-import pickle
 from _thread import *
 
 import numpy as np
@@ -10,9 +9,8 @@ from collider import Group
 from enemy import Enemy
 from gameobject import Destroyable
 from helpers import basis
-from inputhandler import Controller
 from level import Level
-from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu, CampaignMenu
+from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu, CampaignMenu, CreditsMenu
 from player import Player
 from network import Network
 from prop import Ball
@@ -44,6 +42,7 @@ class GameLoop:
         self.pause_menu = PauseMenu()
         self.level_menu = LevelMenu()
         self.controls_menu = ControlsMenu()
+        self.credits_menu = CreditsMenu()
 
         self.network = None
         self.network_id = -1
@@ -218,6 +217,7 @@ class GameLoop:
                     self.text.string = ''
                     self.camera.position[:] = self.level_menu.position
                     self.camera.zoom = self.camera.max_zoom
+                    self.camera.target_zoom = self.camera.max_zoom
                     return
                 self.text.string = ''
                 self.time_scale = 1.0
@@ -312,9 +312,9 @@ class GameLoop:
                     player.head_type = pm.head_slider.get_value()
                     player.team = pm.team_slider.get_value()
 
+                    player.reset(self.colliders)
                     player.set_position(pm.position + 3 * basis(1))
-                    player.on_ground = True
-                    player.animate(0.0)
+                    player.animate(0.1)
                 elif pm.controller_id is not None:
                     self.players[pm.controller_id].delete()
                     del self.players[pm.controller_id]
@@ -409,6 +409,10 @@ class GameLoop:
             self.camera.target_position[:] = self.controls_menu.position
             self.state = self.controls_menu.target_state
             self.controls_menu.target_state = State.CONTROLS
+        elif self.state is State.CREDITS:
+            self.camera.target_position[:] = self.credits_menu.position
+            self.state = self.credits_menu.target_state
+            self.credits_menu.target_state = State.CREDITS
 
         self.camera.update(time_step)
 
@@ -500,6 +504,8 @@ class GameLoop:
             self.controls_menu.input(input_handler)
         elif self.state is State.CAMPAIGN:
             self.campaign_menu.input(input_handler)
+        elif self.state is State.CREDITS:
+            self.credits_menu.input(input_handler)
 
     def draw(self, batch, image_handler):
         self.text.draw(batch, self.camera, image_handler)
@@ -546,6 +552,8 @@ class GameLoop:
                 self.campaign_menu.draw(batch, self.camera, image_handler)
                 for p in self.players.values():
                     p.draw(batch, self.camera, image_handler)
+            if State.CREDITS in state_queue:
+                self.credits_menu.draw(batch, self.camera, image_handler)
 
         self.camera.draw(batch)
 
@@ -567,7 +575,7 @@ class GameLoop:
         if self.state is State.PAUSED:
             sound_handler.music_player.pause()
 
-        if self.state in {State.MENU, State.PLAYER_SELECT, State.LEVEL_SELECT}:
+        if self.state in {State.MENU, State.PLAYER_SELECT, State.LEVEL_SELECT, State.CAMPAIGN}:
             sound_handler.menu_player.play()
             sound_handler.music_player.pause()
 
@@ -597,6 +605,7 @@ class GameLoop:
         self.level_menu.play_sounds(sound_handler)
         self.pause_menu.play_sounds(sound_handler)
         self.campaign_menu.play_sounds(sound_handler)
+        self.credits_menu.play_sounds(sound_handler)
 
     def network_thread(self):
         while True:
