@@ -117,6 +117,10 @@ class Player(Destroyable):
         self.front_foot.reset(colliders)
         self.back_foot.reset(colliders)
         self.hand.set_position(self.position)
+        self.back_hand.reset(colliders)
+        self.back_hand.sprite = None
+        self.back_hand.upper.sprite = None
+        self.back_hand.lower.sprite = None
         self.body.angle = 0.0
 
         if self.body.shadow_sprite:
@@ -739,7 +743,8 @@ class Limb(PhysicsObject, AnimatedObject):
         self.lower = Drawable(self.position, '', size=1.0, layer=self.shaft_layer)
 
     def reset(self, colliders):
-        self.collider.clear_occupied_squares(colliders)
+        if self.collider:
+            self.collider.clear_occupied_squares(colliders)
         for p in self.particle_clouds:
             p.delete()
         self.particle_clouds.clear()

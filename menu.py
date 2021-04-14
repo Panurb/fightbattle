@@ -139,7 +139,7 @@ class MainMenu(Menu):
         self.button_offset = -1.5
         self.buttons.append(Button('SINGLEPLAYER', State.CAMPAIGN))
         self.buttons.append(Button('MULTIPLAYER', State.PLAYER_SELECT))
-        self.buttons.append(Button('LAN', State.LAN))
+        #self.buttons.append(Button('LAN', State.LAN))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('CREDITS', State.CREDITS))
         self.buttons.append(Button('QUIT', State.QUIT))

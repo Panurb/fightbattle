@@ -413,6 +413,7 @@ class GameLoop:
             self.camera.target_position[:] = self.credits_menu.position
             self.state = self.credits_menu.target_state
             self.credits_menu.target_state = State.CREDITS
+            self.menu.update(time_step)
 
         self.camera.update(time_step)
 

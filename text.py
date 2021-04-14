@@ -113,13 +113,13 @@ class TitleText(Text):
 
 class Tutorial(PhysicsObject):
     def __init__(self, position):
-        super().__init__(position, image_path='a', gravity_scale=0.0)
+        super().__init__(position, image_path='tutorial', gravity_scale=0.0)
         self.layer = 1
         self.add_collider(Circle(np.zeros(2), 3.0))
         self.index = 0
-        self.strings = ['(L) move', '(A) jump', '(X) run', '(RT) grab']
+        self.strings = ['(L) move', '(A) jump', '(X) run', '(R)   move hand', '(RT) grab', '(LT) drop',
+                        '(RT) attack', '(LT) (hold) throw']
         self.text = Text(self.strings[self.index], position + np.array([0, 1]), 0.0, layer=2)
-        self.background = None
         self.visible = True
 
     def update(self, gravity, time_step, colliders):
@@ -130,13 +130,22 @@ class Tutorial(PhysicsObject):
             self.visible = False
 
         if self.visible:
-            self.text.size += 10.0 * time_step * (0.5 - self.text.size)
+            if self.text.size < 0.45:
+                self.text.size += 10.0 * time_step * (0.5 - self.text.size)
+            else:
+                self.text.size = 0.5
         else:
-            self.text.size += 5.0 * time_step * (0.0 - self.text.size)
+            if self.text.size > 0.1:
+                self.text.size += 10.0 * time_step * (0.0 - self.text.size)
+            else:
+                self.text.size = 0.0
 
-        if not self.visible and self.background:
-            self.background.delete()
-            self.background = None
+        for icon in self.text.icons:
+            icon.size = 1.8 * self.text.size
+
+    def delete(self):
+        super().delete()
+        self.text.delete()
 
     def get_data(self):
         return super().get_data() + (self.index,)
@@ -149,6 +158,6 @@ class Tutorial(PhysicsObject):
     def draw(self, batch, camera, image_handler):
         super().draw(batch, camera, image_handler)
         self.text.draw(batch, camera, image_handler)
-        if self.visible:
-            self.background = camera.draw_rectangle(self.text.position, self.text.size * len(self.text.string), 2 * self.text.size, (50, 50, 50),
-                                                    batch, layer=1, vertex_list=self.background)
+
+    def draw_shadow(self, batch, camera, image_handler, light):
+        pass

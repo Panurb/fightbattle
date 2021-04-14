@@ -16,7 +16,7 @@ from level import Level, PlayerSpawn
 from prop import Crate, Ball, Box, Television
 from text import Text, Tutorial
 from wall import Scoreboard, Wall, Platform, Barrier
-from weapon import Revolver, Shotgun, Bow, Grenade, Axe, Shield, Sniper, SawedOff, MachineGun
+from weapon import Revolver, Shotgun, Bow, Grenade, Axe, Shield, Sniper, SawedOff
 
 
 class Editor(pyglet.window.Window):
@@ -53,7 +53,7 @@ class Editor(pyglet.window.Window):
 
         self.type_select = False
 
-        self.path = os.path.join('data', 'levels', 'singleplayer', 'level1')
+        self.path = os.path.join('data', 'levels', 'singleplayer', 'level6')
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.S:
@@ -119,7 +119,7 @@ class Editor(pyglet.window.Window):
                         self.grabbed_object.change_team()
                         return
                 elif type(self.grabbed_object) is Tutorial:
-                    self.grabbed_object.index = (self.grabbed_object.index + 1) % 3
+                    self.grabbed_object.index = (self.grabbed_object.index + 1) % len(self.grabbed_object.strings)
                     string = self.grabbed_object.strings[self.grabbed_object.index]
                     self.grabbed_object.text.set_string(string)
 
