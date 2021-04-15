@@ -2,3 +2,6 @@
 venv/
 config.ini
 save.pickle
+build/
+dist/
+.idea/
