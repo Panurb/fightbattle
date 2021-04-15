@@ -11,7 +11,7 @@ class OptionHandler:
         self.fullscreen = False
         self.show_fps = False
         self.sfx_volume = 100
-        self.music_volume = 0
+        self.music_volume = 100
         self.shadows = True
         self.dust = True
 
