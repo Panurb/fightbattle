@@ -64,7 +64,7 @@ class Wall(GameObject):
                 pos = self.position + self.image_position + np.array([x, j - h])
                 decal = image_handler.tiles[self.image_path][n][m]
                 size = [int(1.05 * s) for s in decal.size]
-                decal = decal.resize(size, Image.ANTIALIAS)
+                decal = decal.resize(size, Image.LANCZOS)
                 mask = decal.convert('RGBA')
 
                 if light is not None:

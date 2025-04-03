@@ -122,9 +122,8 @@ class PhysicsObject(GameObject):
         self.sounds.clear()
         for s in data[8]:
             self.sounds.add(s)
-        if len(data) > 10:
-            self.group = data[9]
-            self.grabbed = data[10]
+        self.group = data[9]
+        self.grabbed = data[10]
 
     def rotate(self, delta_angle):
         super().rotate(delta_angle)
@@ -285,7 +284,7 @@ class Destroyable(PhysicsObject):
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.health = data[9]
+        self.health = data[11]
 
     def damage(self, amount, colliders):
         if self.health > 0:

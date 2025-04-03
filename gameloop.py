@@ -23,6 +23,7 @@ class GameLoop:
         self.option_handler = option_handler
         self.state = State.MENU
         self.previous_state = State.MENU
+        self.debug = False
 
         self.level = None
         self.players = {}
@@ -427,7 +428,7 @@ class GameLoop:
             if self.controller_id == 0:
                 input_handler.relative_mouse[:] = input_handler.mouse_position - self.players[0].shoulder
 
-            if input_handler.keys_pressed.get(key.R):
+            if self.debug and input_handler.keys_pressed.get(key.R):
                 self.reset_game()
                 for k, player in self.players.items():
                     if k == 0:
@@ -497,6 +498,12 @@ class GameLoop:
                 input_handler.relative_mouse[:] = input_handler.mouse_position - player.shoulder
 
                 self.obj_id = player.object.id if player.object is not None else -1
+
+            for controller in input_handler.controllers:
+                if controller.button_pressed['START']:
+                    self.state = State.PAUSED
+                    self.pause_menu.previous_state = State.LAN
+                    self.pause_menu.selection = 0
         elif self.state is State.OPTIONS:
             self.options_menu.input(input_handler)
         elif self.state is State.PAUSED:
@@ -609,7 +616,7 @@ class GameLoop:
         self.credits_menu.play_sounds(sound_handler)
 
     def network_thread(self):
-        while True:
+        while self.network is not None:
             data = self.controller.get_data()
 
             data = self.network.send(data)

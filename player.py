@@ -21,7 +21,7 @@ class Player(Destroyable):
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
-        self.body_type = 'template'
+        self.body_type = 'camo'
         self.head_type = 'bald'
         self.team = ''
 
@@ -86,20 +86,28 @@ class Player(Destroyable):
         self.wounds.delete()
 
     def get_data(self):
-        return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1],
-                                                               self.crouched)
+        return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1], self.grabbing,
+                                                               self.crouched, self.back_foot.position[0], self.back_foot.position[1],
+                                                               self.front_foot.position[0], self.front_foot.position[1])
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.hand.set_position(np.array(data[-3:-1]))
-        self.crouched = data[-1]
+        self.hand.set_position(np.array(data[-8:-6]))
+        self.grabbing = data[-6]
+        self.crouched = data[-5]
 
         self.hand_goal[:] = self.hand.position - self.shoulder
 
+        self.hand.image_path = 'hand' if self.grabbing else 'fist'
+
         self.body.rotate(-0.05 * self.velocity[0] - 0.5 * self.direction * self.crouched - self.body.angle)
+
+        self.back_foot.set_position(np.array(data[-4:-2]))
+        self.front_foot.set_position(np.array(data[-2:]))
+
         self.update_joints()
 
-        self.animate(0.0)
+        # self.animate(0.0)
 
     def set_position(self, position):
         super().set_position(position)

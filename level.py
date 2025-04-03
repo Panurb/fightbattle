@@ -361,7 +361,7 @@ class Background:
 
     def add_decal(self, image_handler, path, position, angle=0, scale=1.0):
         decal = image_handler.decals[path].rotate(-np.rad2deg(angle) + 180, expand=1)
-        decal = decal.resize([int(scale * x) for x in decal.size], Image.ANTIALIAS)
+        decal = decal.resize([int(scale * x) for x in decal.size], Image.LANCZOS)
         pos = [int(100 * position[0] - 0.5 * decal.width - 100), int(100 * position[1] - 0.5 * decal.height - 100)]
         self.image.paste(decal, pos, decal.convert('RGBA'))
         self.image_changed = True

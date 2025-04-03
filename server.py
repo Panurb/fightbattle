@@ -81,7 +81,7 @@ class Server:
 
                 player = self.players[p]
                 self.controllers[p].apply_data(data)
-                #player.input(self.controllers[p])
+                player.input(self.controllers[p])
 
                 reply = [[v.get_data() for v in self.players.values()],
                          [o.get_data() for o in self.level.objects.values()]]
