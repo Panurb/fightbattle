@@ -5,3 +5,7 @@ save.pickle
 build/
 dist/
 .idea/
+
+# Numba compilation stuff
+*.nbi
+*.nbc

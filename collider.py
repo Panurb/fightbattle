@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import enum
 #import scipy
-from numba import njit, prange
+from numba import njit, prange, float64
 
 from helpers import norm2, basis, perp, polar_to_cartesian
 
@@ -44,13 +44,18 @@ COLLIDES_WITH = {Group.NONE: set(),
                  Group.BOXES: {Group.WALLS, Group.PROPS, Group.PLATFORMS, Group.BARRIERS, Group.BOXES}}
 
 
-@njit(cache=True)
+@njit(float64(float64[:], float64[:], float64[:]))
 def axis_half_width(w, h, u):
+    w = np.ascontiguousarray(w)
+    h = np.ascontiguousarray(h)
+    u = np.ascontiguousarray(u)
     return abs(np.dot(w, u)) + abs(np.dot(h, u))
 
 
-@njit(cache=True)
+@njit(float64(float64, float64[:], float64, float64[:], float64[:]))
 def axis_overlap(r1, p1, r2, p2, u):
+    u = np.ascontiguousarray(u)
+
     overlap = 0.0
     r = np.dot(p1 - p2, u)
     o = r1 + r2 - abs(r)
@@ -63,7 +68,7 @@ def axis_overlap(r1, p1, r2, p2, u):
     return overlap
 
 
-@njit(cache=True)
+@njit(float64[:](float64[:], float64, float64[:], float64, float64[:], float64[:], float64[:], float64[:]))
 def overlap_rectangle_rectangle_aligned(hw1, w1, hh1, h1, p1, hw2, hh2, p2):
     overlaps = np.zeros(2)
 
@@ -82,7 +87,7 @@ def overlap_rectangle_rectangle_aligned(hw1, w1, hh1, h1, p1, hw2, hh2, p2):
     return overlaps[i] * axes[i, :]
 
 
-@njit(cache=True)
+@njit(float64[:](float64[:], float64, float64[:], float64, float64[:], float64[:], float64, float64[:], float64, float64[:]))
 def overlap_rectangle_rectangle(hw1, w1, hh1, h1, p1, hw2, w2, hh2, h2, p2):
     overlaps = np.zeros(4)
 
@@ -103,7 +108,7 @@ def overlap_rectangle_rectangle(hw1, w1, hh1, h1, p1, hw2, w2, hh2, h2, p2):
     return overlaps[i] * axes[i, :]
 
 
-@njit(cache=True)
+@njit(float64[:](float64[:], float64, float64[:], float64, float64[:], float64, float64[:]))
 def overlap_rectangle_circle(hw1, w1, hh1, h1, p1, r2, p2):
     overlaps = np.zeros(2)
     near_corner = True
