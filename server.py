@@ -79,12 +79,24 @@ class Server:
                 if not data:
                     break
 
-                player = self.players[p]
-                self.controllers[p].apply_data(data)
-                player.input(self.controllers[p])
+                player_data, object_data = data
 
-                reply = [[v.get_data() for v in self.players.values()],
-                         [o.get_data() for o in self.level.objects.values()]]
+                player = self.players[p]
+                player.apply_data(player_data)
+
+                object_id = player_data[-1]
+                if object_id != -1:
+                    obj = self.level.objects[object_id]
+                    obj.apply_data(object_data)
+
+                    if isinstance(obj, Gun) and obj.bullets_spawned:
+                        bs = obj.attack()
+                        for b in bs:
+                            self.level.add_object(b)
+                            b.collider.update_occupied_squares(self.colliders)
+
+                reply = [[v.get_data() for v in self.players.values() if v.network_id != p],
+                         [o.get_data() for i, o in self.level.objects.items() if i != object_id],]
 
                 reply = pickle.dumps(reply)
 
@@ -104,12 +116,21 @@ class Server:
         time_step = 1.0 / 60
 
         while True:
+            grabbed_objects = set()
+
             for p in self.players.values():
                 p.input(self.controllers[p.network_id])
                 p.update(self.level.gravity, time_step, self.colliders)
 
+                if p.object_id != -1:
+                    grabbed_objects.add(p.object_id)
+
             self.level.update(time_step, self.colliders)
             self.level.clear_sounds()
+
+            for i, o in list(self.level.objects.items()):
+                if o.grabbed and i not in grabbed_objects:
+                    o.grabbed = False
 
             clock.tick(60)
 

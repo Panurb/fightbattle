@@ -35,13 +35,14 @@ class Gun(Weapon):
         self.barrel_position = np.array([0.7, 0.3])
         self.grip_position = None
         self.bullet_speed = 45.0
+        self.bullets_spawned = False
 
     def get_data(self):
-        return super().get_data() + (self.attacked, )
+        return super().get_data() + (self.bullets_spawned, )
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.attacked = data[-1]
+        self.bullets_spawned = data[-1]
 
     def get_hand_position(self):
         v = self.hand_position.copy()
@@ -62,6 +63,7 @@ class Gun(Weapon):
         super().attack()
         v = self.direction * polar_to_cartesian(0.1, self.angle)
         self.particle_clouds.append(MuzzleFlash(self.get_barrel_position(), v))
+        self.bullets_spawned = True
 
         return []
 

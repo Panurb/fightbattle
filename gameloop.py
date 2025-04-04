@@ -15,7 +15,7 @@ from player import Player
 from network import Network
 from prop import Ball
 from text import Text
-from weapon import Bullet
+from weapon import Bullet, Gun
 
 
 class GameLoop:
@@ -47,7 +47,6 @@ class GameLoop:
 
         self.network = None
         self.network_id = -1
-        self.obj_id = -1
 
         self.controller = None
         self.controller_id = 1
@@ -132,6 +131,39 @@ class GameLoop:
             network_id = controller_id
         player = Player([0, 0], controller_id, network_id)
         self.players[network_id] = player
+
+    def connect(self):
+        self.menu.set_visible(False)
+
+        self.network = Network()
+        data = self.network.data
+
+        if data is None:
+            print('Server can not be reached')
+            self.network = None
+            self.state = State.MENU
+            return
+
+        self.network_id = data[0][0]
+
+        self.add_player(self.controller_id, self.network_id)
+        self.players[self.network_id].apply_data(data[0])
+
+        self.level = Level()
+        self.level.apply_data(data[1])
+
+        self.colliders = [[[] for _ in range(int(self.level.height))] for _ in range(int(self.level.width))]
+
+        for wall in self.level.walls:
+            wall.collider.update_occupied_squares(self.colliders)
+
+        for goal in self.level.goals:
+            goal.collider.update_occupied_squares(self.colliders)
+
+        for obj in self.level.objects.values():
+            obj.collider.update_occupied_squares(self.colliders)
+
+        start_new_thread(self.network_thread, ())
 
     def update(self, time_step):
         old_state = self.state
@@ -334,37 +366,14 @@ class GameLoop:
             self.level_menu.target_state = State.LEVEL_SELECT
         elif self.state is State.LAN:
             if self.network is None:
-                self.menu.set_visible(False)
+                self.connect()
 
-                self.network = Network()
-                data = self.network.data
-
-                if data is None:
-                    print('Server can not be reached')
-                    self.network = None
-                    self.state = State.MENU
-                    return
-
-                self.network_id = data[0][0]
-
-                self.add_player(self.controller_id, self.network_id)
-                self.players[self.network_id].apply_data(data[0])
-
-                self.level = Level()
-                self.level.apply_data(data[1])
-
-                self.colliders = [[[] for _ in range(int(self.level.height))] for _ in range(int(self.level.width))]
-
-                for wall in self.level.walls:
-                    wall.collider.update_occupied_squares(self.colliders)
-
-                for goal in self.level.goals:
-                    goal.collider.update_occupied_squares(self.colliders)
-
-                for obj in self.level.objects.values():
-                    obj.collider.update_occupied_squares(self.colliders)
-
-                start_new_thread(self.network_thread, ())
+            player = self.players[self.network_id]
+            player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            if player.object:
+                player.object.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+                if isinstance(player.object, Gun) and player.object.attacked:
+                    player.object.attack()
 
             for i in list(self.level.objects.keys()):
                 obj = self.level.objects[i]
@@ -497,10 +506,10 @@ class GameLoop:
 
                 input_handler.relative_mouse[:] = input_handler.mouse_position - player.shoulder
 
-                self.obj_id = player.object.id if player.object is not None else -1
+                player.input(input_handler.controllers[player.controller_id])
 
-            for controller in input_handler.controllers:
-                if controller.button_pressed['START']:
+            for i, c in enumerate(input_handler.controllers):
+                if c.button_pressed['START']:
                     self.state = State.PAUSED
                     self.pause_menu.previous_state = State.LAN
                     self.pause_menu.selection = 0
@@ -617,7 +626,15 @@ class GameLoop:
 
     def network_thread(self):
         while self.network is not None:
-            data = self.controller.get_data()
+            player = self.players[self.network_id]
+            player_data = player.get_data()
+            object_data = player.object.get_data() if player.object else ()
+
+            # Prevent multiple bullets from being created
+            if player.object and isinstance(player.object, Gun):
+                player.object.bullets_spawned = False
+
+            data = (player_data, object_data)
 
             data = self.network.send(data)
 

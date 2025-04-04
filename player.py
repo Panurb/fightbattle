@@ -48,6 +48,7 @@ class Player(Destroyable):
         self.back_hand = Hand(self.position, self, False)
 
         self.object = None
+        self.object_id = -1
 
         self.crouched = 0
         self.crouch_speed = 10.0
@@ -86,15 +87,16 @@ class Player(Destroyable):
         self.wounds.delete()
 
     def get_data(self):
+        object_id = self.object.id if self.object else -1
         return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1], self.grabbing,
                                                                self.crouched, self.back_foot.position[0], self.back_foot.position[1],
-                                                               self.front_foot.position[0], self.front_foot.position[1])
+                                                               self.front_foot.position[0], self.front_foot.position[1], object_id)
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.hand.set_position(np.array(data[-8:-6]))
-        self.grabbing = data[-6]
-        self.crouched = data[-5]
+        self.hand.set_position(np.array(data[-9:-7]))
+        self.grabbing = data[-7]
+        self.crouched = data[-6]
 
         self.hand_goal[:] = self.hand.position - self.shoulder
 
@@ -102,8 +104,10 @@ class Player(Destroyable):
 
         self.body.rotate(-0.05 * self.velocity[0] - 0.5 * self.direction * self.crouched - self.body.angle)
 
-        self.back_foot.set_position(np.array(data[-4:-2]))
-        self.front_foot.set_position(np.array(data[-2:]))
+        self.back_foot.set_position(np.array(data[-5:-3]))
+        self.front_foot.set_position(np.array(data[-3:-1]))
+
+        self.object_id = data[-1]
 
         self.update_joints()
 
