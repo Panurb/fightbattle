@@ -82,7 +82,11 @@ class Server:
                 player_data, object_data = data
 
                 player = self.players[p]
+                health = player.health
+
                 player.apply_data(player_data)
+
+                damage = player.health - health
 
                 object_id = player_data[-1]
                 if object_id != -1:
@@ -95,8 +99,11 @@ class Server:
                             self.level.add_object(b)
                             b.collider.update_occupied_squares(self.colliders)
 
-                reply = [[v.get_data() for v in self.players.values() if v.network_id != p],
-                         [o.get_data() for i, o in self.level.objects.items() if i != object_id],]
+                reply = [
+                    [v.get_data() for v in self.players.values() if v.network_id != p],
+                    [o.get_data() for i, o in self.level.objects.items() if i != object_id],
+                    damage
+                ]
 
                 reply = pickle.dumps(reply)
 

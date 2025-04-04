@@ -667,3 +667,5 @@ class GameLoop:
                         obj.destroy(self.colliders)
                     elif isinstance(obj, Bullet):
                         obj.destroy()
+
+            player.damage(data[2], self.colliders)
