@@ -13,6 +13,7 @@
 
 ### Running from executable
 
+* `pip install pyinstaller==6.12.0`
 * `python -m PyInstaller main.spec`
 * Copy data folder to dist folder
 * Run fightbattle.exe

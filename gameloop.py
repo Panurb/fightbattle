@@ -1,5 +1,6 @@
 import os
 from _thread import *
+from queue import Queue
 
 import numpy as np
 from pyglet.window import key
@@ -47,6 +48,7 @@ class GameLoop:
 
         self.network = None
         self.network_id = -1
+        self.network_queue = Queue()
 
         self.controller = None
         self.controller_id = 1
@@ -375,6 +377,10 @@ class GameLoop:
                 if isinstance(player.object, Gun) and player.object.attacked:
                     player.object.attack()
 
+            while self.network_queue.qsize() > 0:
+                data = self.network_queue.get()
+                self.apply_data(data)
+
             for i in list(self.level.objects.keys()):
                 obj = self.level.objects[i]
                 if isinstance(obj, Destroyable):
@@ -596,7 +602,7 @@ class GameLoop:
             sound_handler.menu_player.play()
             sound_handler.music_player.pause()
 
-        if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER}:
+        if self.state in {State.SINGLEPLAYER, State.MULTIPLAYER, State.LAN}:
             for p in self.players.values():
                 p.play_sounds(sound_handler)
 
@@ -636,36 +642,37 @@ class GameLoop:
 
             data = (player_data, object_data)
 
-            data = self.network.send(data)
+            response = self.network.send(data)
 
-            for p in data[0]:
-                if p[0] not in self.players:
-                    self.add_player(-1, p[0])
+            self.network_queue.put(response)
 
-                self.players[p[0]].apply_data(p)
+    def apply_data(self, data):
+        for p in data[0]:
+            if p[0] not in self.players:
+                self.add_player(-1, p[0])
 
-            # kinda purkka
-            ids = [p[0] for p in data[0]]
-            for k in list(self.players.keys()):
-                if k != self.network_id and k not in ids:
-                    del self.players[k]
+            self.players[p[0]].apply_data(p)
 
-            for d in data[1]:
-                if d[0] in self.level.objects:
-                    self.level.objects[d[0]].apply_data(d)
-                else:
-                    obj = d[1]([d[2], d[3]])
-                    obj.apply_data(d)
-                    self.level.objects[d[0]] = obj
-                    self.colliders[obj.collider.group].append(obj.collider)
+        # kinda purkka
+        ids = [p[0] for p in data[0]]
+        for k in list(self.players.keys()):
+            if k != self.network_id and k not in ids:
+                del self.players[k]
 
-            ids = [o[0] for o in data[1]]
-            for i in list(self.level.objects):
-                obj = self.level.objects[i]
-                if i not in ids:
-                    if isinstance(obj, Destroyable):
-                        obj.destroy(self.colliders)
-                    elif isinstance(obj, Bullet):
-                        obj.destroy()
+        for d in data[1]:
+            if d[0] in self.level.objects:
+                self.level.objects[d[0]].apply_data(d)
+            else:
+                obj = d[1]([d[2], d[3]])
+                obj.apply_data(d)
+                self.level.objects[d[0]] = obj
+                self.colliders[obj.collider.group].append(obj.collider)
 
-            player.damage(data[2], self.colliders)
+        ids = [o[0] for o in data[1]]
+        for i in list(self.level.objects):
+            obj = self.level.objects[i]
+            if i not in ids:
+                if isinstance(obj, Destroyable):
+                    obj.destroy(self.colliders)
+                elif isinstance(obj, Bullet):
+                    obj.destroy()
