@@ -31,7 +31,8 @@ class Server:
         self.controllers = dict()
         self.level = None
         self.colliders = []
-        self.client_queues = {}
+        self.input_queues = {}
+        self.output_queues = {}
 
         self.load_level(os.path.join('multiplayer', 'circle'))
 
@@ -65,14 +66,15 @@ class Server:
             conn, addr = self.sock.accept()
             print("Connected to:", addr)
 
-            self.client_queues[p] = Queue()
+            self.input_queues[p] = Queue()
+            self.output_queues[p] = Queue()
+
             start_new_thread(self.threaded_client, (conn, p))
             p += 1
 
     def threaded_client(self, conn, p):
         self.add_player(p)
         data = [self.players[p].get_data(), self.level.get_data()]
-        #print(len(pickle.dumps(data)))
         conn.send(pickle.dumps(data))
 
         while True:
@@ -82,12 +84,9 @@ class Server:
                 if not data:
                     break
 
-                self.client_queues[p].put(data)
+                self.input_queues[p].put(data)
 
-                reply = [
-                    [v.get_data() for v in self.players.values() if v.network_id != p],
-                    [o.get_data() for i, o in self.level.objects.items() if i != self.players[p].object_id]
-                ]
+                reply = self.output_queues[p].get()
 
                 reply = pickle.dumps(reply)
 
@@ -115,7 +114,7 @@ class Server:
             obj = self.level.objects[object_id]
             obj.apply_data(object_data)
 
-            if isinstance(obj, Gun) and obj.bullets_spawned:
+            if isinstance(obj, Gun) and obj.attacked:
                 bs = obj.attack()
                 for b in bs:
                     self.level.add_object(b)
@@ -125,6 +124,7 @@ class Server:
         clock = pygame.time.Clock()
         time_step = 1.0 / 60
 
+        step = 0
         while True:
             grabbed_objects = set()
 
@@ -138,16 +138,27 @@ class Server:
             self.level.update(time_step, self.colliders)
             # self.level.clear_sounds()
 
-            for p, queue in self.client_queues.items():
-                while not queue.empty():
-                    data = queue.get()
-                    self.apply_data(p, data)
-
             for i, o in list(self.level.objects.items()):
                 if o.grabbed and i not in grabbed_objects:
                     o.grabbed = False
 
+            for p, queue in self.input_queues.items():
+                if not queue.empty():
+                    data = queue.get()
+                    self.apply_data(p, data)
+
+            for p in self.players:
+                data = (
+                    tuple(v.get_data() for v in self.players.values() if v.network_id != p),
+                    tuple(o.get_data() for i, o in self.level.objects.items() if i != self.players[p].object_id)
+                )
+                self.output_queues[p].put(data)
+
+            for o in self.level.objects.values():
+                o.sounds.clear()
+
             clock.tick(60)
+            step = (step + 1) % 60
 
 
 if __name__ == '__main__':

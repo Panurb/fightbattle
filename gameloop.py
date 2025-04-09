@@ -1,6 +1,5 @@
 import os
 from _thread import *
-from queue import Queue
 
 import numpy as np
 from pyglet.window import key
@@ -48,7 +47,6 @@ class GameLoop:
 
         self.network = None
         self.network_id = -1
-        self.network_queue = Queue()
 
         self.controller = None
         self.controller_id = 1
@@ -374,12 +372,6 @@ class GameLoop:
             player.update(self.level.gravity, self.time_scale * time_step, self.colliders)
             if player.object:
                 player.object.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-                if isinstance(player.object, Gun) and player.object.attacked:
-                    player.object.attack()
-
-            while self.network_queue.qsize() > 0:
-                data = self.network_queue.get()
-                self.apply_data(data)
 
             for i in list(self.level.objects.keys()):
                 obj = self.level.objects[i]
@@ -636,15 +628,14 @@ class GameLoop:
             player_data = player.get_data()
             object_data = player.object.get_data() if player.object else ()
 
-            # Prevent multiple bullets from being created
-            if player.object and isinstance(player.object, Gun):
-                player.object.bullets_spawned = False
-
             data = (player_data, object_data)
+
+            if isinstance(player.object, Gun) and player.object.attacked:
+                player.object.attack()
 
             response = self.network.send(data)
 
-            self.network_queue.put(response)
+            self.apply_data(response)
 
     def apply_data(self, data):
         for p in data[0]:
