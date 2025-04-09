@@ -154,6 +154,7 @@ class Server:
                 )
                 self.output_queues[p].put(data)
 
+            # Sounds are not played on server side
             for o in self.level.objects.values():
                 o.sounds.clear()
 

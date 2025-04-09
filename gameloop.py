@@ -1,5 +1,6 @@
 import os
 from _thread import *
+from queue import Queue
 
 import numpy as np
 from pyglet.window import key
@@ -47,6 +48,7 @@ class GameLoop:
 
         self.network = None
         self.network_id = -1
+        self.network_queue = Queue()
 
         self.controller = None
         self.controller_id = 1
@@ -373,6 +375,10 @@ class GameLoop:
             if player.object:
                 player.object.update(self.level.gravity, self.time_scale * time_step, self.colliders)
 
+            if not self.network_queue.empty():
+                data = self.network_queue.get()
+                self.apply_data(data)
+
             for i in list(self.level.objects.keys()):
                 obj = self.level.objects[i]
                 if isinstance(obj, Destroyable):
@@ -635,7 +641,7 @@ class GameLoop:
 
             response = self.network.send(data)
 
-            self.apply_data(response)
+            self.network_queue.put(response)
 
     def apply_data(self, data):
         for p in data[0]:
