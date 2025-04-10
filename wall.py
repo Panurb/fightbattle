@@ -183,7 +183,7 @@ class Barrier(Wall, Destroyable):
     def draw_shadow(self, batch, camera, image_handler, light):
         return
 
-    def damage(self, amount, colliders):
+    def damage(self, amount, velocity, colliders):
         if amount >= self.health / 2:
-            super().damage(amount, colliders)
+            super().damage(amount, np.zeros(2), colliders)
             return Dust

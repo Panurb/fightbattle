@@ -226,7 +226,7 @@ class PhysicsObject(GameObject):
                     obj.velocity[:] = 2 * self.mass / (self.mass + obj.mass) * self.velocity
                 if self.blunt_damage and self.speed > 1.0:
                     if isinstance(collider.parent, Destroyable):
-                        particle_type = obj.damage(self.speed * self.blunt_damage, colliders)
+                        particle_type = obj.damage(self.speed * self.blunt_damage, np.zeros(2), colliders)
                         if particle_type:
                             self.particle_clouds.append(particle_type(self.position, 0.5 * self.velocity))
 
@@ -286,7 +286,9 @@ class Destroyable(PhysicsObject):
         super().apply_data(data)
         self.health = data[11]
 
-    def damage(self, amount, colliders):
+    def damage(self, amount, velocity, colliders):
+        self.velocity += velocity
+
         if self.health > 0:
             self.health -= amount
 
@@ -323,7 +325,7 @@ class Destroyable(PhysicsObject):
         if not self.destroyed:
             if self.collider and self.collider.collisions:
                 if self.speed > self.fall_damage_speed:
-                    self.damage(self.speed * self.fall_damage, colliders)
+                    self.damage(self.speed * self.fall_damage, np.zeros(2), colliders)
 
         for d in self.debris:
             d.update(gravity, time_step, colliders)

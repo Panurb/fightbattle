@@ -58,8 +58,7 @@ class Bullet(PhysicsObject):
                     continue
 
                 if isinstance(obj, Destroyable):
-                    obj.velocity += 0.1 * self.velocity
-                    particle_type = obj.damage(self.dmg, colliders)
+                    particle_type = obj.damage(self.dmg, 0.1 * self.velocity, colliders)
                     self.destroy(particle_type)
                 else:
                     obj.velocity += 0.5 * self.velocity
@@ -143,8 +142,7 @@ class Arrow(Bullet):
                 continue
 
             if isinstance(obj, Destroyable):
-                obj.velocity += 0.1 * self.velocity
-                particle_type = obj.damage(min(self.speed * self.dmg, 60), colliders)
+                particle_type = obj.damage(min(self.speed * self.dmg, 60), 0.1 * self.velocity, colliders)
                 self.destroy(particle_type)
                 if particle_type is BloodSplatter:
                     self.decal = 'bloodsplatter'

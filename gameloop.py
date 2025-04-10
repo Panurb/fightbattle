@@ -644,19 +644,23 @@ class GameLoop:
             self.network_queue.put(response)
 
     def apply_data(self, data):
-        for p in data[0]:
+        player_data = data[0]
+        object_data = data[1]
+        hits = data[2]
+
+        for p in player_data:
             if p[0] not in self.players:
                 self.add_player(-1, p[0])
 
             self.players[p[0]].apply_data(p)
 
         # kinda purkka
-        ids = [p[0] for p in data[0]]
+        ids = [p[0] for p in player_data]
         for k in list(self.players.keys()):
             if k != self.network_id and k not in ids:
                 del self.players[k]
 
-        for d in data[1]:
+        for d in object_data:
             if d[0] in self.level.objects:
                 self.level.objects[d[0]].apply_data(d)
             else:
@@ -665,7 +669,7 @@ class GameLoop:
                 self.level.objects[d[0]] = obj
                 self.colliders[obj.collider.group].append(obj.collider)
 
-        ids = [o[0] for o in data[1]]
+        ids = [o[0] for o in object_data]
         for i in list(self.level.objects):
             obj = self.level.objects[i]
             if i not in ids:
@@ -673,3 +677,5 @@ class GameLoop:
                     obj.destroy(self.colliders)
                 elif isinstance(obj, Bullet):
                     obj.destroy()
+
+        self.players[self.network_id].hits = list(hits)

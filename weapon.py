@@ -220,9 +220,8 @@ class Axe(Weapon):
                     self.parent.camera_shake = 10 * random_unit()
                     if isinstance(obj, PhysicsObject):
                         r = normalized(self.collider.position - obj.collider.position)
-                        obj.velocity -= r
                         if isinstance(obj, Destroyable):
-                            particle_type = obj.damage(50, colliders)
+                            particle_type = obj.damage(50, -r, colliders)
                             if particle_type:
                                 self.particle_clouds.append(particle_type(self.position, 5.0 * r))
                     self.hit = True
@@ -308,10 +307,8 @@ class Grenade(Destroyable):
                 r = obj.position - self.position
                 r_norm = norm(r)
 
-                obj.velocity += 10 * (5 - r_norm) * r / r_norm
-
                 if isinstance(obj, Destroyable):
-                    particle_type = obj.damage(int(abs(30 * (5 - r_norm))), colliders)
+                    particle_type = obj.damage(int(abs(30 * (5 - r_norm))), 10 * (5 - r_norm) * r / r_norm, colliders)
                     if particle_type:
                         self.particle_clouds.append(particle_type(obj.position, 5 * r))
 

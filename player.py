@@ -76,6 +76,8 @@ class Player(Destroyable):
         self.charging_attack = False
         self.charging_throw = False
 
+        self.hits = []
+
     def delete(self):
         super().delete()
         self.head.delete()
@@ -214,8 +216,7 @@ class Player(Destroyable):
         return acceleration
 
     def update(self, gravity, time_step, colliders):
-        if self.health <= 0:
-            self.destroy(colliders)
+        self.apply_damage(colliders)
 
         for p in self.particle_clouds:
             p.update(gravity, time_step)
@@ -266,7 +267,7 @@ class Player(Destroyable):
                                                          -0.2 * self.velocity, 5))
 
                     if self.velocity[1] < -self.fall_damage_speed:
-                        self.damage(self.fall_damage * abs(self.velocity[1]), colliders)
+                        self.damage(self.fall_damage * abs(self.velocity[1]), np.zeros(2), colliders)
 
                 self.on_ground = True
                 if type(collision.collider) is not Circle:
@@ -631,13 +632,20 @@ class Player(Destroyable):
         else:
             self.throw_charge = 0.0
 
-    def damage(self, amount, colliders):
-        self.sounds.add('hit')
+    def apply_damage(self, colliders):
+        for hit in self.hits:
+            amount, velocity = hit
+            self.velocity += velocity
+            self.health -= amount
 
-        self.health -= amount
+        self.hits.clear()
 
         if self.health <= 0:
             self.destroy(colliders)
+
+    def damage(self, amount, velocity, colliders):
+        self.sounds.add('hit')
+        self.hits.append((amount, velocity))
 
         return BloodSplatter
 

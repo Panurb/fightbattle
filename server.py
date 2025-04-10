@@ -150,8 +150,10 @@ class Server:
             for p in self.players:
                 data = (
                     tuple(v.get_data() for v in self.players.values() if v.network_id != p),
-                    tuple(o.get_data() for i, o in self.level.objects.items() if i != self.players[p].object_id)
+                    tuple(o.get_data() for i, o in self.level.objects.items() if i != self.players[p].object_id),
+                    tuple(self.players[p].hits),
                 )
+                self.players[p].hits.clear()
                 self.output_queues[p].put(data)
 
             # Sounds are not played on server side
