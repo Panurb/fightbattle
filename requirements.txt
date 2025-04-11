@@ -6,3 +6,4 @@ scipy==1.15.2
 pillow==11.1.0
 # Version 2 causes breaking changes
 pyglet<2.0.0
+psutil==7.0.0

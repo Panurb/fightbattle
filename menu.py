@@ -1,27 +1,29 @@
 import os
-from enum import Enum
+from enum import Enum, auto
 import pickle
 
 import numpy as np
 
 from button import Button, Slider, RebindButton
 from helpers import basis
+from network import list_sockets_on_port
 from text import Text, TitleText
 
 
 class State(Enum):
-    QUIT = 1
-    MULTIPLAYER = 2
-    MENU = 3
-    PLAYER_SELECT = 4
-    LEVEL_SELECT = 5
-    PAUSED = 6
-    OPTIONS = 7
-    LAN = 8
-    CONTROLS = 9
-    SINGLEPLAYER = 10
-    CAMPAIGN = 11
-    CREDITS = 12
+    QUIT = auto()
+    MULTIPLAYER = auto()
+    MENU = auto()
+    PLAYER_SELECT = auto()
+    LEVEL_SELECT = auto()
+    PAUSED = auto()
+    OPTIONS = auto()
+    LAN_MENU = auto()
+    LAN = auto()
+    CONTROLS = auto()
+    SINGLEPLAYER = auto()
+    CAMPAIGN = auto()
+    CREDITS = auto()
 
 
 class Menu:
@@ -139,7 +141,7 @@ class MainMenu(Menu):
         self.button_offset = -1.5
         self.buttons.append(Button('SINGLEPLAYER', State.CAMPAIGN))
         self.buttons.append(Button('MULTIPLAYER', State.PLAYER_SELECT))
-        self.buttons.append(Button('LAN', State.LAN))
+        self.buttons.append(Button('LAN', State.LAN_MENU))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('CREDITS', State.CREDITS))
         self.buttons.append(Button('QUIT', State.QUIT))
@@ -467,3 +469,33 @@ class CreditsMenu(Menu):
         super().draw(batch, camera, image_handler)
         for text in self.text:
             text.draw(batch, camera, image_handler)
+
+
+class LANMenu(Menu):
+    def __init__(self):
+        super().__init__([0, -32])
+        self.target_state = State.LAN_MENU
+        self.previous_state = State.MENU
+        self.button_offset = -1.5
+
+        self.refresh()
+
+    def refresh(self):
+        servers = list_sockets_on_port(5555)
+        self.buttons = []
+        for server in servers:
+            self.buttons.append(Button(server.ip, State.LAN))
+        self.buttons.append(Button('REFRESH', State.MENU))
+        self.update_buttons()
+
+        back_button = Button('(B) back', State.MENU)
+        back_button.set_position(self.position + np.array([-10, -6]))
+        self.buttons.append(back_button)
+
+        host_button = Button('HOST', State.LAN)
+        host_button.set_position(self.position + np.array([10, -6]))
+        self.buttons.append(host_button)
+
+    def input(self, input_handler, controller_id=0):
+        for i in range(len(input_handler.controllers)):
+            super().input(input_handler, i)

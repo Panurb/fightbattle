@@ -11,7 +11,8 @@ from enemy import Enemy
 from gameobject import Destroyable
 from helpers import basis
 from level import Level
-from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu, CampaignMenu, CreditsMenu
+from menu import State, PlayerMenu, MainMenu, OptionsMenu, PauseMenu, LevelMenu, ControlsMenu, CampaignMenu, \
+    CreditsMenu, LANMenu
 from player import Player
 from network import Network
 from prop import Ball
@@ -45,6 +46,7 @@ class GameLoop:
         self.level_menu = LevelMenu()
         self.controls_menu = ControlsMenu()
         self.credits_menu = CreditsMenu()
+        self.lan_menu = LANMenu()
 
         self.network = None
         self.network_id = -1
@@ -137,7 +139,8 @@ class GameLoop:
     def connect(self):
         self.menu.set_visible(False)
 
-        self.network = Network()
+        selected_server = next(b for b in self.lan_menu.buttons if b.selected)
+        self.network = Network(selected_server.text.string)
         data = self.network.data
 
         if data is None:
@@ -366,6 +369,13 @@ class GameLoop:
             self.camera.target_position[:] = self.level_menu.position
             self.state = self.level_menu.target_state
             self.level_menu.target_state = State.LEVEL_SELECT
+        elif self.state is State.LAN_MENU:
+            self.camera.target_position[:] = self.lan_menu.position
+            self.state = self.lan_menu.target_state
+
+            self.lan_menu.set_visible(self.state is State.LAN)
+
+            self.lan_menu.target_state = State.LAN_MENU
         elif self.state is State.LAN:
             if self.network is None:
                 self.connect()
@@ -504,6 +514,8 @@ class GameLoop:
                             return
         elif self.state is State.LEVEL_SELECT:
             self.level_menu.input(input_handler)
+        elif self.state is State.LAN_MENU:
+            self.lan_menu.input(input_handler)
         elif self.state is State.LAN:
             if self.network is not None:
                 player = self.players[self.network_id]
@@ -575,6 +587,8 @@ class GameLoop:
                     p.draw(batch, self.camera, image_handler)
             if State.CREDITS in state_queue:
                 self.credits_menu.draw(batch, self.camera, image_handler)
+            if State.LAN_MENU in state_queue:
+                self.lan_menu.draw(batch, self.camera, image_handler)
 
         self.camera.draw(batch)
 

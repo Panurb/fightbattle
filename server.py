@@ -136,7 +136,6 @@ class Server:
                     grabbed_objects.add(p.object_id)
 
             self.level.update(time_step, self.colliders)
-            # self.level.clear_sounds()
 
             for i, o in list(self.level.objects.items()):
                 if o.grabbed and i not in grabbed_objects:
@@ -157,8 +156,7 @@ class Server:
                 self.output_queues[p].put(data)
 
             # Sounds are not played on server side
-            for o in self.level.objects.values():
-                o.sounds.clear()
+            self.level.clear_sounds()
 
             clock.tick(60)
             step = (step + 1) % 60
