@@ -369,11 +369,15 @@ class GameLoop:
             self.camera.target_position[:] = self.level_menu.position
             self.state = self.level_menu.target_state
             self.level_menu.target_state = State.LEVEL_SELECT
+        elif self.state is State.LAN_REFRESH:
+            self.lan_menu.refresh()
+            self.state = State.LAN_MENU
         elif self.state is State.LAN_MENU:
+            self.previous_state = State.MENU
             self.camera.target_position[:] = self.lan_menu.position
             self.state = self.lan_menu.target_state
 
-            self.lan_menu.set_visible(self.state is State.LAN)
+            self.lan_menu.set_visible(self.state is State.LAN_MENU)
 
             self.lan_menu.target_state = State.LAN_MENU
         elif self.state is State.LAN:

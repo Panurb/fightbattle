@@ -18,6 +18,7 @@ class State(Enum):
     LEVEL_SELECT = auto()
     PAUSED = auto()
     OPTIONS = auto()
+    LAN_REFRESH = auto()
     LAN_MENU = auto()
     LAN = auto()
     CONTROLS = auto()
@@ -141,7 +142,7 @@ class MainMenu(Menu):
         self.button_offset = -1.5
         self.buttons.append(Button('SINGLEPLAYER', State.CAMPAIGN))
         self.buttons.append(Button('MULTIPLAYER', State.PLAYER_SELECT))
-        self.buttons.append(Button('LAN', State.LAN_MENU))
+        self.buttons.append(Button('LAN', State.LAN_REFRESH))
         self.buttons.append(Button('OPTIONS', State.OPTIONS))
         self.buttons.append(Button('CREDITS', State.CREDITS))
         self.buttons.append(Button('QUIT', State.QUIT))
@@ -478,14 +479,12 @@ class LANMenu(Menu):
         self.previous_state = State.MENU
         self.button_offset = -1.5
 
-        self.refresh()
-
     def refresh(self):
-        servers = list_sockets_on_port(5555)
+        servers = list_sockets_on_port(5555, '192.168.1.0/24')
         self.buttons = []
         for server in servers:
             self.buttons.append(Button(server, State.LAN))
-        self.buttons.append(Button('REFRESH', State.MENU))
+        self.buttons.append(Button('REFRESH', State.LAN_REFRESH))
         self.update_buttons()
 
         back_button = Button('(B) back', State.MENU)

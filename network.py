@@ -1,21 +1,40 @@
 import pickle
 import socket
 
-import psutil
+from ipaddress import ip_network
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 PACKET_SIZE = 2500
 
 
-def list_sockets_on_port(port):
-    connections = psutil.net_connections(kind='inet')  # Get all IPv4 and IPv6 connections
+def scan_ip(ip, port):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)  # Set a short timeout for responsiveness
+            if s.connect_ex((str(ip), port)) == 0:  # Check if the port is open
+                return str(ip)
+    except Exception:
+        pass
+    return None
 
-    filtered_connections = set()
 
-    for conn in connections:
-        if conn.laddr and conn.laddr.port == port:  # Filter by the specified port
-            filtered_connections.add(conn.laddr.ip)
+def list_sockets_on_port(port, network_cidr):
+    """
+    Scan the LAN for open sockets on the specified port using multithreading.
 
-    return filtered_connections
+    :param port: Port to check for open sockets.
+    :param network_cidr: CIDR notation of the LAN (e.g., '192.168.1.0/24').
+    :return: A list of IPs with open sockets on the specified port.
+    """
+    open_sockets = []
+    with ThreadPoolExecutor(max_workers=50) as executor:  # Adjust max_workers as needed
+        futures = {executor.submit(scan_ip, ip, port): ip for ip in ip_network(network_cidr, strict=False).hosts()}
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                open_sockets.append(result)
+    return open_sockets
 
 
 class Network:
