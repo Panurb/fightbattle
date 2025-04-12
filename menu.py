@@ -484,7 +484,7 @@ class LANMenu(Menu):
         servers = list_sockets_on_port(5555)
         self.buttons = []
         for server in servers:
-            self.buttons.append(Button(server.ip, State.LAN))
+            self.buttons.append(Button(server, State.LAN))
         self.buttons.append(Button('REFRESH', State.MENU))
         self.update_buttons()
 

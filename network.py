@@ -9,11 +9,11 @@ PACKET_SIZE = 2500
 def list_sockets_on_port(port):
     connections = psutil.net_connections(kind='inet')  # Get all IPv4 and IPv6 connections
 
-    filtered_connections = []
+    filtered_connections = set()
 
     for conn in connections:
         if conn.laddr and conn.laddr.port == port:  # Filter by the specified port
-            filtered_connections.append(conn.laddr)
+            filtered_connections.add(conn.laddr.ip)
 
     return filtered_connections
 

@@ -54,9 +54,21 @@ class Server:
             obj.collider.update_occupied_squares(self.colliders)
 
     def add_player(self, network_id):
+        red_players = 0
+        blue_players = 0
+        for p in self.players.values():
+            red_players += p.team == 'red'
+            blue_players += p.team == 'blue'
+
+        if red_players < blue_players:
+            team = 'red'
+        else:
+            team = 'blue'
+
         player = Player([0, 0], -1, network_id)
-        player.set_spawn(self.level, self.players)
+        player.team = team
         self.players[network_id] = player
+        player.set_spawn(self.level, self.players)
         self.controllers[network_id] = Controller(-1)
 
     def start(self):
@@ -105,8 +117,6 @@ class Server:
         player_data, object_data = data
 
         player = self.players[p]
-        health = player.health
-
         player.apply_data(player_data)
 
         object_id = player_data[-1]

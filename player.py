@@ -1,3 +1,6 @@
+import os
+import random
+
 import numpy as np
 from numpy.linalg import norm
 
@@ -21,8 +24,14 @@ class Player(Destroyable):
 
         self.add_collider(Rectangle([0, 0], 0.8, 3, Group.PLAYERS))
 
-        self.body_type = 'camo'
-        self.head_type = 'bald'
+        path = os.path.join('data', 'images', 'bodies')
+        bodies = [x.split('.')[0] for x in os.listdir(path)]
+
+        path = os.path.join('data', 'images', 'heads')
+        heads = [x.split('.')[0] for x in os.listdir(path)]
+
+        self.body_type = random.choice(bodies)
+        self.head_type = random.choice(heads)
         self.team = ''
 
         self.body = Drawable(self.position, self.body_type, 1.0, layer=7)
@@ -90,12 +99,27 @@ class Player(Destroyable):
 
     def get_data(self):
         object_id = self.object.id if self.object else -1
-        return (self.network_id, ) + super().get_data()[1:] + (self.hand.position[0], self.hand.position[1], self.grabbing,
-                                                               self.crouched, self.back_foot.position[0], self.back_foot.position[1],
-                                                               self.front_foot.position[0], self.front_foot.position[1], object_id)
+        data = (
+            self.team,
+            self.body_type,
+            self.head_type,
+            self.hand.position[0],
+            self.hand.position[1],
+            self.grabbing,
+            self.crouched,
+            self.back_foot.position[0],
+            self.back_foot.position[1],
+            self.front_foot.position[0],
+            self.front_foot.position[1],
+            object_id
+        )
+        return (self.network_id, ) + super().get_data()[1:] + data
 
     def apply_data(self, data):
         super().apply_data(data)
+        self.team = data[-12]
+        self.body_type = data[-11]
+        self.head_type = data[-10]
         self.hand.set_position(np.array(data[-9:-7]))
         self.grabbing = data[-7]
         self.crouched = data[-6]
