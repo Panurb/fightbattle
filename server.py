@@ -31,7 +31,6 @@ class Server:
         self.controllers = dict()
         self.level = None
         self.colliders = []
-        self.input_queues = {}
         self.output_queues = {}
 
         self.load_level(os.path.join('multiplayer', 'circle'))
@@ -78,7 +77,6 @@ class Server:
             conn, addr = self.sock.accept()
             print("Connected to:", addr)
 
-            self.input_queues[p] = Queue()
             self.output_queues[p] = Queue()
 
             start_new_thread(self.threaded_client, (conn, p))
@@ -96,7 +94,7 @@ class Server:
                 if not data:
                     break
 
-                self.input_queues[p].put(data)
+                self.apply_data(p, data)
 
                 reply = self.output_queues[p].get()
 
@@ -150,11 +148,6 @@ class Server:
             for i, o in list(self.level.objects.items()):
                 if o.grabbed and i not in grabbed_objects:
                     o.grabbed = False
-
-            for p, queue in self.input_queues.items():
-                if not queue.empty():
-                    data = queue.get()
-                    self.apply_data(p, data)
 
             for p in self.players:
                 data = (
