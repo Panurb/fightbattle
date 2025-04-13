@@ -86,6 +86,7 @@ class Player(Destroyable):
         self.charging_throw = False
 
         self.hits = []
+        self.reseted = False
 
     def delete(self):
         super().delete()
@@ -100,6 +101,7 @@ class Player(Destroyable):
     def get_data(self):
         object_id = self.object.id if self.object else -1
         data = (
+            self.reseted,
             self.team,
             self.body_type,
             self.head_type,
@@ -117,6 +119,7 @@ class Player(Destroyable):
 
     def apply_data(self, data):
         super().apply_data(data)
+        self.reseted = data[-13]
         self.team = data[-12]
         self.body_type = data[-11]
         self.head_type = data[-10]
@@ -194,6 +197,9 @@ class Player(Destroyable):
         self.wounds.delete()
         self.wounds.image_path = ''
 
+        self.hits.clear()
+        self.reseted = False
+
     def set_spawn(self, level, players):
         i = 0
         if len(players) > 1:
@@ -240,6 +246,9 @@ class Player(Destroyable):
         return acceleration
 
     def update(self, gravity, time_step, colliders):
+        if self.reseted:
+            self.reset(colliders)
+
         self.apply_damage(colliders)
 
         for p in self.particle_clouds:

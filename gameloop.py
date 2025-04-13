@@ -140,7 +140,8 @@ class GameLoop:
         self.menu.set_visible(False)
 
         selected_server = next(b for b in self.lan_menu.buttons if b.selected)
-        self.network = Network(selected_server.text.string)
+        server_ip = selected_server.text.string.split(':')[0]
+        self.network = Network(server_ip)
         data = self.network.data
 
         if data is None:

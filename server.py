@@ -35,6 +35,8 @@ class Server:
 
         self.load_level(os.path.join('multiplayer', 'circle'))
 
+        self.server_name = "Test server"
+
     def load_level(self, name):
         self.level = Level(name, server=True)
         self.level.dust = False
@@ -83,6 +85,9 @@ class Server:
             p += 1
 
     def threaded_client(self, conn, p):
+        data = (self.server_name, len(self.players))
+        conn.send(pickle.dumps(data))
+
         self.add_player(p)
         data = [self.players[p].get_data(), self.level.get_data()]
         conn.send(pickle.dumps(data))
@@ -132,7 +137,6 @@ class Server:
         clock = pygame.time.Clock()
         time_step = 1.0 / 60
 
-        step = 0
         while True:
             grabbed_objects = set()
 
@@ -149,6 +153,9 @@ class Server:
                 if o.grabbed and i not in grabbed_objects:
                     o.grabbed = False
 
+            if self.check_win():
+                self.reset_game()
+
             for p in self.players:
                 data = (
                     tuple(v.get_data() for v in self.players.values() if v.network_id != p),
@@ -162,7 +169,47 @@ class Server:
             self.level.clear_sounds()
 
             clock.tick(60)
-            step = (step + 1) % 60
+
+    def check_win(self):
+        if len(self.players) < 2:
+            return False
+
+        alive = {'blue': False, 'red': False}
+
+        for player in self.players.values():
+            if not player.destroyed:
+                alive[player.team] = True
+
+        if not alive['blue']:
+            self.level.scoreboard.scores['red'] += 1
+            return True
+        elif not alive['red']:
+            self.level.scoreboard.scores['blue'] += 1
+            return True
+
+        return False
+
+    def reset_game(self):
+        for o in self.level.objects.values():
+            if o.collider:
+                o.collider.clear_occupied_squares(self.colliders)
+
+        self.level.reset()
+
+        for obj in self.level.objects.values():
+            obj.collider.update_occupied_squares(self.colliders)
+
+        for p in self.players.values():
+            p.reseted = True
+            p.set_spawn(self.level, self.players)
+
+        for p in self.players:
+            data = (
+                tuple(v.get_data() for v in self.players.values()),
+                tuple(o.get_data() for i, o in self.level.objects.items()),
+                tuple(),
+            )
+            self.output_queues[p].put(data)
 
 
 if __name__ == '__main__':

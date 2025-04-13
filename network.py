@@ -13,7 +13,9 @@ def scan_ip(ip, port):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(0.5)  # Set a short timeout for responsiveness
             if s.connect_ex((str(ip), port)) == 0:  # Check if the port is open
-                return str(ip)
+                response = s.recv(1024)
+                server_name, players = pickle.loads(response)
+                return f"{ip}: {server_name} ({players} players)"
     except Exception:
         pass
     return None
@@ -47,6 +49,7 @@ class Network:
     def connect(self):
         try:
             self.client.connect(self.addr)
+            self.client.recv(1024)
             return pickle.loads(self.client.recv(5000))
         except:
             pass

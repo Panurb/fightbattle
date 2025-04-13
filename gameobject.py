@@ -113,7 +113,7 @@ class PhysicsObject(GameObject):
         self.group = collider.group
 
     def get_data(self):
-        return super().get_data() + (self.velocity[0], self.velocity[1], self.sounds, self.group, self.grabbed)
+        return super().get_data() + (self.velocity[0], self.velocity[1], tuple(self.sounds), self.group, self.grabbed)
 
     def apply_data(self, data):
         super().apply_data(data)
