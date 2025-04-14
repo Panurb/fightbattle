@@ -394,18 +394,18 @@ class GameLoop:
                 data = self.network_queue.get()
                 self.apply_data(data)
 
-            for i in list(self.level.objects.keys()):
-                obj = self.level.objects[i]
-                if isinstance(obj, Destroyable):
-                    if obj.destroyed:
-                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-                        if not obj.debris:
-                            del self.level.objects[i]
-                elif isinstance(obj, Bullet):
-                    if obj.destroyed:
-                        obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
-                        if obj.destroyed and not obj.particle_clouds:
-                            del self.level.objects[i]
+            # for i in list(self.level.objects.keys()):
+            #     obj = self.level.objects[i]
+            #     if isinstance(obj, Destroyable):
+            #         if obj.destroyed:
+            #             obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            #             if not obj.debris:
+            #                 del self.level.objects[i]
+            #     elif isinstance(obj, Bullet):
+            #         if obj.destroyed:
+            #             obj.update(self.level.gravity, self.time_scale * time_step, self.colliders)
+            #             if obj.destroyed and not obj.particle_clouds:
+            #                 del self.level.objects[i]
 
             self.camera.target_position[:] = self.players[self.network_id].position
         elif self.state is State.OPTIONS:
@@ -663,9 +663,24 @@ class GameLoop:
             self.network_queue.put(response)
 
     def apply_data(self, data):
-        player_data = data[0]
-        object_data = data[1]
-        hits = data[2]
+        reseted, player_data, object_data, hits = data
+
+        if reseted:
+            for o in self.level.objects.values():
+                o.particle_clouds.clear()
+            # self.level.objects.clear()
+
+            # for p in self.players.values():
+            #     p.wounds.delete()
+            #     p.wounds.image_path = ''
+            # self.players.clear()
+
+            player = self.players[self.network_id]
+            player.drop_object()
+            player.reset(self.colliders)
+            player.set_spawn(self.level, self.players)
+
+            # self.add_player(self.controller_id, self.network_id)
 
         for p in player_data:
             if p[0] not in self.players:

@@ -33,9 +33,10 @@ class Server:
         self.colliders = []
         self.output_queues = {}
 
-        self.load_level(os.path.join('multiplayer', 'circle'))
+        self.load_level(os.path.join('multiplayer', 'bridge'))
 
         self.server_name = "Test server"
+        self.reseted = False
 
     def load_level(self, name):
         self.level = Level(name, server=True)
@@ -153,17 +154,25 @@ class Server:
                 if o.grabbed and i not in grabbed_objects:
                     o.grabbed = False
 
-            if self.check_win():
+            won = self.check_win()
+
+            if won:
                 self.reset_game()
+            else:
+                self.reseted = False
 
             for p in self.players:
                 data = (
+                    won and not self.reseted,
                     tuple(v.get_data() for v in self.players.values() if v.network_id != p),
                     tuple(o.get_data() for i, o in self.level.objects.items() if i != self.players[p].object_id),
                     tuple(self.players[p].hits),
                 )
                 self.players[p].hits.clear()
                 self.output_queues[p].put(data)
+
+            if won:
+                self.reseted = True
 
             # Sounds are not played on server side
             self.level.clear_sounds()
@@ -190,26 +199,29 @@ class Server:
         return False
 
     def reset_game(self):
-        for o in self.level.objects.values():
-            if o.collider:
-                o.collider.clear_occupied_squares(self.colliders)
+        if self.reseted:
+            return
 
-        self.level.reset()
+        # for o in self.level.objects.values():
+        #     if o.collider:
+        #         o.collider.clear_occupied_squares(self.colliders)
+        #
+        # self.level.reset()
+        #
+        # for obj in self.level.objects.values():
+        #     obj.collider.update_occupied_squares(self.colliders)
 
-        for obj in self.level.objects.values():
-            obj.collider.update_occupied_squares(self.colliders)
+        # for p in self.players:
+        #     self.players[p].reset(self.colliders)
+        #     self.players[p].set_spawn(self.level, self.players)
 
-        for p in self.players.values():
-            p.reseted = True
-            p.set_spawn(self.level, self.players)
-
-        for p in self.players:
-            data = (
-                tuple(v.get_data() for v in self.players.values()),
-                tuple(o.get_data() for i, o in self.level.objects.items()),
-                tuple(),
-            )
-            self.output_queues[p].put(data)
+            # data = (
+            #     True,
+            #     tuple(v.get_data() for v in self.players.values() if v.network_id != p),
+            #     tuple(o.get_data() for i, o in self.level.objects.items()),
+            #     tuple(),
+            # )
+            # self.output_queues[p].put(data)
 
 
 if __name__ == '__main__':

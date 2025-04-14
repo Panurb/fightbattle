@@ -86,7 +86,6 @@ class Player(Destroyable):
         self.charging_throw = False
 
         self.hits = []
-        self.reseted = False
 
     def delete(self):
         super().delete()
@@ -101,25 +100,23 @@ class Player(Destroyable):
     def get_data(self):
         object_id = self.object.id if self.object else -1
         data = (
-            self.reseted,
             self.team,
             self.body_type,
             self.head_type,
-            self.hand.position[0],
-            self.hand.position[1],
+            float(self.hand.position[0]),
+            float(self.hand.position[1]),
             self.grabbing,
             self.crouched,
-            self.back_foot.position[0],
-            self.back_foot.position[1],
-            self.front_foot.position[0],
-            self.front_foot.position[1],
+            float(self.back_foot.position[0]),
+            float(self.back_foot.position[1]),
+            float(self.front_foot.position[0]),
+            float(self.front_foot.position[1]),
             object_id
         )
         return (self.network_id, ) + super().get_data()[1:] + data
 
     def apply_data(self, data):
         super().apply_data(data)
-        self.reseted = data[-13]
         self.team = data[-12]
         self.body_type = data[-11]
         self.head_type = data[-10]
@@ -133,12 +130,16 @@ class Player(Destroyable):
 
         self.body.rotate(-0.05 * self.velocity[0] - 0.5 * self.direction * self.crouched - self.body.angle)
 
+        self.update_joints()
+
         self.back_foot.set_position(np.array(data[-5:-3]))
         self.front_foot.set_position(np.array(data[-3:-1]))
 
         self.object_id = data[-1]
 
-        self.update_joints()
+        if self.health == 100:
+            self.wounds.delete()
+            self.wounds.image_path = ''
 
         # self.animate(0.0)
 
@@ -197,8 +198,8 @@ class Player(Destroyable):
         self.wounds.delete()
         self.wounds.image_path = ''
 
+        self.sounds.clear()
         self.hits.clear()
-        self.reseted = False
 
     def set_spawn(self, level, players):
         i = 0
@@ -246,9 +247,6 @@ class Player(Destroyable):
         return acceleration
 
     def update(self, gravity, time_step, colliders):
-        if self.reseted:
-            self.reset(colliders)
-
         self.apply_damage(colliders)
 
         for p in self.particle_clouds:

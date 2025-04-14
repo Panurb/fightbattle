@@ -280,11 +280,12 @@ class Destroyable(PhysicsObject):
             d.delete()
 
     def get_data(self):
-        return super().get_data() + (self.health, )
+        return super().get_data() + (self.health, self.destroyed)
 
     def apply_data(self, data):
         super().apply_data(data)
         self.health = data[11]
+        self.destroyed = data[12]
 
     def damage(self, amount, velocity, colliders):
         self.velocity += velocity
